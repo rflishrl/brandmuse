@@ -10,7 +10,7 @@ def export_openapi() -> None:
 
     # Find the repository apps/web directory
     # Current file: apps/api/app/scripts/export_openapi.py
-    # parents[0] = scripts, parents[1] = app, parents[2] = api, parents[3] = apps, parents[4] = brandmuse
+    # parents[2] = api, parents[3] = apps, parents[3].parent = brandmuse root
     repo_root = Path(__file__).resolve().parents[3].parent
     output_path = repo_root / "apps" / "web" / "openapi.json"
 
