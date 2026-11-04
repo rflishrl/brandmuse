@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-api dev-web lint typecheck test build api-generate migrate docker-up docker-down
+.PHONY: help install dev dev-api dev-web lint typecheck test build api-generate migrate docker-up docker-down eval-retrieval eval-quantization smoke-test
 
 SHELL := /bin/bash
 
@@ -46,6 +46,15 @@ api-generate:
 
 migrate:
 	cd apps/api && uv run alembic upgrade head
+
+eval-retrieval:
+	cd apps/api && uv run python ../../eval/retrieval.py
+
+eval-quantization:
+	cd apps/api && uv run python ../../eval/quantization.py
+
+smoke-test:
+	bash scripts/smoke-test.sh $${BASE_URL:-http://localhost:8000}
 
 docker-up:
 	docker compose up -d

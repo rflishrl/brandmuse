@@ -11,12 +11,12 @@ export const NotFoundPage: React.FC = () => {
       <p className="text-sm text-muted-foreground max-w-sm">
         The requested page does not exist. Please return to the assistant workspace.
       </p>
-      <Link to="/" className="mt-2">
-        <Button variant="default" className="gap-2">
+      <Button variant="default" className="gap-2 mt-2" asChild>
+        <Link to="/">
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Workspace</span>
-        </Button>
-      </Link>
+        </Link>
+      </Button>
     </div>
   );
 };

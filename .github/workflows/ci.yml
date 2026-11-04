@@ -38,6 +38,9 @@ jobs:
       - name: Run unit & integration tests
         run: uv run pytest
 
+      - name: Verify retrieval evaluation benchmark
+        run: uv run python ../../eval/retrieval.py
+
   frontend:
     name: Frontend Lint, Typecheck & Build
     runs-on: ubuntu-latest

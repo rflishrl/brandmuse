@@ -174,18 +174,17 @@ export const GalleryPage: React.FC = () => {
               </div>
 
               <div className="flex flex-col gap-2 pt-6">
-                <a
-                  href={activeLightboxItem.image_url}
-                  download={`brandmuse-${activeLightboxItem.concept_title.toLowerCase().replace(/\s+/g, "-")}.png`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full"
-                >
-                  <Button variant="default" className="w-full">
+                <Button variant="default" className="w-full" asChild>
+                  <a
+                    href={activeLightboxItem.image_url}
+                    download={`brandmuse-${activeLightboxItem.concept_title.toLowerCase().replace(/\s+/g, "-")}.png`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
                     <Download className="w-4 h-4 mr-2" />
                     Download PNG
-                  </Button>
-                </a>
+                  </a>
+                </Button>
                 <a
                   href={activeLightboxItem.image_url}
                   target="_blank"
