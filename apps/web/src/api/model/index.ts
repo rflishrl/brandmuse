@@ -7,6 +7,9 @@
  */
 
 export * from './bodyUploadDocument';
+export * from './chatMessage';
+export * from './chatMessageRole';
+export * from './chatRequest';
 export * from './documentListResponse';
 export * from './documentResponse';
 export * from './documentUploadResponse';

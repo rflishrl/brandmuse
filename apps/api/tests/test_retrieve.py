@@ -1,6 +1,8 @@
 import uuid
 from unittest.mock import AsyncMock, MagicMock
+
 import pytest
+
 from app.db.models import Chunk
 from app.providers.embeddings import BaseEmbeddingProvider
 from app.rag.retrieve import hybrid_retrieve
@@ -10,7 +12,7 @@ class DummyEmbeddingProvider(BaseEmbeddingProvider):
     async def embed_documents(self, texts: list[str]) -> list[list[float]]:
         return [[0.1] * 1536 for _ in texts]
 
-    async def embed_query(self, text: str) -> list[float]:
+    async def embed_query(self, _text: str) -> list[float]:
         return [0.1] * 1536
 
 

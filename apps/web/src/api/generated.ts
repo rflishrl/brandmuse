@@ -26,6 +26,7 @@ import type {
 
 import type {
   BodyUploadDocument,
+  ChatRequest,
   DocumentListResponse,
   DocumentUploadResponse,
   HTTPValidationError,
@@ -134,7 +135,7 @@ export function useGetHealth<TData = Awaited<ReturnType<typeof getHealth>>, TErr
 
 
 /**
- * Streams and validates a brand guideline PDF (max 10MB, max 40 pages), then chunks and indexes it.
+ * Streams and validates a guideline PDF (max 10MB, max 40 pages), then indexes it.
  * @summary Upload Brand Guideline PDF
  */
 export const uploadDocument = (
@@ -202,7 +203,7 @@ export const useUploadDocument = <TError = HTTPValidationError,
     }
     
 /**
- * Returns all documents uploaded by the current session plus the shared sample brand guideline.
+ * Returns guidelines uploaded by the current session plus the shared sample brand.
  * @summary List Brand Guidelines
  */
 export const listDocuments = (
@@ -296,7 +297,7 @@ export function useListDocuments<TData = Awaited<ReturnType<typeof listDocuments
 
 
 /**
- * Loads the preloaded fictional brand guideline ('Aura Living') for zero-friction demo interaction.
+ * Loads the preloaded sample brand guideline ('Aura Living') for demo interaction.
  * @summary Load Sample Brand Guideline
  */
 export const loadSampleBrand = (
@@ -355,6 +356,72 @@ export const useLoadSampleBrand = <TError = HTTPValidationError,
       > => {
 
       const mutationOptions = getLoadSampleBrandMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
+/**
+ * Streams token-by-token answer via Server-Sent Events (SSE) grounded in retrieved brand guidelines, concluding with citations (page + snippet) and Langfuse trace link.
+ * @summary Stream Grounded Chat Answer
+ */
+export const streamChat = (
+    chatRequest: ChatRequest,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<unknown>(
+      {url: `/api/chat`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: chatRequest, signal
+    },
+      options);
+    }
+  
+
+
+export const getStreamChatMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof streamChat>>, TError,{data: ChatRequest}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof streamChat>>, TError,{data: ChatRequest}, TContext> => {
+
+const mutationKey = ['streamChat'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof streamChat>>, {data: ChatRequest}> = (props) => {
+          const {data} = props ?? {};
+
+          return  streamChat(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type StreamChatMutationResult = NonNullable<Awaited<ReturnType<typeof streamChat>>>
+    export type StreamChatMutationBody = ChatRequest
+    export type StreamChatMutationError = HTTPValidationError
+
+    /**
+ * @summary Stream Grounded Chat Answer
+ */
+export const useStreamChat = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof streamChat>>, TError,{data: ChatRequest}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof streamChat>>,
+        TError,
+        {data: ChatRequest},
+        TContext
+      > => {
+
+      const mutationOptions = getStreamChatMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }

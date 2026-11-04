@@ -34,7 +34,7 @@
           "documents"
         ],
         "summary": "Upload Brand Guideline PDF",
-        "description": "Streams and validates a brand guideline PDF (max 10MB, max 40 pages), then chunks and indexes it.",
+        "description": "Streams and validates a guideline PDF (max 10MB, max 40 pages), then indexes it.",
         "operationId": "uploadDocument",
         "parameters": [
           {
@@ -94,7 +94,7 @@
           "documents"
         ],
         "summary": "List Brand Guidelines",
-        "description": "Returns all documents uploaded by the current session plus the shared sample brand guideline.",
+        "description": "Returns guidelines uploaded by the current session plus the shared sample brand.",
         "operationId": "listDocuments",
         "parameters": [
           {
@@ -146,7 +146,7 @@
           "documents"
         ],
         "summary": "Load Sample Brand Guideline",
-        "description": "Loads the preloaded fictional brand guideline ('Aura Living') for zero-friction demo interaction.",
+        "description": "Loads the preloaded sample brand guideline ('Aura Living') for demo interaction.",
         "operationId": "loadSampleBrand",
         "parameters": [
           {
@@ -191,6 +191,67 @@
           }
         }
       }
+    },
+    "/api/chat": {
+      "post": {
+        "tags": [
+          "chat"
+        ],
+        "summary": "Stream Grounded Chat Answer",
+        "description": "Streams token-by-token answer via Server-Sent Events (SSE) grounded in retrieved brand guidelines, concluding with citations (page + snippet) and Langfuse trace link.",
+        "operationId": "streamChat",
+        "parameters": [
+          {
+            "name": "X-Session-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client session identifier as UUID",
+              "title": "X-Session-Id"
+            },
+            "description": "Client session identifier as UUID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Server-Sent Events stream: 'event: token', 'event: done', 'event: error'",
+            "content": {
+              "application/json": {
+                "schema": {}
+              },
+              "text/event-stream": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -208,6 +269,66 @@
           "file"
         ],
         "title": "Body_uploadDocument"
+      },
+      "ChatMessage": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role",
+            "description": "Message author role"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 4000,
+            "title": "Content",
+            "description": "Text content of the message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "ChatMessage",
+        "description": "Chat message history entry."
+      },
+      "ChatRequest": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id",
+            "description": "Target brand guideline document ID"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Message",
+            "description": "User question regarding brand guidelines"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/ChatMessage"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "History",
+            "description": "Recent conversation turns (max 10)",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_id",
+          "message"
+        ],
+        "title": "ChatRequest",
+        "description": "Incoming user chat query for guideline grounded Q&A."
       },
       "DocumentListResponse": {
         "properties": {
