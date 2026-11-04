@@ -7,15 +7,26 @@
  */
 
 export * from './bodyUploadDocument';
+export * from './campaignBrief';
+export * from './campaignRequest';
+export * from './campaignResponse';
+export * from './campaignResponseTraceUrl';
 export * from './chatMessage';
 export * from './chatMessageRole';
 export * from './chatRequest';
+export * from './concept';
 export * from './documentListResponse';
 export * from './documentResponse';
 export * from './documentUploadResponse';
+export * from './galleryResponse';
+export * from './generationItem';
+export * from './generationItemConceptJson';
 export * from './hTTPValidationError';
 export * from './healthResponse';
 export * from './healthResponseProviders';
+export * from './imageGenerateRequest';
+export * from './imageGenerateRequestConceptJson';
+export * from './imageGenerateResponse';
 export * from './validationError';
 export * from './validationErrorCtx';
 export * from './validationErrorLocItem';

@@ -232,12 +232,186 @@
         },
         "responses": {
           "200": {
-            "description": "Server-Sent Events stream: 'event: token', 'event: done', 'event: error'",
+            "description": "Server-Sent Events: 'event: token', 'event: done', 'event: error'",
             "content": {
               "application/json": {
                 "schema": {}
               },
               "text/event-stream": {}
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/campaign": {
+      "post": {
+        "tags": [
+          "campaign"
+        ],
+        "summary": "Generate 3 creative on-brand campaign concepts",
+        "description": "Generate 3 distinct creative concepts grounded strictly in uploaded brand guidelines.",
+        "operationId": "generateCampaign",
+        "parameters": [
+          {
+            "name": "X-Session-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client session identifier as UUID",
+              "title": "X-Session-Id"
+            },
+            "description": "Client session identifier as UUID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CampaignRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CampaignResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/images": {
+      "post": {
+        "tags": [
+          "images"
+        ],
+        "summary": "Generate Stable Diffusion visual asset for a campaign concept",
+        "description": "Generate image with safety moderation, rate limits, and Supabase Storage persistence.",
+        "operationId": "generateImage",
+        "parameters": [
+          {
+            "name": "X-Session-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client session identifier as UUID",
+              "title": "X-Session-Id"
+            },
+            "description": "Client session identifier as UUID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImageGenerateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImageGenerateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "images"
+        ],
+        "summary": "Retrieve all generated assets for the active user session",
+        "description": "List all images generated within the current isolated session ordered newest first.",
+        "operationId": "getGallery",
+        "parameters": [
+          {
+            "name": "X-Session-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client session identifier as UUID",
+              "title": "X-Session-Id"
+            },
+            "description": "Client session identifier as UUID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GalleryResponse"
+                }
+              }
             }
           },
           "422": {
@@ -269,6 +443,107 @@
           "file"
         ],
         "title": "Body_uploadDocument"
+      },
+      "CampaignBrief": {
+        "properties": {
+          "product": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 2,
+            "title": "Product",
+            "description": "The product, service, or initiative being launched or promoted"
+          },
+          "audience": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 2,
+            "title": "Audience",
+            "description": "Target customer demographic or persona"
+          },
+          "channel": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 2,
+            "title": "Channel",
+            "description": "Target primary channel, e.g. Instagram, LinkedIn, Outdoor, or Email"
+          },
+          "mood": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 2,
+            "title": "Mood",
+            "description": "Desired campaign mood or angle, e.g. serene, bold, playful, or minimalist"
+          }
+        },
+        "type": "object",
+        "required": [
+          "product",
+          "audience",
+          "channel",
+          "mood"
+        ],
+        "title": "CampaignBrief",
+        "description": "User input brief for generating on-brand campaign concepts."
+      },
+      "CampaignRequest": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id",
+            "description": "Target brand guideline document ID"
+          },
+          "brief": {
+            "$ref": "#/components/schemas/CampaignBrief",
+            "description": "Campaign brief requirements"
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_id",
+          "brief"
+        ],
+        "title": "CampaignRequest",
+        "description": "Incoming request to generate 3 brand-aligned creative concepts."
+      },
+      "CampaignResponse": {
+        "properties": {
+          "concepts": {
+            "items": {
+              "$ref": "#/components/schemas/Concept"
+            },
+            "type": "array",
+            "title": "Concepts",
+            "description": "Generated campaign concepts"
+          },
+          "brand_rules_used": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Brand Rules Used",
+            "description": "Aggregated brand guideline rules applied across the concepts",
+            "default": []
+          },
+          "trace_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Trace Url",
+            "description": "Direct URL to Langfuse trace for auditability"
+          }
+        },
+        "type": "object",
+        "required": [
+          "concepts"
+        ],
+        "title": "CampaignResponse",
+        "description": "Response containing 3 creative concepts with guideline citations and trace link."
       },
       "ChatMessage": {
         "properties": {
@@ -329,6 +604,57 @@
         ],
         "title": "ChatRequest",
         "description": "Incoming user chat query for guideline grounded Q&A."
+      },
+      "Concept": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Catchy campaign headline or concept title"
+          },
+          "caption": {
+            "type": "string",
+            "title": "Caption",
+            "description": "Social/ad copywriting caption aligned with brand voice"
+          },
+          "hashtags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Hashtags",
+            "description": "Relevant campaign hashtags (3 to 5 tags)",
+            "default": []
+          },
+          "visual_direction": {
+            "type": "string",
+            "title": "Visual Direction",
+            "description": "Art direction notes detailing lighting, color mood, and scene composition"
+          },
+          "image_prompt": {
+            "type": "string",
+            "title": "Image Prompt",
+            "description": "Optimized Stable Diffusion prompt describing the scene in pure visual tokens. Never include rendered text, watermarks, or celebrity names."
+          },
+          "brand_rules_used": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Brand Rules Used",
+            "description": "Specific brand guideline rules and colors incorporated into this concept",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "caption",
+          "visual_direction",
+          "image_prompt"
+        ],
+        "title": "Concept",
+        "description": "A generated marketing campaign concept grounded in brand guidelines."
       },
       "DocumentListResponse": {
         "properties": {
@@ -409,6 +735,69 @@
         "title": "DocumentUploadResponse",
         "description": "Response returned upon successful PDF upload and ingestion."
       },
+      "GalleryResponse": {
+        "properties": {
+          "generations": {
+            "items": {
+              "$ref": "#/components/schemas/GenerationItem"
+            },
+            "type": "array",
+            "title": "Generations",
+            "description": "All image generations belonging to this session",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "GalleryResponse",
+        "description": "List of all generated assets created within the active session."
+      },
+      "GenerationItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Generation ID"
+          },
+          "concept_title": {
+            "type": "string",
+            "title": "Concept Title",
+            "description": "Associated concept title"
+          },
+          "concept_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Concept Json",
+            "description": "Stored concept metadata"
+          },
+          "image_url": {
+            "type": "string",
+            "title": "Image Url",
+            "description": "Permanent public image URL"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "description": "Image provider used, e.g. stability or replicate"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Timestamp of generation"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "concept_title",
+          "image_url",
+          "provider",
+          "created_at"
+        ],
+        "title": "GenerationItem",
+        "description": "Persisted generation record item for gallery views."
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -464,6 +853,59 @@
         ],
         "title": "HealthResponse",
         "description": "Health check response schema."
+      },
+      "ImageGenerateRequest": {
+        "properties": {
+          "image_prompt": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 5,
+            "title": "Image Prompt",
+            "description": "Detailed visual prompt describing the scene"
+          },
+          "concept_title": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Concept Title",
+            "description": "Associated creative concept title"
+          },
+          "concept_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Concept Json",
+            "description": "Full concept metadata object for gallery persistence"
+          }
+        },
+        "type": "object",
+        "required": [
+          "image_prompt",
+          "concept_title"
+        ],
+        "title": "ImageGenerateRequest",
+        "description": "Request payload to synthesize an image asset using Stable Diffusion."
+      },
+      "ImageGenerateResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Unique generation record identifier"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "Permanent public HTTPS URL of the generated asset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "url"
+        ],
+        "title": "ImageGenerateResponse",
+        "description": "Result of image generation including permanent public Supabase Storage URL."
       },
       "ValidationError": {
         "properties": {
