@@ -6,21 +6,29 @@
  * OpenAPI spec version: 0.1.0
  */
 import {
+  useMutation,
   useQuery
 } from '@tanstack/react-query';
 import type {
   DataTag,
   DefinedInitialDataOptions,
   DefinedUseQueryResult,
+  MutationFunction,
   QueryClient,
   QueryFunction,
   QueryKey,
   UndefinedInitialDataOptions,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult
 } from '@tanstack/react-query';
 
 import type {
+  BodyUploadDocument,
+  DocumentListResponse,
+  DocumentUploadResponse,
+  HTTPValidationError,
   HealthResponse
 } from './model';
 
@@ -125,3 +133,229 @@ export function useGetHealth<TData = Awaited<ReturnType<typeof getHealth>>, TErr
 
 
 
+/**
+ * Streams and validates a brand guideline PDF (max 10MB, max 40 pages), then chunks and indexes it.
+ * @summary Upload Brand Guideline PDF
+ */
+export const uploadDocument = (
+    bodyUploadDocument: BodyUploadDocument,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      const formData = new FormData();
+formData.append(`file`, bodyUploadDocument.file)
+
+      return customInstance<DocumentUploadResponse>(
+      {url: `/api/documents`, method: 'POST',
+      headers: {'Content-Type': 'multipart/form-data', },
+       data: formData, signal
+    },
+      options);
+    }
+  
+
+
+export const getUploadDocumentMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadDocument>>, TError,{data: BodyUploadDocument}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadDocument>>, TError,{data: BodyUploadDocument}, TContext> => {
+
+const mutationKey = ['uploadDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadDocument>>, {data: BodyUploadDocument}> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadDocument(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof uploadDocument>>>
+    export type UploadDocumentMutationBody = BodyUploadDocument
+    export type UploadDocumentMutationError = HTTPValidationError
+
+    /**
+ * @summary Upload Brand Guideline PDF
+ */
+export const useUploadDocument = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadDocument>>, TError,{data: BodyUploadDocument}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof uploadDocument>>,
+        TError,
+        {data: BodyUploadDocument},
+        TContext
+      > => {
+
+      const mutationOptions = getUploadDocumentMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
+/**
+ * Returns all documents uploaded by the current session plus the shared sample brand guideline.
+ * @summary List Brand Guidelines
+ */
+export const listDocuments = (
+    
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<DocumentListResponse>(
+      {url: `/api/documents`, method: 'GET', signal
+    },
+      options);
+    }
+  
+
+
+
+export const getListDocumentsQueryKey = () => {
+    return [
+    `/api/documents`
+    ] as const;
+    }
+
+    
+export const getListDocumentsQueryOptions = <TData = Awaited<ReturnType<typeof listDocuments>>, TError = HTTPValidationError>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListDocumentsQueryKey();
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listDocuments>>> = ({ signal }) => listDocuments(requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListDocumentsQueryResult = NonNullable<Awaited<ReturnType<typeof listDocuments>>>
+export type ListDocumentsQueryError = HTTPValidationError
+
+
+export function useListDocuments<TData = Awaited<ReturnType<typeof listDocuments>>, TError = HTTPValidationError>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDocuments>>,
+          TError,
+          Awaited<ReturnType<typeof listDocuments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDocuments<TData = Awaited<ReturnType<typeof listDocuments>>, TError = HTTPValidationError>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listDocuments>>,
+          TError,
+          Awaited<ReturnType<typeof listDocuments>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListDocuments<TData = Awaited<ReturnType<typeof listDocuments>>, TError = HTTPValidationError>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary List Brand Guidelines
+ */
+
+export function useListDocuments<TData = Awaited<ReturnType<typeof listDocuments>>, TError = HTTPValidationError>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listDocuments>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getListDocumentsQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+
+/**
+ * Loads the preloaded fictional brand guideline ('Aura Living') for zero-friction demo interaction.
+ * @summary Load Sample Brand Guideline
+ */
+export const loadSampleBrand = (
+    
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<DocumentUploadResponse>(
+      {url: `/api/documents/sample`, method: 'POST', signal
+    },
+      options);
+    }
+  
+
+
+export const getLoadSampleBrandMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loadSampleBrand>>, TError,void, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof loadSampleBrand>>, TError,void, TContext> => {
+
+const mutationKey = ['loadSampleBrand'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof loadSampleBrand>>, void> = () => {
+          
+
+          return  loadSampleBrand(requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type LoadSampleBrandMutationResult = NonNullable<Awaited<ReturnType<typeof loadSampleBrand>>>
+    
+    export type LoadSampleBrandMutationError = HTTPValidationError
+
+    /**
+ * @summary Load Sample Brand Guideline
+ */
+export const useLoadSampleBrand = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof loadSampleBrand>>, TError,void, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof loadSampleBrand>>,
+        TError,
+        void,
+        TContext
+      > => {
+
+      const mutationOptions = getLoadSampleBrandMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    

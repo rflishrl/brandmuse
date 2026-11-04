@@ -27,10 +27,280 @@
           }
         }
       }
+    },
+    "/api/documents": {
+      "post": {
+        "tags": [
+          "documents"
+        ],
+        "summary": "Upload Brand Guideline PDF",
+        "description": "Streams and validates a brand guideline PDF (max 10MB, max 40 pages), then chunks and indexes it.",
+        "operationId": "uploadDocument",
+        "parameters": [
+          {
+            "name": "X-Session-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client session identifier as UUID",
+              "title": "X-Session-Id"
+            },
+            "description": "Client session identifier as UUID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_uploadDocument"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentUploadResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "documents"
+        ],
+        "summary": "List Brand Guidelines",
+        "description": "Returns all documents uploaded by the current session plus the shared sample brand guideline.",
+        "operationId": "listDocuments",
+        "parameters": [
+          {
+            "name": "X-Session-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client session identifier as UUID",
+              "title": "X-Session-Id"
+            },
+            "description": "Client session identifier as UUID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/documents/sample": {
+      "post": {
+        "tags": [
+          "documents"
+        ],
+        "summary": "Load Sample Brand Guideline",
+        "description": "Loads the preloaded fictional brand guideline ('Aura Living') for zero-friction demo interaction.",
+        "operationId": "loadSampleBrand",
+        "parameters": [
+          {
+            "name": "X-Session-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client session identifier as UUID",
+              "title": "X-Session-Id"
+            },
+            "description": "Client session identifier as UUID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentUploadResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "Body_uploadDocument": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_uploadDocument"
+      },
+      "DocumentListResponse": {
+        "properties": {
+          "documents": {
+            "items": {
+              "$ref": "#/components/schemas/DocumentResponse"
+            },
+            "type": "array",
+            "title": "Documents",
+            "description": "Session guidelines plus sample brand"
+          }
+        },
+        "type": "object",
+        "required": [
+          "documents"
+        ],
+        "title": "DocumentListResponse",
+        "description": "List of documents accessible in the current session."
+      },
+      "DocumentResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Unique document ID"
+          },
+          "filename": {
+            "type": "string",
+            "title": "Filename",
+            "description": "Original filename of the guideline"
+          },
+          "page_count": {
+            "type": "integer",
+            "title": "Page Count",
+            "description": "Total pages extracted from the PDF"
+          },
+          "is_sample": {
+            "type": "boolean",
+            "title": "Is Sample",
+            "description": "Whether this is the preloaded sample brand guideline"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "Timestamp of document ingestion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "filename",
+          "page_count",
+          "is_sample",
+          "created_at"
+        ],
+        "title": "DocumentResponse",
+        "description": "Document representation schema."
+      },
+      "DocumentUploadResponse": {
+        "properties": {
+          "document": {
+            "$ref": "#/components/schemas/DocumentResponse",
+            "description": "Ingested document details"
+          },
+          "chunk_count": {
+            "type": "integer",
+            "title": "Chunk Count",
+            "description": "Total indexed text chunks created"
+          }
+        },
+        "type": "object",
+        "required": [
+          "document",
+          "chunk_count"
+        ],
+        "title": "DocumentUploadResponse",
+        "description": "Response returned upon successful PDF upload and ingestion."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
       "HealthResponse": {
         "properties": {
           "status": {
@@ -73,6 +343,46 @@
         ],
         "title": "HealthResponse",
         "description": "Health check response schema."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
       }
     }
   }

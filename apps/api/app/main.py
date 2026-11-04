@@ -11,7 +11,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import setup_logging
-from app.routers import health
+from app.routers import documents, health
 
 settings = get_settings()
 
@@ -73,6 +73,7 @@ def create_app() -> FastAPI:
 
     # Register routers
     app.include_router(health.router)
+    app.include_router(documents.router)
 
     return app
 
