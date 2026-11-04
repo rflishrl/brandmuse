@@ -1,0 +1,89 @@
+@import "@fontsource-variable/inter";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #F7F7F8;
+    --background-gradient-end: #FFFFFF;
+    --surface: #FFFFFF;
+    --surface-user: #F1F1F3;
+    --quote: #EEF0F9;
+    --foreground: #111114;
+    --muted-foreground: #6B6B76;
+    --border: #E8E8EC;
+    --ring: #5B5BD6;
+    --success-icon: #1F9D55;
+    --success-text: #15803D;
+    --danger: #C2410C;
+    --nav-active: #EEF0F7;
+  }
+
+  .dark {
+    --background: #0E0E11;
+    --background-gradient-end: #141418;
+    --surface: #1B1B20;
+    --surface-user: #26262D;
+    --quote: #23243A;
+    --foreground: #F2F2F5;
+    --muted-foreground: #A0A0AB;
+    --border: #2E2E36;
+    --ring: #8B8BF0;
+    --success-icon: #4ADE80;
+    --success-text: #4ADE80;
+    --danger: #FB923C;
+    --nav-active: #23242F;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased min-h-screen;
+    background: linear-gradient(180deg, var(--background) 0%, var(--background-gradient-end) 100%);
+    line-height: 1.6;
+  }
+
+  /* Interaction affordances per Antislop R-39 */
+  a[href],
+  button,
+  summary,
+  select,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  input[type="checkbox"],
+  input[type="radio"],
+  label[for] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  input:disabled,
+  select:disabled,
+  textarea:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  /* Accessible focus indicators per Antislop R-32 */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+/* Reduced motion preference per Antislop R-39 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

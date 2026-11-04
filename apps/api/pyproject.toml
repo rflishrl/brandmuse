@@ -1,0 +1,66 @@
+[project]
+name = "brandmuse-api"
+version = "0.1.0"
+description = "BrandMuse FastAPI Backend - AI Brand Assistant for Creative Teams"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.10.0",
+    "pydantic-settings>=2.6.0",
+    "sqlalchemy>=2.0.36",
+    "greenlet>=3.1.0",
+    "asyncpg>=0.30.0",
+    "alembic>=1.14.0",
+    "pgvector>=0.3.6",
+    "httpx>=0.28.0",
+    "structlog>=24.4.0",
+    "python-multipart>=0.0.18",
+    "slowapi>=0.1.9",
+    "tenacity>=9.0.0",
+    "pypdf>=5.1.0",
+    "langchain-core>=0.3.0",
+    "langchain-openai>=0.2.0",
+    "langchain-ollama>=0.2.0",
+    "langchain-text-splitters>=0.3.0",
+    "langfuse>=2.54.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "mypy>=1.13.0",
+    "ruff>=0.8.0",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "ARG", # unused arguments
+]
+ignore = ["B008"] # allow FastAPI Depends in function defaults
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+disallow_untyped_defs = true
+exclude = ["alembic/"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+pythonpath = ["."]
+filterwarnings = ["ignore::DeprecationWarning"]

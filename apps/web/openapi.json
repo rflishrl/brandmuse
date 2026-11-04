@@ -1,0 +1,79 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "BrandMuse API",
+    "description": "FastAPI Backend for BrandMuse - AI Brand Assistant for Creative Teams",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Service Health Check",
+        "description": "Returns current server status, active provider names, and database connectivity.",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HealthResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "Overall service status ('ok', 'degraded', 'error')",
+            "examples": [
+              "ok"
+            ]
+          },
+          "database": {
+            "type": "string",
+            "title": "Database",
+            "description": "Database connectivity status",
+            "examples": [
+              "connected"
+            ]
+          },
+          "providers": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Providers",
+            "description": "Active AI and storage providers",
+            "examples": [
+              {
+                "embeddings": "openai",
+                "image": "stability",
+                "llm": "openai"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "database",
+          "providers"
+        ],
+        "title": "HealthResponse",
+        "description": "Health check response schema."
+      }
+    }
+  }
+}

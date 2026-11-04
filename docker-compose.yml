@@ -1,0 +1,76 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: brandmuse-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: brandmuse
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d brandmuse"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build:
+      context: apps/api
+      dockerfile: Dockerfile
+    container_name: brandmuse-api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: "8000"
+      DATABASE_URL: "postgresql+asyncpg://postgres:postgrespassword@db:5432/brandmuse"
+      MIGRATION_DATABASE_URL: "postgresql+asyncpg://postgres:postgrespassword@db:5432/brandmuse"
+      DB_POOLER_MODE: "false"
+      CORS_ORIGIN: "http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173"
+      EMBEDDING_DIM: "1536"
+      LLM_PROVIDER: "${LLM_PROVIDER:-openai}"
+      EMBEDDING_PROVIDER: "${EMBEDDING_PROVIDER:-openai}"
+      IMAGE_PROVIDER: "${IMAGE_PROVIDER:-stability}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      STABILITY_API_KEY: "${STABILITY_API_KEY:-}"
+      REPLICATE_API_TOKEN: "${REPLICATE_API_TOKEN:-}"
+      SUPABASE_URL: "${SUPABASE_URL:-}"
+      SUPABASE_SERVICE_ROLE_KEY: "${SUPABASE_SERVICE_ROLE_KEY:-}"
+      SUPABASE_STORAGE_BUCKET: "${SUPABASE_STORAGE_BUCKET:-brandmuse-images}"
+      LANGFUSE_PUBLIC_URL: "${LANGFUSE_PUBLIC_URL:-}"
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  web:
+    build:
+      context: apps/web
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: "http://localhost:8000"
+    container_name: brandmuse-web
+    depends_on:
+      - api
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+
+  # Optional local LLM runner for development & quantization evaluation
+  ollama:
+    image: ollama/ollama:latest
+    container_name: brandmuse-ollama
+    profiles:
+      - local-llm
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  ollama_data:
