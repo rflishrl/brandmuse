@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { BrandMuseOrb } from "@/components/BrandMuseOrb";
 import { Button } from "@/components/ui/button";
+import { useBrand } from "@/context/BrandContext";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -26,9 +27,14 @@ type ThemeMode = "light" | "dark" | "system";
 
 export const AppShell: React.FC<AppShellProps> = ({
   children,
-  currentDocumentName = "No brand loaded",
+  currentDocumentName,
   onUseSampleBrand,
 }) => {
+  const brand = useBrand();
+  const effectiveDocumentName =
+    currentDocumentName || brand.selectedDocument?.filename || "No brand loaded";
+  const handleUseSample = onUseSampleBrand || brand.loadSampleBrand;
+
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [theme, setTheme] = useState<ThemeMode>(() => {
@@ -105,7 +111,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           <div>
             <span className="font-semibold text-sm">BrandMuse</span>
             <span className="block text-[11px] text-muted-foreground truncate max-w-[180px]">
-              {currentDocumentName}
+              {effectiveDocumentName}
             </span>
           </div>
         </div>
@@ -134,8 +140,8 @@ export const AppShell: React.FC<AppShellProps> = ({
               <BrandMuseOrb size={30} />
               <div>
                 <h1 className="font-semibold text-base tracking-tight leading-none">BrandMuse</h1>
-                <p className="text-[12px] text-muted-foreground mt-1 truncate max-w-[170px]" title={currentDocumentName}>
-                  {currentDocumentName}
+                <p className="text-[12px] text-muted-foreground mt-1 truncate max-w-[170px]" title={effectiveDocumentName}>
+                  {effectiveDocumentName}
                 </p>
               </div>
             </Link>
@@ -170,7 +176,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             </span>
             <button
               type="button"
-              onClick={onUseSampleBrand}
+              onClick={() => handleUseSample?.()}
               className="mt-2 w-full flex items-center justify-between px-3.5 py-2.5 rounded-nav text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-surface-user transition-colors text-left"
             >
               <span className="flex items-center gap-2">

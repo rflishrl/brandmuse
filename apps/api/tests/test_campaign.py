@@ -131,9 +131,10 @@ async def test_generate_campaign_missing_document_raises_404() -> None:
 @pytest.mark.asyncio
 async def test_post_campaign_endpoint(
     client: AsyncClient,
-    _mock_db: AsyncMock,
+    mock_db: AsyncMock,
 ) -> None:
     """Verify POST /api/campaign HTTP route returns generated concepts."""
+    _ = mock_db
     session_id = str(uuid.uuid4())
     doc_id = str(uuid.uuid4())
 

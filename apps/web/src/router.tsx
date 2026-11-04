@@ -1,55 +1,54 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, Navigate, Outlet } from "react-router";
 import { AppShell } from "@/components/layout/AppShell";
+import { BrandProvider } from "@/context/BrandContext";
+import { AskPage } from "@/pages/AskPage";
+import { CampaignPage } from "@/pages/CampaignPage";
+import { DocumentsPage } from "@/pages/DocumentsPage";
+import { GalleryPage } from "@/pages/GalleryPage";
 import { HealthCheckPage } from "@/pages/HealthCheckPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
+
+const RootLayout = () => (
+  <BrandProvider>
+    <AppShell>
+      <Outlet />
+    </AppShell>
+  </BrandProvider>
+);
 
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: (
-      <AppShell>
-        <HealthCheckPage />
-      </AppShell>
-    ),
-  },
-  {
-    path: "/ask",
-    element: (
-      <AppShell>
-        <HealthCheckPage />
-      </AppShell>
-    ),
-  },
-  {
-    path: "/campaign",
-    element: (
-      <AppShell>
-        <HealthCheckPage />
-      </AppShell>
-    ),
-  },
-  {
-    path: "/gallery",
-    element: (
-      <AppShell>
-        <HealthCheckPage />
-      </AppShell>
-    ),
-  },
-  {
-    path: "/documents",
-    element: (
-      <AppShell>
-        <HealthCheckPage />
-      </AppShell>
-    ),
-  },
-  {
-    path: "*",
-    element: (
-      <AppShell>
-        <NotFoundPage />
-      </AppShell>
-    ),
+    element: <RootLayout />,
+    children: [
+      {
+        index: true,
+        element: <Navigate to="/ask" replace />,
+      },
+      {
+        path: "ask",
+        element: <AskPage />,
+      },
+      {
+        path: "campaign",
+        element: <CampaignPage />,
+      },
+      {
+        path: "gallery",
+        element: <GalleryPage />,
+      },
+      {
+        path: "documents",
+        element: <DocumentsPage />,
+      },
+      {
+        path: "health",
+        element: <HealthCheckPage />,
+      },
+      {
+        path: "*",
+        element: <NotFoundPage />,
+      },
+    ],
   },
 ]);
