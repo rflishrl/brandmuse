@@ -1,5 +1,8 @@
-# Build stage using Astral uv
-FROM ghcr.io/astral-sh/uv:0.5.21 AS builder
+# Build stage using Python with Astral uv
+FROM python:3.12-slim AS builder
+
+# Install uv by copying the standalone binary from official uv image
+COPY --from=ghcr.io/astral-sh/uv:0.5.21 /uv /uvx /bin/
 
 ENV UV_COMPILE_BYTECODE=1 \
     UV_LINK_MODE=copy
@@ -21,6 +24,8 @@ WORKDIR /app
 # Copy virtual environment from builder
 COPY --from=builder /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONPATH="/app" \
+    PORT=10000 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
@@ -34,11 +39,11 @@ RUN chown -R brandmuse:brandmuse /app
 
 USER brandmuse
 
-EXPOSE 8000
+EXPOSE 10000
 
 # Health check matching Render requirements
 HEALTHCHECK --interval=15s --timeout=5s --start-period=5s --retries=3 \
-  CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:' + (urllib.parse.os.environ.get('PORT') or '8000') + '/api/health').read()" || exit 1
+  CMD python -c "import urllib.request, os; urllib.request.urlopen('http://localhost:' + os.environ.get('PORT', '10000') + '/api/health').read()" || exit 1
 
-# Start Uvicorn with proxy headers and binding to $PORT
-CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers"]
+# Start Uvicorn with proxy headers and binding to $PORT (Render provides dynamic $PORT)
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000} --proxy-headers"]
