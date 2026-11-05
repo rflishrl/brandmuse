@@ -25,7 +25,7 @@ if settings.DB_POOLER_MODE:
         "prepared_statement_cache_size": 0,
     }
 
-engine: AsyncEngine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
+engine: AsyncEngine = create_async_engine(settings.clean_database_url, **engine_kwargs)
 
 async_session_factory = async_sessionmaker(
     bind=engine,

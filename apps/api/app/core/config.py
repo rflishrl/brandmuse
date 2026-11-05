@@ -114,9 +114,38 @@ class Settings(BaseSettings):
         return [origin.strip() for origin in self.CORS_ORIGIN.split(",") if origin.strip()]
 
     @property
+    def clean_database_url(self) -> str:
+        """Sanitized asyncpg connection URL."""
+        return self._sanitize_db_url(self.DATABASE_URL)
+
+    @property
     def effective_migration_db_url(self) -> str:
-        """Fallback to DATABASE_URL if MIGRATION_DATABASE_URL is not set."""
-        return self.MIGRATION_DATABASE_URL or self.DATABASE_URL
+        """Fallback to DATABASE_URL if MIGRATION_DATABASE_URL is not set, sanitized for asyncpg."""
+        raw_url = self.MIGRATION_DATABASE_URL or self.DATABASE_URL
+        return self._sanitize_db_url(raw_url)
+
+    @staticmethod
+    def _sanitize_db_url(url: str) -> str:
+        from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+        if not url:
+            return ""
+
+        if url.startswith("postgresql://"):
+            url = "postgresql+asyncpg://" + url[len("postgresql://") :]
+        elif url.startswith("postgres://"):
+            url = "postgresql+asyncpg://" + url[len("postgres://") :]
+
+        parts = urlsplit(url)
+        query_params = dict(parse_qsl(parts.query))
+        query_params.pop("channel_binding", None)
+        if "sslmode" in query_params:
+            mode = query_params.pop("sslmode")
+            if "ssl" not in query_params:
+                query_params["ssl"] = mode
+
+        new_query = urlencode(query_params)
+        return urlunsplit((parts.scheme, parts.netloc, parts.path, new_query, parts.fragment))
 
 
 @lru_cache
