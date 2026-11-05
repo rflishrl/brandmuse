@@ -40,20 +40,24 @@ class Settings(BaseSettings):
     )
 
     # AI Providers & Dimensions
-    LLM_PROVIDER: str = Field(default="openai", description="Active LLM provider: openai | ollama")
+    LLM_PROVIDER: str = Field(
+        default="openai", description="Active LLM provider: openai | gemini | ollama"
+    )
     EMBEDDING_PROVIDER: str = Field(
-        default="openai", description="Active embedding provider: openai | ollama"
+        default="openai", description="Active embedding provider: openai | gemini | ollama"
     )
     EMBEDDING_DIM: int = Field(
         default=1536,
-        description="Vector dimension for embeddings (1536 for OpenAI text-embedding-3-small)",
+        description="Vector dimension for embeddings (1536 for OpenAI / zero-padded Gemini)",
     )
     IMAGE_PROVIDER: str = Field(
-        default="stability", description="Active image generation provider: stability | replicate"
+        default="stability",
+        description="Active image generation provider: stability | replicate | mock",
     )
 
     # Credentials
     OPENAI_API_KEY: str = Field(default="", description="OpenAI API key")
+    GEMINI_API_KEY: str = Field(default="", description="Google Gemini API key")
     OLLAMA_BASE_URL: str = Field(
         default="http://localhost:11434", description="Ollama API base URL"
     )

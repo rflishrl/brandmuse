@@ -100,11 +100,76 @@ class OllamaEmbeddingProvider(BaseEmbeddingProvider):
         return results[0]
 
 
+class GeminiEmbeddingProvider(BaseEmbeddingProvider):
+    """Google Gemini hosted embeddings via text-embedding-004 with zero-padding to target dim."""
+
+    def __init__(self, api_key: str | None = None, model: str = "models/text-embedding-004"):
+        self.api_key = api_key or settings.GEMINI_API_KEY
+        self.model = model
+        self.batch_size = 32
+
+    async def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
+        if not self.api_key:
+            raise APIError(
+                code="MISSING_API_KEY",
+                message="GEMINI_API_KEY is not configured.",
+                status_code=500,
+            )
+
+        all_embeddings: list[list[float]] = []
+        target_dim = settings.EMBEDDING_DIM
+        url = (
+            f"https://generativelanguage.googleapis.com/v1beta/"
+            f"models/text-embedding-004:batchEmbedContents?key={self.api_key}"
+        )
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            for i in range(0, len(texts), self.batch_size):
+                batch = texts[i : i + self.batch_size]
+                payload = {
+                    "requests": [
+                        {
+                            "model": self.model,
+                            "content": {"parts": [{"text": t}]},
+                        }
+                        for t in batch
+                    ]
+                }
+                response = await client.post(url, json=payload)
+                if response.status_code != 200:
+                    raise APIError(
+                        code="EMBEDDING_ERROR",
+                        message=f"Gemini embedding API failed: {response.text}",
+                        status_code=502,
+                    )
+                data = response.json()
+                for item in data.get("embeddings", []):
+                    values: list[float] = item.get("values", [])
+                    # Zero-pad to target_dim if smaller (e.g. 768 to 1536 preserves cosine distance)
+                    if len(values) < target_dim:
+                        values = values + [0.0] * (target_dim - len(values))
+                    elif len(values) > target_dim:
+                        values = values[:target_dim]
+                    all_embeddings.append(values)
+
+        return all_embeddings
+
+    async def embed_query(self, text: str) -> list[float]:
+        results = await self.embed_documents([text])
+        if not results:
+            return [0.0] * settings.EMBEDDING_DIM
+        return results[0]
+
+
 def get_embedding_provider(name: str | None = None) -> BaseEmbeddingProvider:
     """Factory to retrieve the configured embedding provider."""
     provider_name = (name or settings.EMBEDDING_PROVIDER).lower()
     if provider_name == "openai":
         return OpenAIEmbeddingProvider()
+    elif provider_name == "gemini":
+        return GeminiEmbeddingProvider()
     elif provider_name == "ollama":
         return OllamaEmbeddingProvider()
     else:
