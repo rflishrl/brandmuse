@@ -1,5 +1,7 @@
 # Panduan Deployment Produksi: Cloudflare Pages + Supabase + Render
 
+> **Alternatif Multi-Cloud Bebas Limit:** Jika akun Supabase Anda terkena batasan atau limit kuota, gunakan panduan [DEPLOYMENT_NEON_R2.md](file:///C:/Projects/brandmuse/DEPLOYMENT_NEON_R2.md) yang menggunakan kombinasi **Neon.tech (PostgreSQL serverless pgvector)** + **Cloudflare R2 (10 GB gratis, $0 egress fee)**.
+
 Panduan langkah demi langkah untuk melakukan deploy penuh aplikasi **BrandMuse** ke lingkungan produksi cloud:
 - **Frontend SPA:** Cloudflare Pages
 - **Database & Storage:** Supabase (PostgreSQL 15 + pgvector + Object Storage)

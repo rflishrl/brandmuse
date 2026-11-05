@@ -212,32 +212,17 @@ make smoke-test     # Run 8-step end-to-end production smoke test
 
 ---
 
-## Production Deployment Guide
+## Production Deployment Guides
 
-The production setup uses a Singapore-based cloud topology:
+BrandMuse supports two cloud architectures for production:
+- [**Panduan Neon + Cloudflare R2 (Rekomendasi Bebas Limit)**](file:///C:/Projects/brandmuse/DEPLOYMENT_NEON_R2.md): Menggunakan Neon.tech (PostgreSQL serverless dengan `pgvector`, gratis 0.5 GiB tanpa jeda aktif) dan Cloudflare R2 (Object storage S3-compatible, gratis 10 GB dengan $0 egress fee).
+- [**Panduan Supabase + Render**](file:///C:/Projects/brandmuse/DEPLOYMENT.md): Menggunakan Supabase all-in-one database dan storage bucket.
 
-### 1. Supabase (Database & Storage)
-1. Create a project on [Supabase](https://supabase.com) in the **Singapore (ap-southeast-1)** region.
-2. In the Dashboard under **Database -> Extensions**, verify `vector` is enabled.
-3. Retrieve two connection strings:
-   - **Transaction Pooler (Port 6543):** Set `DATABASE_URL=postgresql+asyncpg://postgres.[ref]:[password]@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres` and `DB_POOLER_MODE=true` (disables prepared statements `statement_cache_size=0` and uses `NullPool`).
-   - **Migration Connection (Port 5432):** Run Alembic migrations from your local workstation:
-     ```powershell
-     MIGRATION_DATABASE_URL="postgresql+asyncpg://..." make migrate
-     ```
-4. **Storage Bucket:** Create a bucket named `brandmuse-images` with **Public Read** enabled. Server-side API uploads using the `SUPABASE_SERVICE_ROLE_KEY`.
-
-### 2. Render (FastAPI Docker Web Service)
-1. Create a **Web Service** on [Render](https://render.com) in Singapore connected to the repository.
-2. Set **Environment** to Docker, **Dockerfile Path** to `apps/api/Dockerfile`, and **Health Check Path** to `/api/health`.
-3. Select **Starter** instance (512 MB RAM).
-
-### 3. Cloudflare Pages (Frontend Web App)
-1. Create a new Pages project on [Cloudflare](https://dash.cloudflare.com) connected to the repository.
-2. Build Settings:
-   - **Framework preset:** None
-   - **Root directory:** `apps/web`
-   - **Build command:** `bun run build`
+### Ringkasan Topologi Neon + Cloudflare R2:
+1. **Neon (PostgreSQL + pgvector):** Buat project di Region Singapore (`ap-southeast-1`), jalankan migrasi Alembic lokal via direct connection, dan gunakan pooled connection untuk backend.
+2. **Cloudflare R2:** Buat bucket `brandmuse-images`, aktifkan public access (`r2.dev` subdomain atau custom domain), dan buat R2 API token dengan izin Read & Write.
+3. **Render (FastAPI Docker):** Deploy container di Region Singapore, atur `STORAGE_PROVIDER=r2` beserta kredensial R2 dan connection string Neon.
+4. **Cloudflare Pages (Frontend):** Build command `bun run build`, output `dist`, root `apps/web`, set `BUN_VERSION=1.4.4` dan `VITE_API_URL` mengarah ke Render.
    - **Output directory:** `dist`
 3. Environment variables: `BUN_VERSION=1.4.4`, `VITE_API_URL=https://<your-render-url>.onrender.com`.
 4. Hard refreshes on deep routes (`/ask`, `/campaign`) are routed cleanly via `apps/web/public/_redirects`.
