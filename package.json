@@ -1,0 +1,8 @@
+{
+  "name": "brandmuse",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "npm --prefix apps/web install && npm --prefix apps/web run build"
+  }
+}
