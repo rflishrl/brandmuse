@@ -2,7 +2,7 @@
 
 > Grounded brand guideline conversational assistant and automated campaign concept generator with permanent Stable Diffusion image assets, audited hybrid retrieval, and sub-second token streaming.
 
-[![CI](https://img.shields.io/badge/CI-passing-brightgreen?logo=github-actions&logoColor=white)](.github/workflows/ci.yml)
+[![CI](https://img.shields.io/badge/CI-passing-brightgreen?logo=github-actions&logoColor=white)](https://github.com/rflishrl/brandmuse/actions/workflows/ci.yml)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.115-009688?logo=fastapi)](https://fastapi.tiangolo.com)
 [![React](https://img.shields.io/badge/Frontend-React%2018%20%2B%20Bun-61DAFB?logo=react)](https://react.dev)
 [![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL%2016%20%2B%20pgvector-336791?logo=postgresql)](https://github.com/pgvector/pgvector)
