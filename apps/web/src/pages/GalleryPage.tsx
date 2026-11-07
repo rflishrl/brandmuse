@@ -74,7 +74,7 @@ export const GalleryPage: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {generations.map((gen) => {
+          {generations.map((gen, idx) => {
             const formattedDate = new Date(gen.created_at).toLocaleDateString(undefined, {
               month: "short",
               day: "numeric",
@@ -93,7 +93,9 @@ export const GalleryPage: React.FC = () => {
                     src={gen.image_url}
                     alt={gen.concept_title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    loading="lazy"
+                    loading={idx === 0 ? undefined : "lazy"}
+                    fetchPriority={idx === 0 ? "high" : undefined}
+                    decoding="async"
                   />
                 </div>
 
@@ -123,20 +125,22 @@ export const GalleryPage: React.FC = () => {
           aria-modal="true"
           aria-labelledby="lightbox-title"
         >
-          {/* Backdrop */}
+          {/* Backdrop with overscroll containment */}
           <div
-            className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity overflow-hidden [overscroll-behavior:contain]"
             onClick={() => setActiveLightboxItem(null)}
             aria-hidden="true"
           />
 
-          <div className="relative z-10 w-full max-w-4xl max-h-[90vh] bg-surface rounded-card border border-border shadow-2xl flex flex-col md:flex-row overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="relative z-10 w-full max-w-4xl max-h-[90vh] bg-surface rounded-card border border-border shadow-2xl flex flex-col md:flex-row overflow-hidden [overscroll-behavior:contain] animate-in zoom-in-95 duration-200">
             {/* Image container */}
             <div className="flex-1 bg-black flex items-center justify-center min-h-[300px] max-h-[60vh] md:max-h-full">
               <img
                 src={activeLightboxItem.image_url}
                 alt={activeLightboxItem.concept_title}
                 className="w-full h-full object-contain"
+                decoding="async"
+                fetchPriority="high"
               />
             </div>
 

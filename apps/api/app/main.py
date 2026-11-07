@@ -11,7 +11,7 @@ from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoin
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import setup_logging
-from app.routers import campaign, chat, documents, health, images
+from app.routers import campaign, chat, documents, health, images, ontology
 
 settings = get_settings()
 
@@ -77,6 +77,7 @@ def create_app() -> FastAPI:
     app.include_router(chat.router)
     app.include_router(campaign.router)
     app.include_router(images.router)
+    app.include_router(ontology.router)
 
     return app
 

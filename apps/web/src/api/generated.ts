@@ -26,6 +26,9 @@ import type {
 
 import type {
   BodyUploadDocument,
+  BrandOntologyCertify,
+  BrandOntologyResponse,
+  BrandOntologyUpdate,
   CampaignRequest,
   CampaignResponse,
   ChatRequest,
@@ -657,3 +660,294 @@ export function useGetGallery<TData = Awaited<ReturnType<typeof getGallery>>, TE
 
 
 
+/**
+ * Analyzes the document's indexed text chunks to extract brand identity, colors, typography, and DOs/DONTs.
+ * @summary Extract Structured Brand Ontology
+ */
+export const extractOntologyApiDocumentsDocumentIdOntologyExtractPost = (
+    documentId: string,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<BrandOntologyResponse>(
+      {url: `/api/documents/${documentId}/ontology/extract`, method: 'POST', signal
+    },
+      options);
+    }
+  
+
+
+export const getExtractOntologyApiDocumentsDocumentIdOntologyExtractPostMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof extractOntologyApiDocumentsDocumentIdOntologyExtractPost>>, TError,{documentId: string}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof extractOntologyApiDocumentsDocumentIdOntologyExtractPost>>, TError,{documentId: string}, TContext> => {
+
+const mutationKey = ['extractOntologyApiDocumentsDocumentIdOntologyExtractPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof extractOntologyApiDocumentsDocumentIdOntologyExtractPost>>, {documentId: string}> = (props) => {
+          const {documentId} = props ?? {};
+
+          return  extractOntologyApiDocumentsDocumentIdOntologyExtractPost(documentId,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ExtractOntologyApiDocumentsDocumentIdOntologyExtractPostMutationResult = NonNullable<Awaited<ReturnType<typeof extractOntologyApiDocumentsDocumentIdOntologyExtractPost>>>
+    
+    export type ExtractOntologyApiDocumentsDocumentIdOntologyExtractPostMutationError = HTTPValidationError
+
+    /**
+ * @summary Extract Structured Brand Ontology
+ */
+export const useExtractOntologyApiDocumentsDocumentIdOntologyExtractPost = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof extractOntologyApiDocumentsDocumentIdOntologyExtractPost>>, TError,{documentId: string}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof extractOntologyApiDocumentsDocumentIdOntologyExtractPost>>,
+        TError,
+        {documentId: string},
+        TContext
+      > => {
+
+      const mutationOptions = getExtractOntologyApiDocumentsDocumentIdOntologyExtractPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
+/**
+ * Retrieves the structured ontology and certified brand rules.
+ * @summary Get Extracted Brand Ontology
+ */
+export const getOntologyApiDocumentsDocumentIdOntologyGet = (
+    documentId: string,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<BrandOntologyResponse>(
+      {url: `/api/documents/${documentId}/ontology`, method: 'GET', signal
+    },
+      options);
+    }
+  
+
+
+
+export const getGetOntologyApiDocumentsDocumentIdOntologyGetQueryKey = (documentId?: string,) => {
+    return [
+    `/api/documents/${documentId}/ontology`
+    ] as const;
+    }
+
+    
+export const getGetOntologyApiDocumentsDocumentIdOntologyGetQueryOptions = <TData = Awaited<ReturnType<typeof getOntologyApiDocumentsDocumentIdOntologyGet>>, TError = HTTPValidationError>(documentId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOntologyApiDocumentsDocumentIdOntologyGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOntologyApiDocumentsDocumentIdOntologyGetQueryKey(documentId);
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOntologyApiDocumentsDocumentIdOntologyGet>>> = ({ signal }) => getOntologyApiDocumentsDocumentIdOntologyGet(documentId, requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(documentId), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOntologyApiDocumentsDocumentIdOntologyGet>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetOntologyApiDocumentsDocumentIdOntologyGetQueryResult = NonNullable<Awaited<ReturnType<typeof getOntologyApiDocumentsDocumentIdOntologyGet>>>
+export type GetOntologyApiDocumentsDocumentIdOntologyGetQueryError = HTTPValidationError
+
+
+export function useGetOntologyApiDocumentsDocumentIdOntologyGet<TData = Awaited<ReturnType<typeof getOntologyApiDocumentsDocumentIdOntologyGet>>, TError = HTTPValidationError>(
+ documentId: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOntologyApiDocumentsDocumentIdOntologyGet>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOntologyApiDocumentsDocumentIdOntologyGet>>,
+          TError,
+          Awaited<ReturnType<typeof getOntologyApiDocumentsDocumentIdOntologyGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetOntologyApiDocumentsDocumentIdOntologyGet<TData = Awaited<ReturnType<typeof getOntologyApiDocumentsDocumentIdOntologyGet>>, TError = HTTPValidationError>(
+ documentId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOntologyApiDocumentsDocumentIdOntologyGet>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getOntologyApiDocumentsDocumentIdOntologyGet>>,
+          TError,
+          Awaited<ReturnType<typeof getOntologyApiDocumentsDocumentIdOntologyGet>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetOntologyApiDocumentsDocumentIdOntologyGet<TData = Awaited<ReturnType<typeof getOntologyApiDocumentsDocumentIdOntologyGet>>, TError = HTTPValidationError>(
+ documentId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOntologyApiDocumentsDocumentIdOntologyGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Get Extracted Brand Ontology
+ */
+
+export function useGetOntologyApiDocumentsDocumentIdOntologyGet<TData = Awaited<ReturnType<typeof getOntologyApiDocumentsDocumentIdOntologyGet>>, TError = HTTPValidationError>(
+ documentId: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getOntologyApiDocumentsDocumentIdOntologyGet>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetOntologyApiDocumentsDocumentIdOntologyGetQueryOptions(documentId,options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+
+/**
+ * Allows brand managers to edit and refine colors, typography, and rules.
+ * @summary Update Brand Ontology (Human-in-the-Loop Refinement)
+ */
+export const updateOntologyApiDocumentsDocumentIdOntologyPut = (
+    documentId: string,
+    brandOntologyUpdate: BrandOntologyUpdate,
+ options?: SecondParameter<typeof customInstance>,) => {
+      
+      
+      return customInstance<BrandOntologyResponse>(
+      {url: `/api/documents/${documentId}/ontology`, method: 'PUT',
+      headers: {'Content-Type': 'application/json', },
+      data: brandOntologyUpdate
+    },
+      options);
+    }
+  
+
+
+export const getUpdateOntologyApiDocumentsDocumentIdOntologyPutMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOntologyApiDocumentsDocumentIdOntologyPut>>, TError,{documentId: string;data: BrandOntologyUpdate}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateOntologyApiDocumentsDocumentIdOntologyPut>>, TError,{documentId: string;data: BrandOntologyUpdate}, TContext> => {
+
+const mutationKey = ['updateOntologyApiDocumentsDocumentIdOntologyPut'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateOntologyApiDocumentsDocumentIdOntologyPut>>, {documentId: string;data: BrandOntologyUpdate}> = (props) => {
+          const {documentId,data} = props ?? {};
+
+          return  updateOntologyApiDocumentsDocumentIdOntologyPut(documentId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateOntologyApiDocumentsDocumentIdOntologyPutMutationResult = NonNullable<Awaited<ReturnType<typeof updateOntologyApiDocumentsDocumentIdOntologyPut>>>
+    export type UpdateOntologyApiDocumentsDocumentIdOntologyPutMutationBody = BrandOntologyUpdate
+    export type UpdateOntologyApiDocumentsDocumentIdOntologyPutMutationError = HTTPValidationError
+
+    /**
+ * @summary Update Brand Ontology (Human-in-the-Loop Refinement)
+ */
+export const useUpdateOntologyApiDocumentsDocumentIdOntologyPut = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateOntologyApiDocumentsDocumentIdOntologyPut>>, TError,{documentId: string;data: BrandOntologyUpdate}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateOntologyApiDocumentsDocumentIdOntologyPut>>,
+        TError,
+        {documentId: string;data: BrandOntologyUpdate},
+        TContext
+      > => {
+
+      const mutationOptions = getUpdateOntologyApiDocumentsDocumentIdOntologyPutMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
+/**
+ * Marks the extracted brand rules as certified and verified by a brand manager.
+ * @summary Certify Brand Ontology (Human-in-the-Loop Approval)
+ */
+export const certifyOntologyApiDocumentsDocumentIdOntologyCertifyPost = (
+    documentId: string,
+    brandOntologyCertify: BrandOntologyCertify,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<BrandOntologyResponse>(
+      {url: `/api/documents/${documentId}/ontology/certify`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: brandOntologyCertify, signal
+    },
+      options);
+    }
+  
+
+
+export const getCertifyOntologyApiDocumentsDocumentIdOntologyCertifyPostMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof certifyOntologyApiDocumentsDocumentIdOntologyCertifyPost>>, TError,{documentId: string;data: BrandOntologyCertify}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof certifyOntologyApiDocumentsDocumentIdOntologyCertifyPost>>, TError,{documentId: string;data: BrandOntologyCertify}, TContext> => {
+
+const mutationKey = ['certifyOntologyApiDocumentsDocumentIdOntologyCertifyPost'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof certifyOntologyApiDocumentsDocumentIdOntologyCertifyPost>>, {documentId: string;data: BrandOntologyCertify}> = (props) => {
+          const {documentId,data} = props ?? {};
+
+          return  certifyOntologyApiDocumentsDocumentIdOntologyCertifyPost(documentId,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CertifyOntologyApiDocumentsDocumentIdOntologyCertifyPostMutationResult = NonNullable<Awaited<ReturnType<typeof certifyOntologyApiDocumentsDocumentIdOntologyCertifyPost>>>
+    export type CertifyOntologyApiDocumentsDocumentIdOntologyCertifyPostMutationBody = BrandOntologyCertify
+    export type CertifyOntologyApiDocumentsDocumentIdOntologyCertifyPostMutationError = HTTPValidationError
+
+    /**
+ * @summary Certify Brand Ontology (Human-in-the-Loop Approval)
+ */
+export const useCertifyOntologyApiDocumentsDocumentIdOntologyCertifyPost = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof certifyOntologyApiDocumentsDocumentIdOntologyCertifyPost>>, TError,{documentId: string;data: BrandOntologyCertify}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof certifyOntologyApiDocumentsDocumentIdOntologyCertifyPost>>,
+        TError,
+        {documentId: string;data: BrandOntologyCertify},
+        TContext
+      > => {
+
+      const mutationOptions = getCertifyOntologyApiDocumentsDocumentIdOntologyCertifyPostMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    

@@ -10,9 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.core.errors import APIError
 from app.core.logging import logger
-from app.db.models import Document
+from app.db.models import BrandOntology, Document
 from app.observability.langfuse import get_langfuse_callback, get_trace_url
 from app.providers.llm import get_llm
+from app.rag.ontology import format_ontology_context
 from app.rag.prompt import format_context_block
 from app.rag.retrieve import hybrid_retrieve
 from app.rag.rrf import FusedResult
@@ -107,7 +108,15 @@ async def generate_campaign_concepts(
     ]
 
     context_text = format_context_block(raw_context_pieces)
-    system_prompt = f"{CAMPAIGN_SYSTEM_PROMPT}\n\n{context_text}"
+
+    # Check for structured brand ontology grounding
+    ontology_stmt = select(BrandOntology).where(BrandOntology.document_id == document_id)
+    ontology_res = await db.execute(ontology_stmt)
+    ontology = ontology_res.scalar_one_or_none()
+    ontology_data = getattr(ontology, "ontology_data", None)
+    ontology_context = f"\n\n{format_ontology_context(ontology_data)}" if ontology_data else ""
+
+    system_prompt = f"{CAMPAIGN_SYSTEM_PROMPT}{ontology_context}\n\n{context_text}"
 
     user_content = (
         f"Campaign Brief:\n"

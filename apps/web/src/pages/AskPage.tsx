@@ -62,10 +62,10 @@ export const AskPage: React.FC = () => {
     scrollToBottom();
   }, [messages, isStreaming]);
 
-  // Auto-resize textarea
+  // Auto-resize textarea (modern-web-guidance fallback when field-sizing: content is unsupported)
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
-    if (textareaRef.current) {
+    if (textareaRef.current && typeof CSS !== "undefined" && !CSS.supports("field-sizing", "content")) {
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
     }
@@ -257,6 +257,10 @@ export const AskPage: React.FC = () => {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
+      // Guard against premature submit during IME character composition per modern-web-guidance
+      if (e.nativeEvent.isComposing || e.keyCode === 229) {
+        return;
+      }
       e.preventDefault();
       handleSubmit();
     }
@@ -483,7 +487,6 @@ export const AskPage: React.FC = () => {
       >
         <div className="flex items-center gap-2 p-2 px-3 rounded-full bg-surface border border-border shadow-lg focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20 transition-all">
           <Button
-            type="button"
             variant="ghost"
             size="icon"
             className="rounded-full shrink-0 h-9 w-9 text-muted-foreground hover:text-foreground"
@@ -508,7 +511,7 @@ export const AskPage: React.FC = () => {
                 : "Select a guideline above to ask questions..."
             }
             disabled={!selectedDocumentId || isStreaming}
-            className="flex-1 max-h-[160px] bg-transparent resize-none border-none outline-none text-sm text-foreground placeholder:text-muted-foreground px-1 py-1.5 leading-relaxed"
+            className="field-sizing-content flex-1 min-h-[38px] max-h-[160px] bg-transparent resize-none border-none outline-none text-sm text-foreground placeholder:text-muted-foreground px-1 py-1.5 leading-relaxed"
             aria-label="Ask about brand guidelines"
           />
 

@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { Link } from "react-router";
 import {
   UploadCloud,
   FileText,
@@ -8,6 +9,7 @@ import {
   Calendar,
   Layers,
   Check,
+  ShieldCheck,
 } from "lucide-react";
 import { useBrand } from "@/context/BrandContext";
 import { useUploadDocument } from "@/api/generated";
@@ -232,10 +234,18 @@ export const DocumentsPage: React.FC = () => {
 
                   <div className="flex items-center gap-2 self-end sm:self-center">
                     {isActive ? (
-                      <span className="text-xs font-medium text-success-text flex items-center gap-1 px-3 py-1.5">
-                        <CheckCircle className="w-4 h-4 text-success-icon" />
-                        Selected
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <Link to="/rules">
+                          <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+                            <ShieldCheck className="w-3.5 h-3.5 text-ring" aria-hidden="true" />
+                            Brand Rules
+                          </Button>
+                        </Link>
+                        <span className="text-xs font-medium text-success-text flex items-center gap-1 px-3 py-1.5">
+                          <CheckCircle className="w-4 h-4 text-success-icon" />
+                          Selected
+                        </span>
+                      </div>
                     ) : (
                       <Button
                         variant="secondary"

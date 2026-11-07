@@ -31,9 +31,9 @@ export const SourcesDrawer: React.FC<SourcesDrawerProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="sources-drawer-title">
-      {/* Backdrop */}
+      {/* Backdrop with modern-web scroll containment */}
       <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity overflow-hidden [overscroll-behavior:contain]"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -63,8 +63,8 @@ export const SourcesDrawer: React.FC<SourcesDrawerProps> = ({
             </button>
           </div>
 
-          {/* Body: Citations List */}
-          <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
+          {/* Body: Citations List with overscroll containment */}
+          <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4 [overscroll-behavior:contain]">
             {citations.map((cite, idx) => (
               <div
                 key={`${cite.chunk_index}-${idx}`}

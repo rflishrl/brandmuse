@@ -6,6 +6,8 @@
 
 @layer base {
   :root {
+    color-scheme: light;
+    accent-color: var(--ring);
     --background: #F7F7F8;
     --background-gradient-end: #FFFFFF;
     --surface: #FFFFFF;
@@ -22,6 +24,8 @@
   }
 
   .dark {
+    color-scheme: dark;
+    accent-color: var(--ring);
     --background: #0E0E11;
     --background-gradient-end: #141418;
     --surface: #1B1B20;
@@ -86,4 +90,21 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* Modern Web Guidance: Native dynamic form sizing */
+.field-sizing-content {
+  field-sizing: content;
+}
+
+/* Modern Web Guidance: Native modal dialog scrolling & containment */
+dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+  overflow: hidden;
+  overscroll-behavior: contain;
+  background-color: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(4px);
 }

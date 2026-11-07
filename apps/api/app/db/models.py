@@ -43,6 +43,9 @@ class Document(Base):
     chunks: Mapped[list["Chunk"]] = relationship(
         "Chunk", back_populates="document", cascade="all, delete-orphan"
     )
+    ontology: Mapped["BrandOntology | None"] = relationship(
+        "BrandOntology", back_populates="document", uselist=False, cascade="all, delete-orphan"
+    )
 
 
 class Chunk(Base):
@@ -102,3 +105,32 @@ class UsageCounter(Base):
     day: Mapped[datetime.date] = mapped_column(Date, primary_key=True)
     kind: Mapped[str] = mapped_column(String(20), primary_key=True)  # 'llm' | 'image'
     count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+
+
+class BrandOntology(Base):
+    """Structured brand ontology and certified rules extracted from brand guidelines."""
+
+    __tablename__ = "brand_ontologies"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    document_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("documents.id", ondelete="CASCADE"),
+        unique=True,
+        index=True,
+        nullable=False,
+    )
+    ontology_data: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    is_certified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    certified_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    certified_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    document: Mapped["Document"] = relationship("Document", back_populates="ontology")

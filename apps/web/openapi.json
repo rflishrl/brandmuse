@@ -426,6 +426,280 @@
           }
         }
       }
+    },
+    "/api/documents/{document_id}/ontology/extract": {
+      "post": {
+        "tags": [
+          "ontology"
+        ],
+        "summary": "Extract Structured Brand Ontology",
+        "description": "Analyzes the document's indexed text chunks to extract brand identity, colors, typography, and DOs/DONTs.",
+        "operationId": "extract_ontology_api_documents__document_id__ontology_extract_post",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Target document ID",
+              "title": "Document Id"
+            },
+            "description": "Target document ID"
+          },
+          {
+            "name": "X-Session-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client session identifier as UUID",
+              "title": "X-Session-Id"
+            },
+            "description": "Client session identifier as UUID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandOntologyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/documents/{document_id}/ontology": {
+      "get": {
+        "tags": [
+          "ontology"
+        ],
+        "summary": "Get Extracted Brand Ontology",
+        "description": "Retrieves the structured ontology and certified brand rules.",
+        "operationId": "get_ontology_api_documents__document_id__ontology_get",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Target document ID",
+              "title": "Document Id"
+            },
+            "description": "Target document ID"
+          },
+          {
+            "name": "X-Session-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client session identifier as UUID",
+              "title": "X-Session-Id"
+            },
+            "description": "Client session identifier as UUID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandOntologyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "ontology"
+        ],
+        "summary": "Update Brand Ontology (Human-in-the-Loop Refinement)",
+        "description": "Allows brand managers to edit and refine colors, typography, and rules.",
+        "operationId": "update_ontology_api_documents__document_id__ontology_put",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Target document ID",
+              "title": "Document Id"
+            },
+            "description": "Target document ID"
+          },
+          {
+            "name": "X-Session-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client session identifier as UUID",
+              "title": "X-Session-Id"
+            },
+            "description": "Client session identifier as UUID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrandOntologyUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandOntologyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/documents/{document_id}/ontology/certify": {
+      "post": {
+        "tags": [
+          "ontology"
+        ],
+        "summary": "Certify Brand Ontology (Human-in-the-Loop Approval)",
+        "description": "Marks the extracted brand rules as certified and verified by a brand manager.",
+        "operationId": "certify_ontology_api_documents__document_id__ontology_certify_post",
+        "parameters": [
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Target document ID",
+              "title": "Document Id"
+            },
+            "description": "Target document ID"
+          },
+          {
+            "name": "X-Session-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client session identifier as UUID",
+              "title": "X-Session-Id"
+            },
+            "description": "Client session identifier as UUID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BrandOntologyCertify"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrandOntologyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -443,6 +717,269 @@
           "file"
         ],
         "title": "Body_uploadDocument"
+      },
+      "BrandIdentity": {
+        "properties": {
+          "brand_name": {
+            "type": "string",
+            "title": "Brand Name",
+            "description": "Official brand name"
+          },
+          "tagline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tagline",
+            "description": "Official tagline or slogan"
+          },
+          "mission_or_purpose": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mission Or Purpose",
+            "description": "Core mission, purpose, or brand philosophy"
+          },
+          "target_audience": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Audience",
+            "description": "Primary target demographic or customer persona"
+          },
+          "tone_attributes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Tone Attributes",
+            "description": "Key tone of voice descriptors (e.g., ['Empathetic', 'Minimalist'])"
+          }
+        },
+        "type": "object",
+        "required": [
+          "brand_name"
+        ],
+        "title": "BrandIdentity",
+        "description": "Core identity and voice attributes of the brand."
+      },
+      "BrandOntologyCertify": {
+        "properties": {
+          "certified_by": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 2,
+            "title": "Certified By",
+            "description": "Name or role of the certifying human expert",
+            "default": "Brand Manager"
+          }
+        },
+        "type": "object",
+        "title": "BrandOntologyCertify",
+        "description": "Payload to certify the ontology for team production use."
+      },
+      "BrandOntologyData": {
+        "properties": {
+          "identity": {
+            "$ref": "#/components/schemas/BrandIdentity",
+            "description": "Brand identity and voice"
+          },
+          "colors": {
+            "items": {
+              "$ref": "#/components/schemas/ColorToken"
+            },
+            "type": "array",
+            "title": "Colors",
+            "description": "Brand color palette and hex codes"
+          },
+          "typography": {
+            "items": {
+              "$ref": "#/components/schemas/TypographyToken"
+            },
+            "type": "array",
+            "title": "Typography",
+            "description": "Typography standards and fonts"
+          },
+          "rules": {
+            "items": {
+              "$ref": "#/components/schemas/BrandRuleItem"
+            },
+            "type": "array",
+            "title": "Rules",
+            "description": "Catalog of atomic DOs, DONTs, and restrictions"
+          },
+          "channel_rules": {
+            "items": {
+              "$ref": "#/components/schemas/ChannelRule"
+            },
+            "type": "array",
+            "title": "Channel Rules",
+            "description": "Channel-specific rules and constraints"
+          }
+        },
+        "type": "object",
+        "required": [
+          "identity"
+        ],
+        "title": "BrandOntologyData",
+        "description": "Complete structured brand ontology extracted from guideline documentation."
+      },
+      "BrandOntologyResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id"
+          },
+          "is_certified": {
+            "type": "boolean",
+            "title": "Is Certified"
+          },
+          "certified_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certified At"
+          },
+          "certified_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Certified By"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "ontology": {
+            "$ref": "#/components/schemas/BrandOntologyData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "document_id",
+          "is_certified",
+          "created_at",
+          "updated_at",
+          "ontology"
+        ],
+        "title": "BrandOntologyResponse",
+        "description": "API response model for a document's brand ontology."
+      },
+      "BrandOntologyUpdate": {
+        "properties": {
+          "ontology": {
+            "$ref": "#/components/schemas/BrandOntologyData"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ontology"
+        ],
+        "title": "BrandOntologyUpdate",
+        "description": "Payload for human-in-the-loop editing of extracted ontology."
+      },
+      "BrandRuleItem": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "logo",
+              "color",
+              "typography",
+              "imagery",
+              "tone_of_voice",
+              "channel_restriction",
+              "general"
+            ],
+            "title": "Category",
+            "description": "Rule category"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "do",
+              "dont",
+              "guideline"
+            ],
+            "title": "Type",
+            "description": "'do' for mandatory, 'dont' for prohibitions, 'guideline' for recommendations"
+          },
+          "rule": {
+            "type": "string",
+            "title": "Rule",
+            "description": "Clear, actionable rule description (e.g., 'Never rotate the logo mark')"
+          },
+          "reasoning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reasoning",
+            "description": "Brand reasoning or context behind this rule"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page",
+            "description": "Page number in brand guideline containing this rule"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "type",
+          "rule"
+        ],
+        "title": "BrandRuleItem",
+        "description": "Atomic DO or DON'T constraint in the brand guideline."
       },
       "CampaignBrief": {
         "properties": {
@@ -545,6 +1082,37 @@
         "title": "CampaignResponse",
         "description": "Response containing 3 creative concepts with guideline citations and trace link."
       },
+      "ChannelRule": {
+        "properties": {
+          "channel": {
+            "type": "string",
+            "title": "Channel",
+            "description": "Marketing channel name (e.g., 'Instagram', 'Packaging', 'Billboard')"
+          },
+          "dos": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Dos",
+            "description": "Permitted or recommended practices"
+          },
+          "donts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Donts",
+            "description": "Prohibited practices for this channel"
+          }
+        },
+        "type": "object",
+        "required": [
+          "channel"
+        ],
+        "title": "ChannelRule",
+        "description": "Channel-specific requirements and prohibitions."
+      },
       "ChatMessage": {
         "properties": {
           "role": {
@@ -604,6 +1172,66 @@
         ],
         "title": "ChatRequest",
         "description": "Incoming user chat query for guideline grounded Q&A."
+      },
+      "ColorToken": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Color name (e.g., 'Terracotta Brown', 'Forest Green')"
+          },
+          "hex": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "title": "Hex",
+            "description": "Hexadecimal color code (e.g., '#222B27')"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "primary",
+              "secondary",
+              "accent",
+              "background",
+              "text",
+              "other"
+            ],
+            "title": "Role",
+            "description": "Functional role in the design system",
+            "default": "primary"
+          },
+          "usage_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usage Notes",
+            "description": "Restrictions or guidelines for this color (e.g. 'Packaging only, never text')"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page",
+            "description": "Page number in guideline where color is defined"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "hex"
+        ],
+        "title": "ColorToken",
+        "description": "Structured brand color definition."
       },
       "Concept": {
         "properties": {
@@ -906,6 +1534,67 @@
         ],
         "title": "ImageGenerateResponse",
         "description": "Result of image generation including permanent public Supabase Storage URL."
+      },
+      "TypographyToken": {
+        "properties": {
+          "font_family": {
+            "type": "string",
+            "title": "Font Family",
+            "description": "Font family name (e.g., 'Inter', 'Playfair Display')"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "primary",
+              "secondary",
+              "accent",
+              "body",
+              "headline",
+              "caption"
+            ],
+            "title": "Role",
+            "description": "Typographic hierarchy level",
+            "default": "body"
+          },
+          "weights": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Weights",
+            "description": "Permitted font weights (e.g., ['Regular (400)', 'Bold (700)'])"
+          },
+          "usage_notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usage Notes",
+            "description": "Usage rules (e.g., 'All-caps for subheadings only, line-height 1.4')"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page",
+            "description": "Page number where typography rule is documented"
+          }
+        },
+        "type": "object",
+        "required": [
+          "font_family"
+        ],
+        "title": "TypographyToken",
+        "description": "Structured brand typography rule."
       },
       "ValidationError": {
         "properties": {

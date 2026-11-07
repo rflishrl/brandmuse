@@ -7,6 +7,7 @@ import { DocumentsPage } from "@/pages/DocumentsPage";
 import { GalleryPage } from "@/pages/GalleryPage";
 import { HealthCheckPage } from "@/pages/HealthCheckPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
+import { OntologyPage } from "@/pages/OntologyPage";
 
 const RootLayout = () => (
   <BrandProvider>
@@ -28,6 +29,14 @@ export const router = createBrowserRouter([
       {
         path: "ask",
         element: <AskPage />,
+      },
+      {
+        path: "rules",
+        element: <OntologyPage />,
+      },
+      {
+        path: "ontology",
+        element: <Navigate to="/rules" replace />,
       },
       {
         path: "campaign",

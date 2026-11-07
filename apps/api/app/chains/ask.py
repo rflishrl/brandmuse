@@ -8,9 +8,10 @@ from langchain_core.runnables import RunnableConfig
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Document
+from app.db.models import BrandOntology, Document
 from app.observability.langfuse import get_langfuse_callback, get_trace_url
 from app.providers.llm import get_llm
+from app.rag.ontology import format_ontology_context
 from app.rag.prompt import format_context_block
 from app.rag.retrieve import hybrid_retrieve
 from app.schemas.chat import ChatMessage, CitationItem
@@ -78,9 +79,17 @@ async def stream_ask_chain(
         )
         raw_context_pieces.append({"page": str(page), "content": content})
 
-    # 3. Format grounded prompt with security delimiters
+    # 3. Format grounded prompt with security delimiters and certified brand ontology
     context_text = format_context_block(raw_context_pieces)
-    system_prompt = f"{SYSTEM_INSTRUCTION}\n\n{context_text}"
+
+    # Check for structured brand ontology grounding
+    ontology_stmt = select(BrandOntology).where(BrandOntology.document_id == document_id)
+    ontology_res = await db.execute(ontology_stmt)
+    ontology = ontology_res.scalar_one_or_none()
+    ontology_data = getattr(ontology, "ontology_data", None)
+    ontology_context = f"\n\n{format_ontology_context(ontology_data)}" if ontology_data else ""
+
+    system_prompt = f"{SYSTEM_INSTRUCTION}{ontology_context}\n\n{context_text}"
 
     messages: list[SystemMessage | HumanMessage | AIMessage] = [
         SystemMessage(content=system_prompt)

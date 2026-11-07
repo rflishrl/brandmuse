@@ -221,8 +221,8 @@ export const CampaignPage: React.FC = () => {
             </div>
 
             {/* Desired Mood */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-foreground">Desired Mood</label>
+            <fieldset className="flex flex-col gap-1.5 border-none p-0 m-0">
+              <legend className="text-xs font-semibold text-foreground mb-1.5">Desired Mood</legend>
               <div className="flex flex-wrap gap-2">
                 {PRESET_MOODS.map((m) => (
                   <button
@@ -233,12 +233,13 @@ export const CampaignPage: React.FC = () => {
                       px-2.5 py-1.5 rounded-full text-xs font-medium border transition-colors
                       ${mood === m ? "bg-ring text-white border-ring shadow-xs" : "bg-surface-user text-muted-foreground border-border hover:text-foreground"}
                     `}
+                    aria-pressed={mood === m}
                   >
                     {m}
                   </button>
                 ))}
               </div>
-            </div>
+            </fieldset>
           </div>
 
           <Button
@@ -380,6 +381,8 @@ export const CampaignPage: React.FC = () => {
                           src={imgState.url}
                           alt={concept.title}
                           className="w-full aspect-square object-cover rounded-lg shadow-sm border border-border"
+                          decoding="async"
+                          fetchPriority="high"
                         />
                         <div className="flex items-center justify-between pt-1">
                           <a

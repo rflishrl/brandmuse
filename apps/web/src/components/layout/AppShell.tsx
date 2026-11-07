@@ -12,6 +12,7 @@ import {
   Laptop,
   Bookmark,
   ExternalLink,
+  ShieldCheck,
 } from "lucide-react";
 import { BrandMuseOrb } from "@/components/BrandMuseOrb";
 import { Button } from "@/components/ui/button";
@@ -78,6 +79,7 @@ export const AppShell: React.FC<AppShellProps> = ({
 
   const navItems = [
     { label: "Ask", path: "/ask", icon: MessageSquare },
+    { label: "Brand Rules", path: "/rules", icon: ShieldCheck },
     { label: "Campaign", path: "/campaign", icon: Megaphone },
     { label: "Gallery", path: "/gallery", icon: ImageIcon },
     { label: "Documents", path: "/documents", icon: FileText },
