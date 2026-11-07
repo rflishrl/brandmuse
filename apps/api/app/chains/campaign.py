@@ -30,6 +30,11 @@ Requirements for each concept:
 1. Title: Distinct, catchy campaign headline.
 2. Caption: Copywriting for social media or advertisement, written in the exact tone of voice of \
 the brand.
+   Copywriting Restrictions (Anti-Slop Guardrail):
+   - NEVER use em dashes (—). Use clean periods, commas, or colons instead.
+   - NEVER use empty AI marketing clichés or buzzwords (e.g. "elevate", "unlock", "delve", \
+"seamless", "revolutionary", "game-changing", "testament", "tapestry").
+   - Write concrete, authentic, human brand copy grounded in real benefits and sensory details.
 3. Hashtags: 3 to 5 on-brand hashtags.
 4. Visual Direction: Clear art direction specifying photography lighting, color palette, mood, \
 and composition.

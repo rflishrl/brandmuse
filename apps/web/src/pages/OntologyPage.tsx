@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   ShieldCheck,
   ShieldAlert,
-  Sparkles,
+  FileSearch,
   Palette,
   Type,
   ListChecks,
@@ -286,8 +286,7 @@ export const OntologyPage: React.FC = () => {
           <div className="max-w-md">
             <h2 className="text-lg font-semibold text-foreground">No Brand Guideline Selected</h2>
             <p className="text-xs text-muted-foreground mt-1">
-              Select an uploaded brand guideline document or explore the interactive demo with our
-              free sample brand.
+              Select an uploaded brand guideline document, or test with our sample Aura Living brand guideline.
             </p>
           </div>
           <div className="flex items-center gap-3 mt-2">
@@ -330,8 +329,8 @@ export const OntologyPage: React.FC = () => {
       {/* Case 3: Document Selected, but Ontology Not Extracted Yet (404 / Empty) */}
       {selectedDocumentId && !isLoadingOntology && (!ontologyData || isOntologyError) && (
         <div className="p-8 sm:p-12 rounded-card bg-surface border border-dashed border-border text-center flex flex-col items-center justify-center gap-5 shadow-sm">
-          <div className="p-4 rounded-2xl bg-white/10 text-foreground">
-            <Sparkles className="w-8 h-8" aria-hidden="true" />
+          <div className="p-4 rounded-2xl bg-foreground/5 text-foreground">
+            <FileSearch className="w-8 h-8" aria-hidden="true" />
           </div>
           <div className="max-w-lg">
             <h2 className="text-lg sm:text-xl font-semibold text-foreground">
@@ -350,7 +349,7 @@ export const OntologyPage: React.FC = () => {
             disabled={extractMutation.isPending}
             className="gap-2.5 mt-2"
           >
-            <Sparkles className="w-4 h-4" aria-hidden="true" />
+            <ShieldCheck className="w-4 h-4" aria-hidden="true" />
             {extractMutation.isPending
               ? "Extracting Brand Ontology with AI..."
               : "Extract Brand Rules Now"}
@@ -440,7 +439,7 @@ export const OntologyPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Brand Identity Showcase Card */}
+          {/* Brand Core Identity Card */}
           {identity && (
             <div className="p-6 sm:p-7 rounded-card bg-surface/90 dark:bg-[#141418]/80 backdrop-blur-xl border border-border dark:border-white/10 shadow-card flex flex-col gap-5">
               <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 border-b border-border pb-4">
@@ -997,6 +996,19 @@ export const OntologyPage: React.FC = () => {
         ref={dialogRef}
         aria-labelledby="certify-dialog-title"
         aria-describedby="certify-dialog-desc"
+        onClick={(e) => {
+          if (e.target === dialogRef.current) {
+            const rect = dialogRef.current.getBoundingClientRect();
+            if (
+              e.clientX < rect.left ||
+              e.clientX > rect.right ||
+              e.clientY < rect.top ||
+              e.clientY > rect.bottom
+            ) {
+              closeCertifyModal();
+            }
+          }
+        }}
         className="rounded-card bg-surface text-foreground border border-border p-6 shadow-2xl max-w-lg w-[calc(100vw-2rem)] mx-auto my-auto backdrop:bg-black/50 backdrop:backdrop-blur-sm"
       >
         <form onSubmit={handleCertifySubmit} className="flex flex-col gap-5">

@@ -13,7 +13,6 @@ import {
   Bookmark,
   ShieldCheck,
   Plus,
-  User,
   PanelLeftClose,
   PanelLeft,
 } from "lucide-react";
@@ -118,32 +117,27 @@ export const AppShell: React.FC<AppShellProps> = ({
 
   const navItems = [
     {
-      label: "Ask AI",
-      subtitle: "Grounded Chat",
+      label: "Ask",
       path: "/ask",
       icon: MessageSquare,
     },
     {
       label: "Brand Rules",
-      subtitle: "Extracted Tokens",
       path: "/rules",
       icon: ShieldCheck,
     },
     {
       label: "Campaign",
-      subtitle: "Creative Concepts",
       path: "/campaign",
       icon: Megaphone,
     },
     {
       label: "Gallery",
-      subtitle: "Generated Visuals",
       path: "/gallery",
       icon: ImageIcon,
     },
     {
       label: "Documents",
-      subtitle: "PDF Guidelines",
       path: "/documents",
       icon: FileText,
     },
@@ -171,7 +165,7 @@ export const AppShell: React.FC<AppShellProps> = ({
       </a>
 
       {/* Mobile Top Bar */}
-      <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-surface/90 backdrop-blur-md shrink-0 sticky top-0 z-40">
+      <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-surface/85 dark:bg-[#08080A]/85 backdrop-blur-md shrink-0 sticky top-0 z-40">
         <div className="flex items-center gap-3">
           <BrandMuseOrb size={28} glow />
           <div>
@@ -201,7 +195,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <BrandMuseOrb size={32} glow />
+                <BrandMuseOrb size={32} />
                 <div>
                   <span className="font-bold text-base text-foreground tracking-tight block">
                     BrandMuse AI
@@ -244,19 +238,14 @@ export const AppShell: React.FC<AppShellProps> = ({
                     key={item.path}
                     to={item.path}
                     onClick={() => setMobileOpen(false)}
-                    className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm transition-all ${
+                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all ${
                       active
                         ? "bg-foreground/10 text-foreground font-semibold border border-foreground/20 shadow-xs"
                         : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                     }`}
                   >
-                    <div className="flex items-center gap-3">
-                      <Icon className="w-4 h-4" />
-                      <span>{item.label}</span>
-                    </div>
-                    <span className="text-[10px] text-muted-foreground font-normal">
-                      {item.subtitle}
-                    </span>
+                    <Icon className="w-4 h-4" />
+                    <span>{item.label}</span>
                   </Link>
                 );
               })}
@@ -310,7 +299,7 @@ export const AppShell: React.FC<AppShellProps> = ({
       <aside
         className={`
           hidden md:flex sticky top-0 inset-y-0 left-0 z-40 h-screen
-          bg-surface/90 dark:bg-[#08080A]/95 backdrop-blur-2xl border-r border-border dark:border-white/[0.08]
+          bg-surface/85 dark:bg-[#08080A]/80 backdrop-blur-xl border-r border-border dark:border-white/[0.08]
           flex-col justify-between shrink-0 select-none transition-[width] duration-300 ease-in-out
           ${isExpanded ? "w-[240px] px-3.5 py-4" : "w-[72px] px-2 py-4 items-center"}
         `}
@@ -318,8 +307,8 @@ export const AppShell: React.FC<AppShellProps> = ({
       >
         {/* Top: Header, Logo, and Expand/Collapse Toggle */}
         <div className="flex flex-col gap-4 w-full">
-          {/* Top Bar with Logo & Collapse Toggle */}
-          <div className={`flex items-center w-full ${isExpanded ? "justify-between" : "justify-center"}`}>
+          {/* Top Bar with Logo */}
+          <div className={`flex items-center w-full ${isExpanded ? "justify-start px-1" : "justify-center"}`}>
             <Link
               to="/"
               title="BrandMuse AI"
@@ -335,25 +324,12 @@ export const AppShell: React.FC<AppShellProps> = ({
                       AI
                     </span>
                   </span>
-                  <span className="text-[10px] text-muted-foreground truncate max-w-[130px]" title={effectiveDocumentName}>
+                  <span className="text-[10px] text-muted-foreground truncate max-w-[140px]" title={effectiveDocumentName}>
                     {effectiveDocumentName}
                   </span>
                 </div>
               )}
             </Link>
-
-            {/* Toggle Button in Header when expanded */}
-            {isExpanded && (
-              <button
-                type="button"
-                onClick={toggleSidebar}
-                title="Tutup sidebar (⌘B)"
-                aria-label="Collapse sidebar"
-                className="p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all"
-              >
-                <PanelLeftClose className="w-4 h-4" />
-              </button>
-            )}
           </div>
 
           {/* New Chat Button */}
@@ -398,13 +374,13 @@ export const AppShell: React.FC<AppShellProps> = ({
                 <Link
                   key={item.path}
                   to={item.path}
-                  title={`${item.label} — ${item.subtitle}`}
+                  title={item.label}
                   aria-label={item.label}
                   className={`
                     relative rounded-2xl flex items-center transition-all duration-200 group
                     ${
                       isExpanded
-                        ? "w-full px-3 py-2.5 justify-between"
+                        ? "w-full px-3.5 py-2.5 justify-start gap-3"
                         : "w-11 h-11 justify-center mx-auto"
                     }
                     ${
@@ -415,24 +391,17 @@ export const AppShell: React.FC<AppShellProps> = ({
                   `}
                   aria-current={active ? "page" : undefined}
                 >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <Icon
-                      className={`w-4 h-4 shrink-0 transition-transform ${
-                        active ? "text-foreground dark:text-white scale-105" : "text-muted-foreground group-hover:text-foreground"
-                      }`}
-                      aria-hidden="true"
-                    />
-                    {isExpanded && (
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-xs tracking-tight truncate leading-tight font-medium">
-                          {item.label}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground truncate leading-tight mt-0.5">
-                          {item.subtitle}
-                        </span>
-                      </div>
-                    )}
-                  </div>
+                  <Icon
+                    className={`w-4 h-4 shrink-0 transition-transform ${
+                      active ? "text-foreground dark:text-white scale-105" : "text-muted-foreground group-hover:text-foreground"
+                    }`}
+                    aria-hidden="true"
+                  />
+                  {isExpanded && (
+                    <span className="text-xs font-medium tracking-tight truncate">
+                      {item.label}
+                    </span>
+                  )}
 
                   {/* Active indicator dot/pill */}
                   {active && !isExpanded && (
@@ -490,26 +459,22 @@ export const AppShell: React.FC<AppShellProps> = ({
             )}
           </button>
 
-          {/* User Profile Workspace Status Card */}
+          {/* Active Brand Workspace Status Indicator */}
           <div
             className={`flex items-center gap-2.5 pt-1 w-full ${
               isExpanded ? "px-2 py-1.5 rounded-xl bg-foreground/[0.03] border border-border/60 dark:border-white/5" : "justify-center"
             }`}
           >
             <div
-              className="relative w-8 h-8 rounded-full bg-foreground/10 border border-border dark:border-white/20 flex items-center justify-center text-foreground shrink-0 shadow-xs"
-              title={`Active Workspace • ${effectiveDocumentName}`}
+              className="w-8 h-8 rounded-xl bg-foreground/10 border border-border dark:border-white/20 flex items-center justify-center text-foreground shrink-0 shadow-xs"
+              title={`Active Guideline • ${effectiveDocumentName}`}
             >
-              <User className="w-4 h-4" />
-              <span
-                className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-background"
-                title="Online / Ready"
-              />
+              <FileText className="w-4 h-4 text-muted-foreground" />
             </div>
             {isExpanded && (
               <div className="flex flex-col min-w-0">
-                <span className="text-xs font-semibold text-foreground truncate">Workspace</span>
-                <span className="text-[10px] text-muted-foreground truncate max-w-[120px]" title={effectiveDocumentName}>
+                <span className="text-xs font-semibold text-foreground truncate">Active Brand</span>
+                <span className="text-[10px] text-muted-foreground truncate max-w-[130px]" title={effectiveDocumentName}>
                   {effectiveDocumentName}
                 </span>
               </div>
@@ -520,11 +485,11 @@ export const AppShell: React.FC<AppShellProps> = ({
           <button
             type="button"
             onClick={toggleSidebar}
-            title={isExpanded ? "Tutup sidebar (⌘B)" : "Buka sidebar (⌘B)"}
+            title={isExpanded ? "Collapse sidebar (⌘B)" : "Expand sidebar (⌘B)"}
             aria-label={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
             className={`
               mt-1 flex items-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all
-              ${isExpanded ? "w-full justify-between px-2.5 py-1.5 text-xs" : "w-11 h-8 justify-center mx-auto"}
+              ${isExpanded ? "w-full justify-between px-2.5 py-2 text-xs min-h-[38px]" : "w-11 min-h-[38px] justify-center mx-auto"}
             `}
           >
             <span className="flex items-center gap-2">
@@ -533,7 +498,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               ) : (
                 <PanelLeft className="w-3.5 h-3.5" />
               )}
-              {isExpanded && <span className="text-[11px] font-medium">Collapse Sidebar</span>}
+              {isExpanded && <span className="text-[11px] font-medium">Collapse sidebar</span>}
             </span>
             {isExpanded && (
               <span className="text-[9px] font-mono text-muted-foreground">⌘B</span>

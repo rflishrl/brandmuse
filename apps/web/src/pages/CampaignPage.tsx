@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { Link } from "react-router";
 import {
-  Sparkles,
+  Layers,
+  Bookmark,
   Download,
   Copy,
   Check,
@@ -157,14 +158,14 @@ export const CampaignPage: React.FC = () => {
             onClick={() => loadSampleBrand()}
             disabled={isLoadingSample}
           >
-            <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+            <Bookmark className="w-3.5 h-3.5 mr-1.5" />
             {isLoadingSample ? "Loading..." : "Use sample brand"}
           </Button>
         </div>
       )}
 
       {/* Campaign Brief Form Card */}
-      <div className="p-6 sm:p-7 rounded-card bg-surface/90 dark:bg-[#141418]/80 border border-border dark:border-white/10 shadow-card backdrop-blur-xl">
+      <div className="p-6 sm:p-7 rounded-card bg-surface/90 dark:bg-[#141418]/80 backdrop-blur-xl border border-border dark:border-white/10 shadow-card">
         <form onSubmit={handleGenerateCampaign} className="flex flex-col gap-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Product / Service */}
@@ -247,12 +248,12 @@ export const CampaignPage: React.FC = () => {
             disabled={!selectedDocumentId || !product.trim() || !audience.trim() || campaignMutation.isPending}
             className="w-full md:w-auto self-start mt-2"
           >
-            <Sparkles className="w-4 h-4 mr-2" />
+            <Layers className="w-4 h-4 mr-2" />
             {campaignMutation.isPending ? "Directing 3 on-brand concepts..." : "Generate 3 concepts"}
           </Button>
 
           {campaignMutation.isError && (
-            <div className="p-3 rounded-md bg-danger/10 border border-danger/20 text-xs text-danger flex items-center gap-2">
+            <div role="alert" className="p-3 rounded-md bg-danger/10 border border-danger/20 text-xs text-danger flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0" />
               <span>Failed to generate campaign concepts. Daily quota may have been reached.</span>
             </div>

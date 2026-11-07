@@ -10,6 +10,7 @@
 [![PostgreSQL](https://img.shields.io/badge/Database-Neon%20%2B%20pgvector-336791?logo=postgresql&logoColor=white)](https://neon.tech)
 [![AI Engine](https://img.shields.io/badge/AI%20Engine-Gemini%20%7C%20OpenAI-8E75B2?logo=google-gemini&logoColor=white)](https://ai.google.dev)
 [![WCAG AA](https://img.shields.io/badge/Accessibility-WCAG%202.2%20AA%20(98%2F100)-green)](#web-quality--accessibility-audit)
+[![Anti-Slop](https://img.shields.io/badge/Anti--Slop-26%2F26%20Passing-brightgreen)](anti-slop/audit-001-2026-11-08.md)
 
 ---
 
@@ -79,7 +80,7 @@ flowchart TD
 1. **Strictly Grounded Brand Q&A:**
    - Multi-stage hybrid search combining dense HNSW vector similarity with PostgreSQL full-text search (`ts_rank_cd`), fused via Reciprocal Rank Fusion ($k=60$).
    - Answers cite exact guideline pages (e.g. `[p. 2]`).
-   - If a topic is not in the guideline, BrandMuse explicitly states: *"The guideline doesn't cover this."* (Zero hallucination).
+   - If a topic is not in the guideline, BrandMuse explicitly states: *"The guideline doesn't cover this."* (Strict guideline matching).
    - Prompt injection defense: uploaded guidelines are encapsulated within `<untrusted_brand_guideline_context>` boundary tags.
 
 2. **Campaign Concept Generator:**
@@ -112,7 +113,7 @@ While creative agency postings frequently reference Node.js and Express.js, Bran
 
 | Dimension | Express.js (Node.js) | FastAPI (Python 3.12 / uv) | BrandMuse Decision |
 | :--- | :--- | :--- | :--- |
-| **AI Ecosystem & Tooling** | JS ports often lag behind upstream AI releases; divergent APIs. | Native home of LangChain, LlamaIndex, pgvector, ReportLab, and Hugging Face. | **FastAPI:** Immediate access to cutting-edge AI primitives without fragile wrappers. |
+| **AI Ecosystem & Tooling** | JS ports often lag behind upstream AI releases; divergent APIs. | Native home of LangChain, LlamaIndex, pgvector, ReportLab, and Hugging Face. | **FastAPI:** Immediate access to standard AI primitives without fragile wrappers. |
 | **Async Streaming (SSE)** | Requires manual chunk buffering, pipe handlers, and custom backpressure code. | Native `StreamingResponse` with asynchronous generators and native Starlette disconnection detection. | **FastAPI:** Clean, reliable real-time token streaming with automatic client disconnect aborts. |
 | **Type Safety & OpenAPI** | Manual Swagger/JSDoc annotations that drift easily from runtime TypeScript types. | Runtime Pydantic v2 schemas automatically generate strict OpenAPI 3.1 specs on every reload. | **FastAPI:** Zero drift. Frontend client generated with Orval guarantees 100% end-to-end type safety. |
 | **Memory Footprint** | V8 engine uses 60 to 120 MB baseline memory. | Astral uv with Python slim runs under 45 MB RSS, leaving maximum headroom on free cloud tiers. | **FastAPI:** Fits easily inside Render 512 MB free tier without out-of-memory spikes. |
@@ -154,6 +155,29 @@ Built following the [Agent Skills Web Quality specification](https://agentskills
 - **Performance & Core Web Vitals:**
   - Self-hosted Inter font (`@fontsource-variable/inter`) avoiding external Google Fonts blocking.
   - Zero Cumulative Layout Shift (CLS < 0.05) using explicit `aspect-square` containers and skeleton placeholders.
+
+---
+
+## Anti-Slop Framework & Quality Standards
+
+BrandMuse is audited under the [Anti-Slop Audit Specification](anti-slop/audit-001-2026-11-08.md) (26/26 findings resolved across 4 audit phases). This enforcement framework eliminates generative AI clichés, conversational filler, security boundaries leakage, and decorative code:
+
+1. **Negative Prompt Constraints & Direct Answering:**
+   - System prompts forbid conversational filler, polite openers, and chatbot sign-offs (*"Certainly!"*, *"I'd be happy to help"*, *"I hope this helps!"*). Answers start directly with the cited fact.
+   - Campaign generation prohibits empty marketing jargon (*"elevate"*, *"unlock"*, *"delve"*, *"seamless"*, *"revolutionary"*, *"tapestry"*) and em dashes (`—`). Concepts are evaluated against explicit brand guidelines rather than generic superlatives.
+
+2. **Security Delimiters & Grounding Integrity:**
+   - Raw user documents and guideline context are sanitized and isolated within `<untrusted_brand_guideline_context>` tags to prevent indirect prompt injection.
+   - Grounding rules require exact page citations (`[p. X]`). If an attribute or requirement is unstated in the guideline, the model explicitly outputs that the guideline does not cover it rather than interpolating assumptions.
+
+3. **Design System Fidelity & Purpose-Driven UI:**
+   - UI matches the [Behance AI Assistant SaaS](https://www.behance.net/gallery/244724021/AI-Assistant-SaaS-UX-UI-Dashboard-Design) specification: floating capsule navigation, frosted `.glass-pill` action filters, ethereal `.aurora-beam` backdrops, and `backdrop-blur-xl` containers.
+   - No non-functional placeholder buttons, decorative empty states, or fabricated data counters. Every element is interactive and bound to live API state.
+
+4. **Code & Test Hygiene:**
+   - External provider polling (e.g. Replicate image generation) is strictly bounded with explicit timeouts (`max_attempts = 45`, 90 seconds limit).
+   - Test suites and backend code contain zero decorative banner comments or redundant step markers.
+   - 42 comprehensive end-to-end and unit tests cover PDF ingestion, hybrid RRF retrieval, concept generation, image synthesis, and PDF export.
 
 ---
 
@@ -206,7 +230,7 @@ npm run dev
 ### 3. Run Tests & Verification
 ```powershell
 cd apps\api
-uv run pytest       # Runs 36 unit tests (all passing)
+uv run pytest       # Runs 42 unit tests (all passing)
 uv run ruff check   # Code style check
 uv run mypy app     # Typecheck
 ```

@@ -6,14 +6,16 @@ import {
   X,
   ExternalLink,
   Calendar,
-  Sparkles,
+  Megaphone,
+  AlertTriangle,
+  RotateCcw,
 } from "lucide-react";
 import { useGetGallery } from "@/api/generated";
 import { GenerationItem } from "@/api/model";
 import { Button } from "@/components/ui/button";
 
 export const GalleryPage: React.FC = () => {
-  const { data, isLoading } = useGetGallery();
+  const { data, isLoading, isError, error, refetch } = useGetGallery();
   const generations = data?.generations || [];
 
   const [activeLightboxItem, setActiveLightboxItem] = useState<GenerationItem | null>(null);
@@ -44,18 +46,34 @@ export const GalleryPage: React.FC = () => {
 
         <Button variant="default" asChild className="shrink-0">
           <Link to="/campaign">
-            <Sparkles className="w-4 h-4 mr-2" />
+            <Megaphone className="w-4 h-4 mr-2" />
             Create Campaign
           </Link>
         </Button>
       </div>
 
-      {/* Grid or Empty State */}
+      {/* Grid, Error, or Empty State */}
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="aspect-square rounded-card bg-border/40 animate-pulse" />
+            <div key={i} className="aspect-square rounded-card bg-surface-user border border-border/50 dark:bg-white/[0.04] animate-pulse" />
           ))}
+        </div>
+      ) : isError ? (
+        <div className="p-10 rounded-card bg-surface border border-danger/25 text-center flex flex-col items-center justify-center gap-3 shadow-xs">
+          <div className="w-10 h-10 rounded-full bg-danger/10 flex items-center justify-center text-danger">
+            <AlertTriangle className="w-5 h-5" aria-hidden="true" />
+          </div>
+          <div className="max-w-md">
+            <h3 className="font-semibold text-sm text-foreground">Failed to load asset gallery</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {(error as { message?: string })?.message || "Could not retrieve session images. Please check your network connection."}
+            </p>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2 mt-1">
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Retry</span>
+          </Button>
         </div>
       ) : generations.length === 0 ? (
         <div className="p-12 rounded-card bg-surface border border-border text-center flex flex-col items-center justify-center gap-4 shadow-xs">
@@ -132,7 +150,7 @@ export const GalleryPage: React.FC = () => {
             aria-hidden="true"
           />
 
-          <div className="relative z-10 w-full max-w-4xl max-h-[90vh] bg-surface rounded-card border border-border shadow-2xl flex flex-col md:flex-row overflow-hidden [overscroll-behavior:contain] animate-in zoom-in-95 duration-200">
+          <div className="relative z-10 w-full max-w-4xl max-h-[90vh] bg-surface/95 dark:bg-[#141418]/95 backdrop-blur-2xl rounded-card border border-border dark:border-white/15 shadow-2xl flex flex-col md:flex-row overflow-hidden [overscroll-behavior:contain] animate-in zoom-in-95 duration-200">
             {/* Image container */}
             <div className="flex-1 bg-black flex items-center justify-center min-h-[300px] max-h-[60vh] md:max-h-full">
               <img

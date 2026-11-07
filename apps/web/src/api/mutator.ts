@@ -72,6 +72,8 @@ export const customInstance = async <T>(
   if (!body && config.data !== undefined) {
     if (config.data instanceof FormData) {
       body = config.data;
+      // Modern Web standard: delete explicit Content-Type so browser generates multipart boundary automatically
+      headers.delete("Content-Type");
     } else {
       headers.set("Content-Type", "application/json");
       body = JSON.stringify(config.data);

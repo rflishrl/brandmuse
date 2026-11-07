@@ -1,154 +1,154 @@
-# Panduan Deployment Produksi: Neon + Cloudflare R2 + Render + Cloudflare Pages
+# Production Deployment Guide: Neon + Cloudflare R2 + Render + Cloudflare Pages
 
-Panduan komprehensif langkah demi langkah untuk melakukan deploy penuh aplikasi **BrandMuse** dari awal tanpa bergantung pada kuota akun Supabase:
-- **Database Serverless:** Neon.tech (PostgreSQL 16 + native `pgvector`, kuota gratis 0.5 GiB, auto-suspend tanpa batasan masa aktif)
-- **Object Storage:** Cloudflare R2 (S3-compatible, gratis 10 GB per bulan, gratis 1 juta operasi tulis, gratis 10 juta operasi baca, $0 biaya bandwidth egress)
-- **Backend API:** Render (Docker Web Service, FastAPI Python 3.12, Uvicorn, Region Singapore)
-- **Frontend SPA:** Cloudflare Pages (React 18, Bun v1.4.4, Tailwind CSS, CDN global Cloudflare)
+Step-by-step guide to deploying the **BrandMuse** application without relying on Supabase project or quota limits:
+- **Serverless Database:** Neon.tech (PostgreSQL 16 + native `pgvector`, 0.5 GiB free tier, automatic compute scale-to-zero without project inactivity pause)
+- **Object Storage:** Cloudflare R2 (S3-compatible, 10 GB free storage per month, 1 million write operations, 10 million read operations, zero egress bandwidth fees)
+- **Backend API:** Render (Docker Web Service, FastAPI Python 3.12, Uvicorn, Singapore region)
+- **Frontend SPA:** Cloudflare Pages (React 18, Bun v1.4.4, Tailwind CSS, Cloudflare global edge network)
 
 ---
 
-## 1. Arsitektur Multi-Cloud & Alur Data
+## 1. Multi-Cloud Architecture and Data Flow
 
 ```mermaid
 graph TD
-    User["Browser Pengguna"] -->|HTTPS CDN Global| Pages["Cloudflare Pages (Frontend React 18 / Bun)"]
-    Pages -->|REST / SSE Streaming + X-Session-Id| Render["Render API (FastAPI / Docker di Singapore)"]
+    User["User Browser"] -->|HTTPS Global CDN| Pages["Cloudflare Pages (Frontend: React 18 / Bun)"]
+    Pages -->|REST / SSE Streaming + X-Session-Id| Render["Render API (FastAPI / Docker in Singapore)"]
     Render -->|Pooled Connection / Port 5432 / ssl=require| Neon["Neon.tech (PostgreSQL 16 + pgvector)"]
     Render -->|S3 API / boto3 put_object| R2["Cloudflare R2 Bucket (brandmuse-images)"]
-    Render -->|HTTPS API| AI["OpenAI (Embeddings) & Stability AI (SDXL)"]
-    User -->|Download Gambar Publik| R2Public["Cloudflare R2 Public CDN (pub-xxx.r2.dev)"]
+    Render -->|HTTPS API| AI["OpenAI (Embeddings) and Stability AI (SDXL)"]
+    User -->|Download Public Assets| R2Public["Cloudflare R2 Public CDN (pub-xxx.r2.dev)"]
 ```
 
 ---
 
-## 2. Langkah 1: Setup Neon.tech dari Awal
+## 2. Step 1: Set Up Neon.tech
 
-Neon adalah database PostgreSQL serverless yang mendukung ekstensi `pgvector` secara native. Neon secara otomatis menskalakan komputasi ke 0 saat tidak ada traffic sehingga kuota gratis Anda tidak cepat habis.
+Neon is a serverless PostgreSQL database with native `pgvector` support. Neon scales compute to zero during idle periods to preserve resources.
 
-### 2.1 Buat Akun & Project Baru di Neon
-1. Buka [neon.tech](https://neon.tech) dan klik **Sign Up** (Anda dapat masuk langsung menggunakan akun GitHub).
-2. Di halaman dashboard, klik **Create a project**.
-3. Isi konfigurasi project:
+### 2.1 Create an Account and Project in Neon
+1. Open [neon.tech](https://neon.tech) and sign up (GitHub OAuth is supported).
+2. On the dashboard, click **Create a project**.
+3. Configure the project:
    - **Project Name:** `brandmuse-db`
-   - **Postgres version:** `16` (versi default yang stabil)
-   - **Region:** Pilih **Asia Pacific (Singapore) - `aws-ap-southeast-1`** (Penting: pilih Singapore agar latensi jaringan antara backend Render di Singapore dan database Neon tetap di bawah 15 ms).
-4. Klik **Create Project**.
+   - **Postgres version:** `16` (default stable release)
+   - **Region:** Select **Asia Pacific (Singapore) - `aws-ap-southeast-1`** (maintains low network latency between the Render backend in Singapore and Neon).
+4. Click **Create Project**.
 
-### 2.2 Salin Dua Jenis Connection String
-Setelah project dibuat, Neon akan menampilkan dialog **Connection Details**:
+### 2.2 Retrieve the Two Connection Strings
+When the project is ready, Neon displays the **Connection Details** modal:
 
-1. **Direct Connection (Digunakan untuk Migrasi Skema Alembic dari Lokal):**
-   - Pastikan toggle **Connection pooling** dalam keadaan **OFF**.
-   - Salin connection string yang berformat:
+1. **Direct Connection (Used for local Alembic schema migrations):**
+   - Ensure the **Connection pooling** toggle is set to **OFF**.
+   - Copy the connection string:
      ```text
      postgresql://neondb_owner:PASSWORD@ep-dry-lake-123456.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
      ```
-   - Ubah prefix `postgresql://` menjadi `postgresql+asyncpg://` dan ganti `sslmode=require` menjadi `ssl=require`:
+   - Update the prefix to `postgresql+asyncpg://` and parameter to `ssl=require`:
      ```text
      postgresql+asyncpg://neondb_owner:PASSWORD@ep-dry-lake-123456.ap-southeast-1.aws.neon.tech/neondb?ssl=require
      ```
 
-2. **Pooled Connection (Digunakan oleh Backend Render di Produksi):**
-   - Aktifkan toggle **Connection pooling** menjadi **ON**.
-   - Host akan berubah memiliki akhiran `-pooler`, misalnya:
+2. **Pooled Connection (Used by the production backend on Render):**
+   - Toggle **Connection pooling** to **ON**.
+   - The host name now includes a `-pooler` suffix, for example:
      `ep-dry-lake-123456-pooler.ap-southeast-1.aws.neon.tech`
-   - Format untuk Render:
+   - Connection format for Render:
      ```text
      postgresql+asyncpg://neondb_owner:PASSWORD@ep-dry-lake-123456-pooler.ap-southeast-1.aws.neon.tech/neondb?ssl=require
      ```
 
-### 2.3 Jalankan Migrasi Skema Database dari Komputer Lokal
-Jalankan migrasi tabel Alembic dari komputer Anda untuk membuat seluruh tabel, indeks HNSW, dan ekstensi vektor di database Neon:
+### 2.3 Run Database Schema Migrations from Local Machine
+Apply database tables, HNSW indexes, and vector extensions using your local terminal:
 
-Buka terminal PowerShell di folder project:
+In PowerShell:
 ```powershell
 cd C:\Projects\brandmuse\apps\api
 
-# Masukkan connection string Direct Neon Anda
+# Set the Direct Neon connection string
 $env:MIGRATION_DATABASE_URL = "postgresql+asyncpg://neondb_owner:PASSWORD@ep-dry-lake-123456.ap-southeast-1.aws.neon.tech/neondb?ssl=require"
 
-# Jalankan migrasi Alembic
+# Execute Alembic migration
 uv run alembic upgrade head
 ```
 
-Jika menggunakan Linux atau macOS:
+In Bash (Linux / macOS):
 ```bash
 cd apps/api
 export MIGRATION_DATABASE_URL="postgresql+asyncpg://neondb_owner:PASSWORD@ep-dry-lake-123456.ap-southeast-1.aws.neon.tech/neondb?ssl=require"
 uv run alembic upgrade head
 ```
 
-### 2.4 Verifikasi Hasil Migrasi di Neon SQL Editor
-1. Di dashboard Neon, klik menu **SQL Editor** pada sidebar kiri.
-2. Jalankan query berikut:
+### 2.4 Verify Migrations in Neon SQL Editor
+1. In the Neon dashboard, open **SQL Editor** from the left navigation.
+2. Execute the verification query:
    ```sql
    SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';
    ```
-3. Pastikan 5 entitas berikut terdaftar:
+3. Confirm the presence of these five tables:
    - `alembic_version`
    - `documents`
    - `chunks`
    - `generations`
    - `usage_counters`
-4. Cek ekstensi `vector`:
+4. Confirm `vector` extension status:
    ```sql
    SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';
    ```
-   Ekstensi vector harus aktif (versi 0.7.x atau lebih baru).
+   The extension must report version 0.7.x or later.
 
 ---
 
-## 3. Langkah 2: Setup Cloudflare R2 dari Awal
+## 3. Step 2: Set Up Cloudflare R2
 
-Cloudflare R2 adalah object storage yang kompatibel 100% dengan Amazon S3 API, tanpa biaya egress bandwidth sama sekali ($0 per GB transfer keluar).
+Cloudflare R2 is an S3-compatible object store with zero egress bandwidth charges.
 
-### 3.1 Aktifkan R2 di Cloudflare Dashboard
-1. Buka [Cloudflare Dashboard](https://dash.cloudflare.com) dan login ke akun Anda.
-2. Di menu sidebar kiri, klik **R2**.
-3. Jika ini pertama kali Anda menggunakan R2, Cloudflare akan meminta verifikasi kartu (tidak ada biaya penagihan selama pemakaian di bawah 10 GB per bulan).
+### 3.1 Enable R2 in Cloudflare Dashboard
+1. Open the [Cloudflare Dashboard](https://dash.cloudflare.com) and log in.
+2. Select **R2** in the left navigation.
+3. If activating R2 for the first time, complete card verification (usage under 10 GB per month is not charged).
 
-### 3.2 Buat Bucket untuk Gambar BrandMuse
-1. Klik tombol **Create bucket**.
-2. **Bucket name:** Ketik `brandmuse-images`.
-3. **Location:** Pilih **Automatic** atau **APAC (Asia-Pacific)**.
-4. Klik **Create Bucket**.
+### 3.2 Create the Storage Bucket
+1. Click **Create bucket**.
+2. **Bucket name:** Enter `brandmuse-images`.
+3. **Location:** Select **Automatic** or **APAC (Asia-Pacific)**.
+4. Click **Create Bucket**.
 
-### 3.3 Aktifkan Akses Publik (Public Access)
-Agar gambar yang di-generate dapat diakses, dilihat, dan diunduh langsung oleh browser pengguna:
-1. Masuk ke dalam bucket `brandmuse-images`.
-2. Klik tab **Settings**.
-3. Gulir ke bawah ke bagian **Public access**.
-4. Di bagian **R2.dev subdomain**, klik tombol **Allow Access**.
-5. Ketikkan kata konfirmasi `allow`, lalu klik **Allow**.
-6. Cloudflare akan menampilkan URL publik bucket Anda, contoh:
+### 3.3 Enable Public Access
+To allow browsers to load and download generated assets directly:
+1. Open bucket `brandmuse-images`.
+2. Select the **Settings** tab.
+3. Scroll down to **Public access**.
+4. In the **R2.dev subdomain** section, click **Allow Access**.
+5. Enter the confirmation text `allow` and confirm.
+6. Cloudflare provides the public bucket URL, for example:
    `https://pub-a1b2c3d4e5f6.r2.dev`
-7. Simpan URL ini, ini adalah nilai untuk environment variable `R2_PUBLIC_URL`.
+7. Save this URL for the `R2_PUBLIC_URL` environment variable.
 
-*(Opsional: Jika Anda memiliki domain kustom di Cloudflare, Anda dapat mengklik **Connect Domain** dan memasukkan subdomain seperti `assets.namadomain.com`)*.
+*(Optional: If you use a custom domain on Cloudflare, click **Connect Domain** and assign a subdomain such as `assets.yourdomain.com`)*.
 
-### 3.4 Buat R2 API Token (Kredensial S3)
-Backend FastAPI membutuhkan API Token S3 untuk mengunggah gambar hasil generasi:
-1. Kembali ke halaman utama **R2** (klik R2 di sidebar kiri).
-2. Di panel sebelah kanan, klik **Manage R2 API Tokens**.
-3. Klik tombol **Create API token**.
-4. Isi formulir token:
+### 3.4 Generate R2 API Token (S3 Credentials)
+The FastAPI backend requires S3 credentials to write generated image files:
+1. Return to the main **R2** page in the left menu.
+2. In the right panel, click **Manage R2 API Tokens**.
+3. Click **Create API token**.
+4. Configure the token settings:
    - **Token name:** `brandmuse-backend-token`
-   - **Permissions:** Pilih **Object Read & Write** (atau Admin Read & Write).
-   - **Specify bucket(s):** Pilih opsi **Apply to specific buckets only** lalu pilih `brandmuse-images` (atau Apply to all buckets).
-   - **TTL:** Pilih **Forever** (tidak kedaluwarsa).
-5. Klik **Create API Token**.
-6. Simpan nilai-nilai berikut dengan aman:
-   - **Access Key ID:** contoh: `8f3a9b...`
-   - **Secret Access Key:** contoh: `c7e2d1...`
-   - **Endpoint URL S3:** `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`
-     *(Catatan: Account ID adalah 32 karakter hex di depan `.r2.cloudflarestorage.com`)*.
+   - **Permissions:** **Object Read & Write** (or Admin Read & Write).
+   - **Specify bucket(s):** Select **Apply to specific buckets only** and pick `brandmuse-images`.
+   - **TTL:** Select **Forever** (does not expire).
+5. Click **Create API Token**.
+6. Securely record the output values:
+   - **Access Key ID:** for example, `8f3a9b...`
+   - **Secret Access Key:** for example, `c7e2d1...`
+   - **Endpoint URL (S3):** `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`
+     *(Note: Account ID is the 32-character hexadecimal string preceding `.r2.cloudflarestorage.com`)*.
 
-### 3.5 Atur CORS pada Bucket R2
-Agar browser pengguna dapat memuat gambar dan preview kanvas tanpa terblokir keamanan browser:
-1. Masuk ke bucket `brandmuse-images` -> tab **Settings**.
-2. Gulir ke bagian **CORS Policy** dan klik **Add CORS policy**.
-3. Tempel konfigurasi JSON berikut:
+### 3.5 Configure CORS on the R2 Bucket
+To allow client browsers to load images and canvas previews without cross-origin blocks:
+1. Open bucket `brandmuse-images` -> select **Settings**.
+2. Scroll to **CORS Policy** and click **Add CORS policy**.
+3. Paste the following JSON configuration:
    ```json
    [
      {
@@ -167,113 +167,111 @@ Agar browser pengguna dapat memuat gambar dan preview kanvas tanpa terblokir kea
      }
    ]
    ```
-4. Klik **Save**.
+4. Click **Save**.
 
 ---
 
-## 4. Langkah 3: Deploy Backend FastAPI ke Render
+## 4. Step 3: Deploy FastAPI Backend to Render
 
-Backend FastAPI dideploy sebagai container Docker di Render (Region Singapore) agar selalu berdekatan dengan database Neon.
+The FastAPI backend runs as a Docker container on Render in the Singapore region, matching the Neon database region.
 
-### 4.1 Buat Web Service Baru di Render
-1. Buka [dashboard.render.com](https://dashboard.render.com).
-2. Klik **New +** di pojok kanan atas, lalu pilih **Web Service**.
-3. Pilih opsi **Build and deploy from a Git repository**.
-4. Pilih repositori GitHub `brandmuse` Anda (klik *Configure account* jika repositori belum muncul).
-5. Isi konfigurasi dasar:
+### 4.1 Create Web Service on Render
+1. Open [dashboard.render.com](https://dashboard.render.com).
+2. Click **New +** in the upper right, then select **Web Service**.
+3. Select **Build and deploy from a Git repository**.
+4. Select your `brandmuse` repository.
+5. Enter configuration details:
    - **Name:** `brandmuse-api`
    - **Region:** **Singapore (Southeast Asia)**
    - **Branch:** `main`
    - **Runtime:** **Docker**
    - **Dockerfile Path:** `./apps/api/Dockerfile`
    - **Docker Context:** `./apps/api`
-   - **Instance Type:** **Starter** (512 MB RAM, $7/bulan) atau **Free tier** (512 MB RAM).
+   - **Instance Type:** **Starter** (512 MB RAM) or **Free tier**.
 
-### 4.2 Masukkan Environment Variables di Render
-Di bagian **Environment Variables**, tambahkan baris-baris berikut:
+### 4.2 Configure Environment Variables in Render
+In the **Environment Variables** panel, add the following key-value pairs:
 
-| Key | Value Contoh | Keterangan |
+| Variable Key | Example Value | Notes |
 | :--- | :--- | :--- |
-| `DATABASE_URL` | `postgresql+asyncpg://neondb_owner:PASSWORD@ep-xxx-pooler.ap-southeast-1.aws.neon.tech/neondb?ssl=require` | Connection string Pooled Neon |
-| `DB_POOLER_MODE` | `false` | NullPool mode (opsional `true` jika PgBouncer strict) |
-| `STORAGE_PROVIDER` | `r2` | Mengaktifkan provider Cloudflare R2 |
-| `R2_ACCOUNT_ID` | `abcdef1234567890abcdef1234567890` | Cloudflare Account ID Anda |
-| `R2_ACCESS_KEY_ID` | `8f3a9b0c1d2e3f4a5b6c7d8e` | R2 Access Key ID dari Langkah 3.4 |
-| `R2_SECRET_ACCESS_KEY` | `c7e2d1f0a9b8c7...` | R2 Secret Access Key dari Langkah 3.4 |
-| `R2_BUCKET_NAME` | `brandmuse-images` | Nama bucket R2 yang dibuat |
-| `R2_PUBLIC_URL` | `https://pub-a1b2c3d4e5f6.r2.dev` | URL publik R2 dari Langkah 3.3 |
-| `OPENAI_API_KEY` | `sk-proj-...` | API Key OpenAI (untuk Chat dan Embeddings) |
-| `STABILITY_API_KEY` | `sk-...` | API Key Stability AI (untuk image generation) |
-| `ENVIRONMENT` | `production` | Mode runtime produksi |
-| `CORS_ORIGIN` | `https://brandmuse.pages.dev,http://localhost:5173` | Domain Cloudflare Pages (dapat disesuaikan) |
-| `RATE_LIMIT_PER_MINUTE` | `30` | Pembatasan rate limit IP |
-| `DAILY_LLM_LIMIT` | `200` | Batas harian panggilan LLM |
-| `DAILY_IMAGE_LIMIT` | `25` | Batas harian generasi gambar |
-| `SESSION_IMAGE_HOURLY_LIMIT` | `5` | Batas per sesi pengguna per jam |
+| `DATABASE_URL` | `postgresql+asyncpg://neondb_owner:PASSWORD@ep-xxx-pooler.ap-southeast-1.aws.neon.tech/neondb?ssl=require` | Pooled connection string from Neon |
+| `DB_POOLER_MODE` | `false` | Standard asyncpg connection pool mode |
+| `STORAGE_PROVIDER` | `r2` | Activates Cloudflare R2 storage provider |
+| `R2_ACCOUNT_ID` | `abcdef1234567890abcdef1234567890` | Cloudflare Account ID |
+| `R2_ACCESS_KEY_ID` | `8f3a9b0c1d2e3f4a5b6c7d8e` | R2 Access Key ID from Step 3.4 |
+| `R2_SECRET_ACCESS_KEY` | `c7e2d1f0a9b8c7...` | R2 Secret Access Key from Step 3.4 |
+| `R2_BUCKET_NAME` | `brandmuse-images` | Name of the configured R2 bucket |
+| `R2_PUBLIC_URL` | `https://pub-a1b2c3d4e5f6.r2.dev` | Public URL from Step 3.3 |
+| `OPENAI_API_KEY` | `sk-proj-...` | OpenAI API key (Chat and Embeddings) |
+| `STABILITY_API_KEY` | `sk-...` | Stability AI API key (Image generation) |
+| `ENVIRONMENT` | `production` | Production runtime flag |
+| `CORS_ORIGIN` | `https://brandmuse.pages.dev,http://localhost:5173` | Allowed frontend origins |
+| `RATE_LIMIT_PER_MINUTE` | `30` | Per-IP rate limiter |
+| `DAILY_LLM_LIMIT` | `200` | Global daily quota for LLM calls |
+| `DAILY_IMAGE_LIMIT` | `25` | Global daily limit for image generations |
+| `SESSION_IMAGE_HOURLY_LIMIT` | `5` | Per-session hourly generation cap |
 
-6. Klik **Create Web Service**.
-7. Tunggu sekitar 2 hingga 3 menit hingga status berubah menjadi **Live**.
-8. Salin URL backend Anda, misalnya: `https://brandmuse-api.onrender.com`.
+6. Click **Create Web Service**.
+7. Wait 2 to 3 minutes for deployment to report **Live**.
+8. Copy your backend service URL (example: `https://brandmuse-api.onrender.com`).
 
-### 4.3 Uji Endpoint Health Backend
-Buka browser atau terminal dan uji endpoint health:
+### 4.3 Verify Backend Health
+Test the health endpoint from terminal or browser:
 ```bash
 curl https://brandmuse-api.onrender.com/api/health
 ```
-Output yang diharapkan:
+Expected JSON response:
 ```json
 {"status":"healthy","database":"connected","vector_extension":true}
 ```
 
 ---
 
-## 5. Langkah 4: Deploy Frontend ke Cloudflare Pages
+## 5. Step 4: Deploy Frontend to Cloudflare Pages
 
-Cloudflare Pages menyajikan Single Page Application (SPA) React dengan kompresi Brotli, caching global edge, dan waktu load sub-detik secara gratis.
+### 5.1 Create Project in Cloudflare Pages
+1. In [Cloudflare Dashboard](https://dash.cloudflare.com), click **Workers & Pages**.
+2. Click **Create application**.
+3. Select the **Pages** tab, then click **Connect to Git**.
+4. Select the `brandmuse` repository and click **Begin setup**.
 
-### 5.1 Buat Project di Cloudflare Pages
-1. Di [Cloudflare Dashboard](https://dash.cloudflare.com), klik menu **Workers & Pages** di sidebar kiri.
-2. Klik tombol **Create application**.
-3. Pilih tab **Pages**, lalu klik **Connect to Git**.
-4. Pilih repositori GitHub `brandmuse` Anda dan klik **Begin setup**.
-
-### 5.2 Konfigurasi Build & Environment
-Isi pengaturan build sebagai berikut:
-- **Project name:** `brandmuse` (akan menghasilkan URL `https://brandmuse.pages.dev`)
+### 5.2 Configure Build and Environment
+Set build configurations:
+- **Project name:** `brandmuse` (maps to `https://brandmuse.pages.dev`)
 - **Production branch:** `main`
-- **Framework preset:** Pilih **None** (atau Vite)
+- **Framework preset:** **None** (or Vite)
 - **Build command:** `bun run build`
 - **Build output directory:** `dist`
 - **Root directory:** `apps/web`
 
-Klik bagian **Environment variables (advanced)** dan tambahkan dua variabel:
+Under **Environment variables (advanced)**, define:
 
-| Variable Name | Value | Keterangan |
+| Variable Name | Value | Purpose |
 | :--- | :--- | :--- |
-| `BUN_VERSION` | `1.4.4` | Menginstruksikan builder Cloudflare untuk memakai Bun v1.4.4 |
-| `VITE_API_URL` | `https://brandmuse-api.onrender.com` | URL Web Service Render dari Langkah 4.2 |
+| `BUN_VERSION` | `1.4.4` | Enforces Bun runtime version 1.4.4 |
+| `VITE_API_URL` | `https://brandmuse-api.onrender.com` | Render backend URL from Step 4.2 |
 
-Klik **Save and Deploy**. Cloudflare Pages akan menjalankan kompilasi TypeScript dan Vite build dalam waktu sekitar 30 detik.
+Click **Save and Deploy**. Cloudflare Pages completes TypeScript compilation and Vite build in approximately 30 seconds.
 
 ---
 
-## 6. Langkah 5: Penyelarasan CORS & Handshake Terakhir
+## 6. Step 5: CORS Configuration and Handshake
 
-Setelah Cloudflare Pages selesai melakukan deployment, Anda memiliki domain produksi frontend (misalnya `https://brandmuse.pages.dev`):
+After Cloudflare Pages finishes deployment, obtain your assigned domain (for example, `https://brandmuse.pages.dev`):
 
-1. Buka dashboard Render -> Web Service `brandmuse-api` -> tab **Environment**.
-2. Perbarui variabel `CORS_ORIGIN` dengan domain persis dari Cloudflare Pages:
+1. Open Render dashboard -> select service `brandmuse-api` -> **Environment**.
+2. Update the `CORS_ORIGIN` variable to match the exact frontend domain:
    ```text
    CORS_ORIGIN=https://brandmuse.pages.dev,http://localhost:5173
    ```
-   *(Peringatan keamanan: Jangan gunakan wildcard `*` di produksi karena header kustom `X-Session-Id` memerlukan origin spesifik)*.
-3. Klik **Save Changes**. Render akan otomatis merestart container dalam hitungan detik.
+   *(Security note: Never use a wildcard `*` in production; the custom `X-Session-Id` header requires explicit origin specification)*.
+3. Click **Save Changes**. Render restarts the application with the updated configuration.
 
 ---
 
-## 7. Langkah 6: Smoke Test Komprehensif (8 Alur Pengujian)
+## 7. Step 6: Smoke Test Suite (8 Test Stages)
 
-Jalankan skrip pengujian berikut di PowerShell untuk memverifikasi seluruh komponen bekerja sinkron:
+Execute the following PowerShell script to verify all services end-to-end:
 
 ```powershell
 $API_URL = "https://brandmuse-api.onrender.com"
@@ -286,7 +284,6 @@ Write-Host "`n=== 2. System Metrics ===" -ForegroundColor Cyan
 curl.exe -s "$API_URL/api/metrics"
 
 Write-Host "`n=== 3. Upload Sample PDF Guideline ===" -ForegroundColor Cyan
-# Buat dokumen uji jika belum ada
 $pdfPath = "sample_test.pdf"
 if (Test-Path "apps\api\sample_data\aura_living_brand_guidelines.pdf") {
     $pdfPath = "apps\api\sample_data\aura_living_brand_guidelines.pdf"
@@ -319,36 +316,36 @@ curl.exe -s -X POST "$API_URL/api/campaign/concepts" `
   -H "X-Session-Id: $SESSION_ID" `
   -d '{"campaign_brief":"Minimalist autumn ceramics collection launch","target_audience":"Urban homeowners"}'
 
-Write-Host "`n=== 8. Image Generation & Cloudflare R2 Upload ===" -ForegroundColor Cyan
+Write-Host "`n=== 8. Image Generation and Cloudflare R2 Upload ===" -ForegroundColor Cyan
 curl.exe -s -X POST "$API_URL/api/images" `
   -H "Content-Type: application/json" `
   -H "X-Session-Id: $SESSION_ID" `
   -d '{"prompt":"Earthy ceramic vase on limestone table with soft morning sunlight","mood":"warm minimalist"}'
 ```
 
-Jika langkah 8 mengembalikan URL dengan domain `https://pub-xxx.r2.dev/...` atau data URI, berarti integrasi penyimpanan Cloudflare R2 telah berhasil sepenuhnya!
+When Stage 8 returns an asset URL containing your `https://pub-xxx.r2.dev/...` domain or valid image payload, Cloudflare R2 object storage integration is fully verified.
 
 ---
 
-## 8. Panduan Troubleshooting & Solusi Praktis
+## 8. Troubleshooting and Reference
 
-### Kendala 1: `SSL connection has been closed unexpectedly` pada Neon
-- **Penyebab:** Neon mewajibkan enkripsi TLS/SSL pada seluruh koneksi jaringan.
-- **Solusi:** Pastikan parameter `?ssl=require` terpasang di akhir URL database:
+### Issue 1: `SSL connection has been closed unexpectedly` on Neon
+- **Cause:** Neon enforces TLS/SSL encryption on all external network connections.
+- **Fix:** Append the `?ssl=require` parameter to the database URL:
   `postgresql+asyncpg://user:pass@host/neondb?ssl=require`
 
-### Kendala 2: `password authentication failed for user "neondb_owner"`
-- **Penyebab:** Karakter khusus pada password (seperti `#`, `@`, atau `/`) belum di-encode URL saat ditulis dalam string koneksi.
-- **Solusi:** Lakukan URL encode pada karakter khusus password Anda (misal `#` menjadi `%23`), atau salin langsung string koneksi dari tombol copy di Neon dashboard.
+### Issue 2: `password authentication failed for user "neondb_owner"`
+- **Cause:** Special characters in the password (such as `#`, `@`, or `/`) were not URL-encoded in the connection string.
+- **Fix:** URL-encode reserved characters (for example, replace `#` with `%23`), or copy the direct connection string directly from the Neon dashboard.
 
-### Kendala 3: Gambar R2 Tidak Muncul di Browser (Broken Image Icon)
-- **Penyebab:** Public Access pada R2 belum diizinkan atau URL public salah.
-- **Solusi:**
-  1. Masuk ke Cloudflare Dashboard -> R2 -> bucket `brandmuse-images` -> **Settings**.
-  2. Pastikan **R2.dev subdomain** berstatus **Allowed**.
-  3. Pastikan nilai `R2_PUBLIC_URL` di Render sama persis dengan alamat subdomain yang tertera (misal: `https://pub-xxxx.r2.dev`).
-  4. Periksa CORS policy bucket R2 sesuai Langkah 3.5.
+### Issue 3: R2 Assets Return Broken Images in Browser
+- **Cause:** Public access is not permitted or the public URL prefix is configured incorrectly.
+- **Fix:**
+  1. Open Cloudflare Dashboard -> R2 -> bucket `brandmuse-images` -> **Settings**.
+  2. Confirm that **R2.dev subdomain** status is **Allowed**.
+  3. Ensure `R2_PUBLIC_URL` in the Render environment matches the subdomain exactly (example: `https://pub-xxxx.r2.dev`).
+  4. Verify CORS configuration on the bucket as described in Step 3.5.
 
-### Kendala 4: CORS Blocked saat Memanggil API dari Frontend
-- **Penyebab:** Header `CORS_ORIGIN` di Render belum mencantumkan domain Cloudflare Pages Anda.
-- **Solusi:** Buka Render -> Environment -> tambahkan URL origin persis frontend Anda (misalnya `https://brandmuse.pages.dev`, tanpa garis miring penutup `/`).
+### Issue 4: Cross-Origin Resource Sharing (CORS) Blocks Frontend Requests
+- **Cause:** The `CORS_ORIGIN` variable in Render does not match your Cloudflare Pages domain.
+- **Fix:** In Render -> Environment, add your exact frontend origin (for example, `https://brandmuse.pages.dev`, without a trailing forward slash).

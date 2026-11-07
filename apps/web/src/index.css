@@ -112,50 +112,51 @@ dialog::backdrop {
 /* Behance AI Assistant: Ethereal Aurora Light Beam */
 .aurora-beam {
   position: absolute;
-  top: -80px;
+  top: -60px;
   left: 50%;
   transform: translateX(-50%);
-  width: 320px;
+  width: 420px;
   height: 520px;
-  background: radial-gradient(ellipse 40% 75% at 50% 20%, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.15) 30%, rgba(255, 255, 255, 0.03) 60%, transparent 80%);
+  background: radial-gradient(ellipse at 50% 30%, rgba(255, 255, 255, 0.22) 0%, rgba(160, 160, 255, 0.14) 35%, rgba(120, 120, 240, 0.06) 55%, transparent 75%);
   pointer-events: none;
-  filter: blur(40px);
+  filter: blur(36px);
   z-index: 0;
 }
 
 :root:not(.dark) .aurora-beam {
-  background: radial-gradient(ellipse 50% 75% at 50% 15%, rgba(255, 255, 255, 0.95) 0%, rgba(230, 235, 245, 0.5) 40%, transparent 75%);
+  background: radial-gradient(ellipse at 50% 30%, rgba(91, 91, 214, 0.16) 0%, rgba(124, 108, 240, 0.08) 45%, transparent 70%);
 }
 
 /* Behance AI Assistant: Floating Glass Prompt Capsule */
 .glass-capsule {
-  background: rgba(18, 18, 23, 0.75);
+  background: rgba(18, 18, 24, 0.70);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(255, 255, 255, 0.12);
+  box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.15);
 }
 
 :root:not(.dark) .glass-capsule {
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
   border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 20px 45px -12px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 20px 45px -12px rgba(0, 0, 0, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.95);
 }
 
-/* Glass Pill Buttons */
+/* Behance AI Assistant: Frosted Glass Pills */
 .glass-pill {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.10);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .glass-pill:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 4px 20px -2px rgba(255, 255, 255, 0.08);
   transform: translateY(-1px);
 }
 
@@ -166,5 +167,6 @@ dialog::backdrop {
 
 :root:not(.dark) .glass-pill:hover {
   background: rgba(0, 0, 0, 0.06);
-  border-color: rgba(0, 0, 0, 0.15);
+  border-color: rgba(0, 0, 0, 0.16);
+  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.06);
 }

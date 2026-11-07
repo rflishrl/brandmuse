@@ -4,7 +4,7 @@ import {
   UploadCloud,
   FileText,
   CheckCircle,
-  Sparkles,
+  Bookmark,
   AlertCircle,
   Calendar,
   Layers,
@@ -111,7 +111,7 @@ export const DocumentsPage: React.FC = () => {
           disabled={isLoadingSample}
           className="shrink-0"
         >
-          <Sparkles className="w-4 h-4 mr-2 text-foreground" />
+          <Bookmark className="w-4 h-4 mr-2 text-foreground" />
           {isLoadingSample ? "Loading sample..." : "Use sample brand"}
         </Button>
       </div>
@@ -165,7 +165,7 @@ export const DocumentsPage: React.FC = () => {
         )}
 
         {errorMessage && (
-          <div className="mt-4 p-3 rounded-md bg-danger/10 border border-danger/20 flex items-center gap-2 text-xs text-danger">
+          <div role="alert" className="mt-4 p-3 rounded-md bg-danger/10 border border-danger/20 flex items-center gap-2 text-xs text-danger">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMessage}</span>
           </div>

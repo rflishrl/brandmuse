@@ -164,8 +164,17 @@ class ReplicateImageProvider(BaseImageProvider):
             prediction = res.json()
             poll_url = prediction["urls"]["get"]
 
-            # Poll for completion if not already completed
+            # Poll for completion with bounded attempts
+            attempts = 0
+            max_attempts = 45  # 90 seconds max polling
             while prediction.get("status") not in ("succeeded", "failed", "canceled"):
+                attempts += 1
+                if attempts > max_attempts:
+                    raise APIError(
+                        code="IMAGE_GENERATION_TIMEOUT",
+                        message="Replicate generation timed out waiting for completion.",
+                        status_code=504,
+                    )
                 await asyncio.sleep(2)
                 poll_res = await client.get(poll_url, headers=headers)
                 prediction = poll_res.json()

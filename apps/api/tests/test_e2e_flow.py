@@ -33,9 +33,7 @@ async def test_complete_end_to_end_brandmuse_flow(
     doc_id = uuid.uuid4()
     now_utc = datetime.datetime.now(datetime.UTC)
 
-    # =========================================================================
-    # Step 1: Health check & Security Headers
-    # =========================================================================
+    # Health check & security headers
     health_resp = await client.get("/api/health")
     assert health_resp.status_code == 200
     assert health_resp.headers.get("x-content-type-options") == "nosniff"
@@ -44,16 +42,12 @@ async def test_complete_end_to_end_brandmuse_flow(
     assert "status" in health_data
     assert "providers" in health_data
 
-    # =========================================================================
-    # Step 2: Session Isolation & Validation (400 on missing X-Session-Id)
-    # =========================================================================
+    # Session isolation & validation (400 on missing X-Session-Id)
     no_session_resp = await client.get("/api/documents")
     assert no_session_resp.status_code == 400
     assert "X-Session-Id" in no_session_resp.json()["error"]["message"]
 
-    # =========================================================================
-    # Step 3: Ingesting Sample Brand Guideline (POST /api/documents/sample)
-    # =========================================================================
+    # Ingest sample brand guideline (POST /api/documents/sample)
     sample_doc = Document(
         id=doc_id,
         session_id=uuid.UUID(session_id),
@@ -76,9 +70,7 @@ async def test_complete_end_to_end_brandmuse_flow(
     assert sample_data["document"]["filename"] == "Aura Living.pdf"
     assert sample_data["document"]["id"] == str(doc_id)
 
-    # =========================================================================
-    # Step 4: Listing Session Documents (GET /api/documents)
-    # =========================================================================
+    # List session documents (GET /api/documents)
     mock_list_res = MagicMock()
     mock_list_res.scalars.return_value.all.return_value = [sample_doc]
     mock_db.execute.return_value = mock_list_res
@@ -92,9 +84,7 @@ async def test_complete_end_to_end_brandmuse_flow(
     assert len(docs_data["documents"]) == 1
     assert docs_data["documents"][0]["id"] == str(doc_id)
 
-    # =========================================================================
-    # Step 5: Grounded Q&A Chat with Token Streaming (POST /api/chat)
-    # =========================================================================
+    # Grounded Q&A chat with token streaming (POST /api/chat)
     mock_doc_query_res = MagicMock()
     mock_doc_query_res.scalar_one_or_none.return_value = sample_doc
     mock_db.execute.return_value = mock_doc_query_res
@@ -140,9 +130,7 @@ async def test_complete_end_to_end_brandmuse_flow(
         assert "event: done" in stream_text
         assert "calm and articulate" in stream_text
 
-    # =========================================================================
-    # Step 6: Generating 3 Structured Campaign Concepts (POST /api/campaign)
-    # =========================================================================
+    # Generate 3 structured campaign concepts (POST /api/campaign)
     mock_campaign_output = CampaignOutput(
         concepts=[
             Concept(
@@ -201,9 +189,7 @@ async def test_complete_end_to_end_brandmuse_flow(
         assert campaign_data["concepts"][0]["title"] == "Morning Sanctuary"
         assert len(campaign_data["brand_rules_used"]) >= 2
 
-    # =========================================================================
-    # Step 7: Generating Stable Diffusion Image Asset (POST /api/images)
-    # =========================================================================
+    # Generate image asset (POST /api/images)
     fake_storage_url = (
         "https://example-supabase.co/storage/v1/object/public/brandmuse-images/e2e-asset.png"
     )
@@ -232,9 +218,7 @@ async def test_complete_end_to_end_brandmuse_flow(
         assert image_data["url"] == fake_storage_url
         gen_id = image_data["id"]
 
-    # =========================================================================
-    # Step 8: Retrieving Session Gallery (GET /api/images)
-    # =========================================================================
+    # Retrieve session gallery (GET /api/images)
     mock_gen_record = Generation(
         id=uuid.UUID(gen_id),
         session_id=uuid.UUID(session_id),

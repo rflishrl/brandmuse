@@ -6,7 +6,8 @@ import {
   Check,
   Plus,
   User,
-  Sparkles,
+  Bookmark,
+  SlidersHorizontal,
   BookOpen,
   Lightbulb,
   Palette,
@@ -15,7 +16,6 @@ import {
   ChevronDown,
   ShieldCheck,
   ArrowUpRight,
-  Mic,
   Upload,
 } from "lucide-react";
 import { useBrand } from "@/context/BrandContext";
@@ -56,7 +56,7 @@ const QUICK_STARTERS = [
     prompt: null,
   },
   {
-    label: "Ask AI anything",
+    label: "Ask brand questions",
     icon: HelpCircle,
     to: null,
     prompt: "What is our official brand tone of voice and core philosophy?",
@@ -89,6 +89,28 @@ export const AskPage: React.FC = () => {
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const modeDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close mode selector dropdown on click outside or Escape key
+  useEffect(() => {
+    if (!showModeDropdown) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (modeDropdownRef.current && !modeDropdownRef.current.contains(e.target as Node)) {
+        setShowModeDropdown(false);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowModeDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showModeDropdown]);
 
   // Listen to New Chat action from sidebar
   useEffect(() => {
@@ -234,7 +256,16 @@ export const AskPage: React.FC = () => {
           if (line.startsWith("event: token")) {
             const nextLine = lines[++i];
             if (nextLine && nextLine.startsWith("data: ")) {
-              const tokenText = nextLine.slice(6);
+              const rawData = nextLine.slice(6);
+              let tokenText = rawData;
+              try {
+                const parsed = JSON.parse(rawData);
+                if (typeof parsed?.token === "string") {
+                  tokenText = parsed.token;
+                }
+              } catch {
+                // Fallback to raw string if not JSON
+              }
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === assistantMessageId
@@ -352,7 +383,7 @@ export const AskPage: React.FC = () => {
 
           {/* Central AI Mark */}
           <div className="relative z-10 flex flex-col items-center gap-4">
-            <BrandMuseOrb size={54} glow animate />
+            <BrandMuseOrb size={54} animate />
             <div className="max-w-xl">
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-normal tracking-tight text-foreground">
                 How can I help you today?
@@ -378,14 +409,14 @@ export const AskPage: React.FC = () => {
                     type="button"
                     onClick={() => loadSampleBrand()}
                     disabled={isLoadingSample}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold bg-foreground/10 hover:bg-foreground/15 text-foreground border border-foreground/20 dark:bg-white/10 dark:hover:bg-white/15 dark:text-white dark:border-white/20 backdrop-blur-md transition-all shadow-xs hover:scale-105 active:scale-95"
+                    className="glass-pill inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium text-foreground border border-border dark:border-white/15 dark:bg-white/[0.06] dark:hover:bg-white/[0.12] transition-all shadow-xs hover:shadow-sm hover:scale-105 active:scale-95 hover:border-foreground/30 dark:hover:border-white/30 cursor-pointer disabled:opacity-50"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-foreground dark:text-white" />
+                    <Bookmark className="w-3.5 h-3.5 text-foreground dark:text-white" />
                     <span>{isLoadingSample ? "Loading demo..." : "Load Aura Living (Demo)"}</span>
                   </button>
                   <Link
                     to="/documents"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium bg-foreground/[0.04] hover:bg-foreground/[0.08] text-muted-foreground hover:text-foreground border border-border dark:border-white/10 backdrop-blur-md transition-all hover:scale-105"
+                    className="glass-pill inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium text-muted-foreground hover:text-foreground border border-border dark:border-white/15 dark:bg-white/[0.04] dark:hover:bg-white/[0.10] transition-all shadow-xs hover:shadow-sm hover:scale-105 active:scale-95 hover:border-foreground/30 dark:hover:border-white/30 cursor-pointer"
                   >
                     <Upload className="w-3.5 h-3.5" />
                     <span>Upload PDF</span>
@@ -412,66 +443,98 @@ export const AskPage: React.FC = () => {
                 onKeyDown={handleKeyDown}
                 placeholder="What do you want to know?"
                 disabled={!selectedDocumentId || isStreaming}
-                className="field-sizing-content w-full bg-transparent resize-none border-none outline-none text-base text-foreground placeholder:text-muted-foreground/60 leading-relaxed max-h-[160px]"
+                className="field-sizing-content w-full bg-transparent resize-none border-none outline-none text-base text-foreground placeholder:text-muted-foreground leading-relaxed max-h-[160px]"
                 aria-label="Ask about brand guidelines"
                 autoFocus
               />
 
               {/* Bottom Capsule Controls */}
               <div className="flex items-center justify-between pt-1 border-t border-border/60 dark:border-white/[0.08]">
-                {/* Mode Selector Pill */}
-                <div className="relative">
+                {/* Mode Selector Pill with Hover & Click State */}
+                <div className="relative" ref={modeDropdownRef}>
                   <button
                     type="button"
                     onClick={() => setShowModeDropdown(!showModeDropdown)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-foreground/[0.04] hover:bg-foreground/[0.08] border border-border dark:border-white/10 text-xs font-medium text-foreground transition-all"
+                    className={`
+                      flex items-center gap-1.5 px-3.5 py-1.5 min-h-[36px] rounded-full text-xs font-medium transition-all duration-200 shadow-xs
+                      cursor-pointer select-none
+                      border border-border dark:border-white/15
+                      hover:scale-105 active:scale-95
+                      ${
+                        showModeDropdown
+                          ? "bg-foreground/10 text-foreground ring-2 ring-foreground/20 border-foreground/30 dark:bg-white/15 dark:text-white dark:border-white/30"
+                          : "bg-surface/80 hover:bg-surface text-foreground hover:border-foreground/30 dark:bg-white/[0.06] dark:hover:bg-white/[0.12] dark:hover:border-white/30"
+                      }
+                    `}
+                    aria-haspopup="listbox"
+                    aria-expanded={showModeDropdown}
+                    title="Select AI execution mode"
                   >
-                    <Sparkles className="w-3 h-3 text-foreground" />
+                    <SlidersHorizontal className="w-3 h-3 text-foreground dark:text-white" />
                     <span className="capitalize">{executionMode}</span>
-                    <ChevronDown className="w-3 h-3 text-muted-foreground ml-0.5" />
+                    <ChevronDown
+                      className={`w-3 h-3 text-muted-foreground ml-0.5 transition-transform duration-200 ${
+                        showModeDropdown ? "rotate-180" : ""
+                      }`}
+                    />
                   </button>
 
                   {showModeDropdown && (
-                    <div className="absolute left-0 bottom-full mb-2 w-48 rounded-xl bg-surface border border-border shadow-2xl p-1 z-30 flex flex-col gap-0.5 backdrop-blur-xl">
+                    <div
+                      className="absolute left-0 bottom-full mb-2 w-52 rounded-2xl bg-surface/95 dark:bg-[#141418]/95 border border-border dark:border-white/15 shadow-2xl p-1.5 z-30 flex flex-col gap-1 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
+                      role="listbox"
+                      aria-label="Execution mode options"
+                    >
                       <button
                         type="button"
                         onClick={() => {
                           setExecutionMode("auto");
                           setShowModeDropdown(false);
                         }}
-                        className={`px-3 py-1.5 rounded-lg text-xs text-left flex items-center justify-between ${
+                        className={`px-3 py-2 rounded-xl text-xs text-left flex items-center justify-between transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
                           executionMode === "auto"
-                            ? "bg-foreground/10 font-semibold text-foreground"
-                            : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                            ? "bg-foreground/10 dark:bg-white/10 font-semibold text-foreground dark:text-white border border-foreground/15 dark:border-white/20"
+                            : "text-muted-foreground hover:bg-foreground/5 dark:hover:bg-white/5 hover:text-foreground"
                         }`}
+                        role="option"
+                        aria-selected={executionMode === "auto"}
                       >
-                        <span>Auto (Balanced)</span>
-                        {executionMode === "auto" && <Check className="w-3 h-3 text-foreground" />}
+                        <div className="flex flex-col">
+                          <span className="font-medium text-foreground">Auto (Balanced)</span>
+                          <span className="text-[10px] text-muted-foreground">Standard guideline reasoning</span>
+                        </div>
+                        {executionMode === "auto" && <Check className="w-3.5 h-3.5 text-foreground shrink-0" />}
                       </button>
+
                       <button
                         type="button"
                         onClick={() => {
                           setExecutionMode("strict");
                           setShowModeDropdown(false);
                         }}
-                        className={`px-3 py-1.5 rounded-lg text-xs text-left flex items-center justify-between ${
+                        className={`px-3 py-2 rounded-xl text-xs text-left flex items-center justify-between transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
                           executionMode === "strict"
-                            ? "bg-foreground/10 font-semibold text-foreground"
-                            : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+                            ? "bg-foreground/10 dark:bg-white/10 font-semibold text-foreground dark:text-white border border-foreground/15 dark:border-white/20"
+                            : "text-muted-foreground hover:bg-foreground/5 dark:hover:bg-white/5 hover:text-foreground"
                         }`}
+                        role="option"
+                        aria-selected={executionMode === "strict"}
                       >
-                        <span>Strict Rules Only</span>
-                        {executionMode === "strict" && <Check className="w-3 h-3 text-foreground" />}
+                        <div className="flex flex-col">
+                          <span className="font-medium text-foreground">Strict Rules Only</span>
+                          <span className="text-[10px] text-muted-foreground">Strict guideline matching</span>
+                        </div>
+                        {executionMode === "strict" && <Check className="w-3.5 h-3.5 text-foreground shrink-0" />}
                       </button>
                     </div>
                   )}
                 </div>
 
-                {/* Right Action Tools Matching Behance */}
+                {/* Right Action Tools Matching Behance with Hover & Click State */}
                 <div className="flex items-center gap-2">
                   <Link
                     to="/documents"
-                    className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] transition-colors"
+                    className="p-2.5 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] hover:scale-110 active:scale-95 transition-all cursor-pointer"
                     title="Upload or manage brand PDFs"
                     aria-label="Manage documents"
                   >
@@ -479,18 +542,9 @@ export const AskPage: React.FC = () => {
                   </Link>
 
                   <button
-                    type="button"
-                    className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] transition-colors"
-                    title="Voice input"
-                    aria-label="Voice input"
-                  >
-                    <Mic className="w-4 h-4" />
-                  </button>
-
-                  <button
                     type="submit"
                     disabled={!input.trim() || isStreaming || !selectedDocumentId}
-                    className="w-9 h-9 rounded-xl bg-foreground text-background hover:opacity-90 disabled:opacity-25 flex items-center justify-center transition-all shadow-xs hover:scale-105 active:scale-95 shrink-0"
+                    className="w-9 h-9 rounded-xl bg-foreground text-background hover:opacity-90 disabled:opacity-25 flex items-center justify-center transition-all shadow-xs hover:scale-110 active:scale-90 shrink-0 cursor-pointer"
                     aria-label="Send query"
                   >
                     <ArrowUpRight className="w-4 h-4 text-background stroke-[2.5]" />
@@ -592,11 +646,11 @@ export const AskPage: React.FC = () => {
                   className="flex flex-col items-start gap-1.5 max-w-[95%] sm:max-w-[85%] self-start animate-in fade-in duration-200"
                 >
                   <div className="flex items-center gap-2 text-xs font-semibold text-foreground px-1">
-                    <BrandMuseOrb size={18} glow />
+                    <BrandMuseOrb size={18} />
                     <span>BrandMuse</span>
                   </div>
 
-                  <div className="w-full p-5 sm:p-6 rounded-2xl bg-surface/90 dark:bg-[#141418]/80 border border-border dark:border-white/10 backdrop-blur-xl shadow-card text-sm text-foreground relative">
+                  <div className="w-full p-5 sm:p-6 rounded-2xl bg-surface/85 dark:bg-[#141418]/80 backdrop-blur-md border border-border dark:border-white/10 shadow-card text-sm text-foreground relative">
                     {msg.content ? (
                       <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                     ) : (
@@ -676,7 +730,7 @@ export const AskPage: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={handleStopStreaming}
-                className="shadow-sm rounded-full bg-surface"
+                className="shadow-sm rounded-full bg-surface/80 dark:bg-[#141418]/80 backdrop-blur-md"
               >
                 <Square className="w-3 h-3 mr-1.5 fill-current" />
                 Stop generating
@@ -714,7 +768,7 @@ export const AskPage: React.FC = () => {
                     : "Select a guideline above..."
                 }
                 disabled={!selectedDocumentId || isStreaming}
-                className="field-sizing-content flex-1 min-h-[38px] max-h-[160px] bg-transparent resize-none border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/60 leading-relaxed"
+                className="field-sizing-content flex-1 min-h-[38px] max-h-[160px] bg-transparent resize-none border-none outline-none text-sm text-foreground placeholder:text-muted-foreground leading-relaxed"
                 aria-label="Ask about brand guidelines"
               />
 

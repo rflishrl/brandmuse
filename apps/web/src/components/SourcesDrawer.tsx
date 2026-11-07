@@ -39,7 +39,7 @@ export const SourcesDrawer: React.FC<SourcesDrawerProps> = ({
       />
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md bg-surface border-l border-border shadow-xl flex flex-col justify-between animate-in slide-in-from-right duration-200">
+        <div className="w-screen max-w-md bg-surface/95 dark:bg-[#121217]/95 backdrop-blur-xl border-l border-border dark:border-white/10 shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-200">
           {/* Header */}
           <div className="p-5 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
