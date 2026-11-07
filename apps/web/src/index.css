@@ -7,38 +7,38 @@
 @layer base {
   :root {
     color-scheme: light;
-    accent-color: var(--ring);
+    accent-color: var(--foreground);
     --background: #F7F7F8;
     --background-gradient-end: #FFFFFF;
     --surface: #FFFFFF;
     --surface-user: #F1F1F3;
-    --quote: #EEF0F9;
+    --quote: #F4F4F6;
     --foreground: #111114;
     --muted-foreground: #6B6B76;
-    --border: #E8E8EC;
-    --ring: #5B5BD6;
+    --border: #E4E4E8;
+    --ring: #111114;
     --success-icon: #1F9D55;
     --success-text: #15803D;
     --danger: #C2410C;
-    --nav-active: #EEF0F7;
+    --nav-active: #EAEAEF;
   }
 
   .dark {
     color-scheme: dark;
-    accent-color: var(--ring);
+    accent-color: var(--foreground);
     --background: #09090C;
-    --background-gradient-end: #0F0F14;
+    --background-gradient-end: #0D0D11;
     --surface: #141418;
     --surface-user: #1C1C23;
-    --quote: #181924;
+    --quote: #16161B;
     --foreground: #FDFDFD;
     --muted-foreground: #9F9F9F;
     --border: rgba(255, 255, 255, 0.08);
-    --ring: #8E8EFF;
+    --ring: #FDFDFD;
     --success-icon: #4ADE80;
     --success-text: #4ADE80;
     --danger: #FB923C;
-    --nav-active: #1D1D26;
+    --nav-active: rgba(255, 255, 255, 0.08);
   }
 
   * {
@@ -112,28 +112,28 @@ dialog::backdrop {
 /* Behance AI Assistant: Ethereal Aurora Light Beam */
 .aurora-beam {
   position: absolute;
-  top: -60px;
+  top: -80px;
   left: 50%;
   transform: translateX(-50%);
-  width: 380px;
+  width: 320px;
   height: 520px;
-  background: radial-gradient(ellipse at 50% 30%, rgba(255, 255, 255, 0.22) 0%, rgba(160, 160, 255, 0.12) 35%, transparent 70%);
+  background: radial-gradient(ellipse 40% 75% at 50% 20%, rgba(255, 255, 255, 0.45) 0%, rgba(255, 255, 255, 0.15) 30%, rgba(255, 255, 255, 0.03) 60%, transparent 80%);
   pointer-events: none;
-  filter: blur(32px);
+  filter: blur(40px);
   z-index: 0;
 }
 
 :root:not(.dark) .aurora-beam {
-  background: radial-gradient(ellipse at 50% 30%, rgba(91, 91, 214, 0.14) 0%, rgba(124, 108, 240, 0.06) 45%, transparent 70%);
+  background: radial-gradient(ellipse 40% 75% at 50% 20%, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.04) 35%, transparent 75%);
 }
 
 /* Behance AI Assistant: Floating Glass Prompt Capsule */
 .glass-capsule {
-  background: rgba(20, 20, 24, 0.65);
+  background: rgba(18, 18, 23, 0.75);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(255, 255, 255, 0.12);
 }
 
 :root:not(.dark) .glass-capsule {

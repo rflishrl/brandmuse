@@ -100,7 +100,7 @@ export const GalleryPage: React.FC = () => {
                 </div>
 
                 <div className="p-4 flex flex-col gap-1">
-                  <h4 className="font-semibold text-sm text-foreground truncate group-hover:text-ring transition-colors">
+                  <h4 className="font-semibold text-sm text-foreground truncate group-hover:text-white transition-colors">
                     {gen.concept_title}
                   </h4>
                   <div className="flex items-center justify-between text-[11px] text-muted-foreground">
@@ -193,7 +193,7 @@ export const GalleryPage: React.FC = () => {
                   href={activeLightboxItem.image_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-center text-xs text-ring hover:underline flex items-center justify-center gap-1 py-1"
+                  className="text-center text-xs text-foreground hover:underline flex items-center justify-center gap-1 py-1"
                 >
                   <span>Open raw image URL</span>
                   <ExternalLink className="w-3 h-3" />

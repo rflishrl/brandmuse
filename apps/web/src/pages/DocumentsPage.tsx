@@ -111,7 +111,7 @@ export const DocumentsPage: React.FC = () => {
           disabled={isLoadingSample}
           className="shrink-0"
         >
-          <Sparkles className="w-4 h-4 mr-2 text-ring" />
+          <Sparkles className="w-4 h-4 mr-2 text-foreground" />
           {isLoadingSample ? "Loading sample..." : "Use sample brand"}
         </Button>
       </div>
@@ -124,7 +124,7 @@ export const DocumentsPage: React.FC = () => {
         onDrop={handleDrop}
         className={`
           relative border-2 border-dashed rounded-card p-8 flex flex-col items-center justify-center text-center transition-all duration-200 bg-surface/90 dark:bg-[#141418]/80 backdrop-blur-xl shadow-xs
-          ${dragActive ? "border-ring bg-quote/30" : "border-border hover:border-ring/50"}
+          ${dragActive ? "border-white/40 bg-white/5" : "border-border hover:border-white/20"}
         `}
       >
         <input
@@ -136,7 +136,7 @@ export const DocumentsPage: React.FC = () => {
           aria-label="Upload PDF guideline"
         />
 
-        <div className="w-12 h-12 rounded-full bg-surface-user flex items-center justify-center mb-4 text-ring">
+        <div className="w-12 h-12 rounded-full bg-surface-user flex items-center justify-center mb-4 text-foreground">
           <UploadCloud className="w-6 h-6" aria-hidden="true" />
         </div>
 
@@ -148,7 +148,7 @@ export const DocumentsPage: React.FC = () => {
         </p>
 
         {uploadStatus ? (
-          <div className="mt-4 flex items-center gap-2 text-xs text-ring font-medium animate-pulse">
+          <div className="mt-4 flex items-center gap-2 text-xs text-foreground font-medium animate-pulse">
             <Layers className="w-4 h-4 animate-spin" />
             <span>{uploadStatus}</span>
           </div>
@@ -195,11 +195,11 @@ export const DocumentsPage: React.FC = () => {
                   key={doc.id}
                   className={`
                     p-5 rounded-card bg-surface/90 dark:bg-[#141418]/80 backdrop-blur-xl border transition-all duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs
-                    ${isActive ? "border-ring ring-1 ring-ring/30 bg-surface" : "border-border hover:border-border/80"}
+                    ${isActive ? "border-white/30 ring-1 ring-white/20 bg-surface/90" : "border-border hover:border-border/80"}
                   `}
                 >
                   <div className="flex items-start sm:items-center gap-3">
-                    <div className="p-2.5 rounded-lg bg-surface-user text-ring shrink-0">
+                    <div className="p-2.5 rounded-lg bg-surface-user text-foreground shrink-0">
                       <FileText className="w-5 h-5" aria-hidden="true" />
                     </div>
 
@@ -237,7 +237,7 @@ export const DocumentsPage: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <Link to="/rules">
                           <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-                            <ShieldCheck className="w-3.5 h-3.5 text-ring" aria-hidden="true" />
+                            <ShieldCheck className="w-3.5 h-3.5 text-foreground" aria-hidden="true" />
                             Brand Rules
                           </Button>
                         </Link>

@@ -43,7 +43,7 @@ export const SourcesDrawer: React.FC<SourcesDrawerProps> = ({
           {/* Header */}
           <div className="p-5 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-ring" aria-hidden="true" />
+              <BookOpen className="w-5 h-5 text-foreground/80" aria-hidden="true" />
               <div>
                 <h3 id="sources-drawer-title" className="font-semibold text-base text-foreground">
                   Retrieved Guideline Sources
@@ -114,7 +114,7 @@ export const SourcesDrawer: React.FC<SourcesDrawerProps> = ({
                 href={traceUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-xs font-medium text-ring hover:underline"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground hover:underline"
               >
                 <span>View trace in Langfuse</span>
                 <ExternalLink className="w-3.5 h-3.5" aria-hidden="true" />

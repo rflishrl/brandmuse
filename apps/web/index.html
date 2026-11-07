@@ -1,22 +1,36 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#F7F7F8" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0E0E11" media="(prefers-color-scheme: dark)" />
-    <meta name="description" content="BrandMuse: AI Brand Assistant for Creative Teams. Chat with brand guidelines and generate on-brand campaign concepts with permanent Stable Diffusion image assets." />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#08080A" />
+    <meta name="description" content="BrandMuse: AI Brand Assistant for Creative Teams. Chat with brand guidelines and generate on-brand campaign concepts with permanent visual assets." />
     
+    <!-- Inline Theme Bootstrap per Modern Web Guidance (Prevents Theme Flash) -->
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem("brandmuse_theme");
+          if (saved === "light" || (saved === "system" && !window.matchMedia("(prefers-color-scheme: dark)").matches)) {
+            document.documentElement.classList.remove("dark");
+          } else {
+            document.documentElement.classList.add("dark");
+          }
+        } catch (e) {}
+      })();
+    </script>
+
     <!-- Open Graph / Social Media Meta -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="BrandMuse | AI Brand Assistant for Creative Teams" />
-    <meta property="og:description" content="Converse with brand guidelines and synthesize verified, on-brand marketing campaigns with permanent Stable Diffusion visual assets." />
+    <meta property="og:description" content="Converse with brand guidelines and synthesize verified, on-brand marketing campaigns with permanent visual assets." />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="BrandMuse | AI Brand Assistant" />
     <meta name="twitter:description" content="Converse with brand guidelines and synthesize on-brand campaigns." />
 
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%237C6CF0'/><circle cx='13' cy='13' r='8' fill='%23FF8A5B'/></svg>" />
+    <!-- Pure Monochromatic AI Emblem Favicon -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48' fill='none'><rect width='48' height='48' rx='12' fill='%2308080A'/><path d='M24 41V7L37.5 20.5L10.5 27.5L24 41Z' stroke='%23FFFFFF' stroke-width='3.6' stroke-linecap='round' stroke-linejoin='round'/></svg>" />
     <title>BrandMuse | AI Brand Assistant for Creative Teams</title>
   </head>
   <body>

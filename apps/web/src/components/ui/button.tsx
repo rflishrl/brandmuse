@@ -8,9 +8,9 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-ring text-white hover:opacity-90 shadow-sm",
-        secondary: "bg-surface-user text-foreground hover:bg-quote",
-        outline: "border border-border bg-surface text-foreground hover:bg-surface-user",
+        default: "bg-foreground text-background hover:opacity-90 font-medium shadow-sm transition-all",
+        secondary: "bg-surface-user text-foreground hover:bg-white/10 border border-border/60",
+        outline: "border border-border bg-surface/80 text-foreground hover:bg-surface-user",
         ghost: "hover:bg-surface-user text-foreground",
         danger: "bg-danger text-white hover:opacity-90",
         success: "bg-emerald-600 text-white hover:bg-emerald-700 shadow-sm",

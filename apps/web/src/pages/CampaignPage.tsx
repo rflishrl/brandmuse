@@ -146,7 +146,7 @@ export const CampaignPage: React.FC = () => {
       {!selectedDocumentId && (
         <div className="p-4 rounded-card bg-surface border border-border flex items-center justify-between gap-3 shadow-xs">
           <div className="flex items-center gap-3">
-            <BookOpen className="w-5 h-5 text-ring shrink-0" />
+            <BookOpen className="w-5 h-5 text-foreground/80 shrink-0" />
             <p className="text-xs text-muted-foreground">
               Please select or load a brand guideline to generate grounded concepts.
             </p>
@@ -231,7 +231,7 @@ export const CampaignPage: React.FC = () => {
                     onClick={() => setMood(m)}
                     className={`
                       px-2.5 py-1.5 rounded-full text-xs font-medium border transition-colors
-                      ${mood === m ? "bg-ring text-white border-ring shadow-xs" : "bg-surface-user text-muted-foreground border-border hover:text-foreground"}
+                      ${mood === m ? "bg-foreground text-background font-semibold shadow-xs" : "bg-surface-user text-muted-foreground border-border hover:text-foreground"}
                     `}
                     aria-pressed={mood === m}
                   >
@@ -280,7 +280,7 @@ export const CampaignPage: React.FC = () => {
                 >
                   <div className="flex flex-col gap-3">
                     <div className="flex items-start justify-between gap-2">
-                      <span className="text-[11px] font-bold text-ring uppercase tracking-wider">
+                      <span className="text-[11px] font-bold text-foreground/90 uppercase tracking-wider">
                         Concept 0{index + 1}
                       </span>
                     </div>
@@ -296,7 +296,7 @@ export const CampaignPage: React.FC = () => {
                     {/* Hashtags */}
                     <div className="flex flex-wrap gap-1.5">
                       {concept.hashtags?.map((tag) => (
-                        <span key={tag} className="text-[10px] text-ring font-medium bg-quote px-2 py-0.5 rounded-full">
+                        <span key={tag} className="text-[10px] text-foreground font-medium bg-white/[0.06] border border-white/10 px-2 py-0.5 rounded-full">
                           {tag}
                         </span>
                       ))}
@@ -347,7 +347,7 @@ export const CampaignPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => handleCopyPrompt(concept.image_prompt, index)}
-                            className="mt-2 inline-flex items-center gap-1 text-[10px] text-ring hover:underline"
+                            className="mt-2 inline-flex items-center gap-1 text-[10px] text-foreground hover:underline"
                           >
                             {copiedPromptIndex === index ? (
                               <>
@@ -390,14 +390,14 @@ export const CampaignPage: React.FC = () => {
                             target="_blank"
                             download={`brandmuse-${concept.title.toLowerCase().replace(/\s+/g, "-")}.png`}
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-xs text-foreground font-medium hover:text-ring transition-colors"
+                            className="inline-flex items-center gap-1.5 text-xs text-foreground font-medium hover:underline transition-colors"
                           >
                             <Download className="w-3.5 h-3.5" />
                             <span>Download</span>
                           </a>
                           <Link
                             to="/gallery"
-                            className="text-xs text-ring hover:underline"
+                            className="text-xs text-foreground hover:underline"
                           >
                             View in Gallery
                           </Link>
@@ -411,7 +411,7 @@ export const CampaignPage: React.FC = () => {
                           onClick={() => handleGenerateImage(concept, index)}
                           className="w-full"
                         >
-                          <ImageIcon className="w-4 h-4 mr-2 text-ring" />
+                          <ImageIcon className="w-4 h-4 mr-2 text-foreground" />
                           Generate image asset
                         </Button>
                         {imgState?.error && (
@@ -475,7 +475,7 @@ export const CampaignPage: React.FC = () => {
                       href={traceUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 font-medium text-ring hover:underline"
+                      className="inline-flex items-center gap-1.5 font-medium text-foreground hover:underline"
                     >
                       <span>Inspect audit trace in Langfuse</span>
                       <ExternalLink className="w-3.5 h-3.5" />

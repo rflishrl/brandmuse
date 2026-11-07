@@ -30,7 +30,7 @@ const config: Config = {
         card: "0 8px 30px rgba(0, 0, 0, 0.06)",
         "card-dark": "0 8px 30px rgba(0, 0, 0, 0.5)",
         capsule: "0 20px 50px -12px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.12)",
-        glow: "0 0 50px -10px rgba(140, 140, 255, 0.25)",
+        glow: "0 0 50px -10px rgba(255, 255, 255, 0.2)",
         "glow-beam": "0 0 80px 20px rgba(255, 255, 255, 0.15)",
       },
       fontFamily: {

@@ -212,10 +212,10 @@ export const OntologyPage: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
-            <span className="p-1.5 rounded-lg bg-ring/10 text-ring shrink-0">
+            <span className="p-1.5 rounded-lg bg-white/10 text-foreground shrink-0">
               <ShieldCheck className="w-5 h-5" aria-hidden="true" />
             </span>
-            <span className="text-xs font-semibold uppercase tracking-wider text-ring">
+            <span className="text-xs font-semibold uppercase tracking-wider text-foreground">
               Deterministic Brand Intelligence
             </span>
           </div>
@@ -330,7 +330,7 @@ export const OntologyPage: React.FC = () => {
       {/* Case 3: Document Selected, but Ontology Not Extracted Yet (404 / Empty) */}
       {selectedDocumentId && !isLoadingOntology && (!ontologyData || isOntologyError) && (
         <div className="p-8 sm:p-12 rounded-card bg-surface border border-dashed border-border text-center flex flex-col items-center justify-center gap-5 shadow-sm">
-          <div className="p-4 rounded-2xl bg-ring/10 text-ring">
+          <div className="p-4 rounded-2xl bg-white/10 text-foreground">
             <Sparkles className="w-8 h-8" aria-hidden="true" />
           </div>
           <div className="max-w-lg">
@@ -445,7 +445,7 @@ export const OntologyPage: React.FC = () => {
             <div className="p-6 sm:p-7 rounded-card bg-surface/90 dark:bg-[#141418]/80 backdrop-blur-xl border border-border dark:border-white/10 shadow-card flex flex-col gap-5">
               <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 border-b border-border pb-4">
                 <div>
-                  <span className="text-[11px] font-bold text-ring tracking-wider uppercase">
+                  <span className="text-[11px] font-bold text-foreground/80 tracking-wider uppercase">
                     Brand Core
                   </span>
                   <h2 className="text-xl sm:text-2xl font-bold text-foreground mt-0.5">
@@ -578,7 +578,7 @@ export const OntologyPage: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 id="colors-heading" className="font-semibold text-lg text-foreground flex items-center gap-2">
-                    <Palette className="w-5 h-5 text-ring" aria-hidden="true" />
+                    <Palette className="w-5 h-5 text-foreground" aria-hidden="true" />
                     Color Palette &amp; Tokens
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -671,7 +671,7 @@ export const OntologyPage: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 id="typography-heading" className="font-semibold text-lg text-foreground flex items-center gap-2">
-                    <Type className="w-5 h-5 text-ring" aria-hidden="true" />
+                    <Type className="w-5 h-5 text-foreground" aria-hidden="true" />
                     Typography System
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -752,7 +752,7 @@ export const OntologyPage: React.FC = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <h3 id="rules-heading" className="font-semibold text-lg text-foreground flex items-center gap-2">
-                    <ListChecks className="w-5 h-5 text-ring" aria-hidden="true" />
+                    <ListChecks className="w-5 h-5 text-foreground" aria-hidden="true" />
                     Brand DOs &amp; DONTs
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -909,7 +909,7 @@ export const OntologyPage: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 id="channels-heading" className="font-semibold text-lg text-foreground flex items-center gap-2">
-                    <Radio className="w-5 h-5 text-ring" aria-hidden="true" />
+                    <Radio className="w-5 h-5 text-foreground" aria-hidden="true" />
                     Channel-Specific Requirements
                   </h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
@@ -934,7 +934,7 @@ export const OntologyPage: React.FC = () => {
                     >
                       <div className="flex items-center justify-between border-b border-border pb-3">
                         <h4 className="font-bold text-base text-foreground flex items-center gap-2">
-                          <Radio className="w-4 h-4 text-ring" aria-hidden="true" />
+                          <Radio className="w-4 h-4 text-foreground" aria-hidden="true" />
                           {channel.channel}
                         </h4>
                         <Badge variant="quote" className="text-[11px]">
@@ -1068,7 +1068,7 @@ export const OntologyPage: React.FC = () => {
               required
               checked={certifyAcknowledged}
               onChange={(e) => setCertifyAcknowledged(e.target.checked)}
-              className="w-4 h-4 rounded text-ring focus:ring-ring border-border"
+              className="w-4 h-4 rounded text-foreground focus:ring-white/30 border-border"
             />
             <label htmlFor="certify-ack" className="text-xs text-muted-foreground cursor-pointer">
               I have reviewed these extracted rules and approve them for production creative use.

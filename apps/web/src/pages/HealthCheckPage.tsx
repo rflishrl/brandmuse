@@ -33,7 +33,7 @@ export const HealthCheckPage: React.FC = () => {
       {/* Title Header */}
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-ring bg-quote px-2.5 py-1 rounded-full">
+          <span className="text-xs font-semibold uppercase tracking-wider text-foreground bg-white/10 px-2.5 py-1 rounded-full">
             Phase 1 Foundation
           </span>
         </div>
@@ -47,11 +47,11 @@ export const HealthCheckPage: React.FC = () => {
       {wakeUpNotice && (
         <div
           role="status"
-          className="p-4 rounded-card bg-quote border border-ring/20 flex items-start gap-3 text-sm text-foreground"
+          className="p-4 rounded-card bg-surface-user border border-border flex items-start gap-3 text-sm text-foreground"
         >
-          <RefreshCw className="w-5 h-5 text-ring animate-spin shrink-0 mt-0.5" />
+          <RefreshCw className="w-5 h-5 text-foreground animate-spin shrink-0 mt-0.5" />
           <div>
-            <p className="font-semibold text-ring">Server is waking up</p>
+            <p className="font-semibold text-foreground">Server is waking up</p>
             <p className="text-xs text-muted-foreground mt-0.5">
               Connecting to the backend service. This can take up to a minute on free/starter tiers.
             </p>
@@ -161,7 +161,7 @@ export const HealthCheckPage: React.FC = () => {
         {/* Session ID Information */}
         <div className="pt-4 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-ring" />
+            <ShieldCheck className="w-4 h-4 text-foreground/80" />
             <span>Client Session (UUID isolation):</span>
           </div>
           <code className="bg-surface-user px-2 py-1 rounded text-[11px] font-mono text-foreground select-all break-all">
