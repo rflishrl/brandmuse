@@ -14,6 +14,8 @@ import {
   ShieldCheck,
   Plus,
   User,
+  PanelLeftClose,
+  PanelLeft,
 } from "lucide-react";
 import { BrandMuseOrb } from "@/components/BrandMuseOrb";
 import { Button } from "@/components/ui/button";
@@ -40,6 +42,17 @@ export const AppShell: React.FC<AppShellProps> = ({
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
 
+  // Desktop sidebar expand / collapse state
+  const [isExpanded, setIsExpanded] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem("brandmuse_sidebar_expanded");
+      // Default to expanded so user can see menu names and understand features
+      return saved !== null ? saved === "true" : true;
+    } catch {
+      return true;
+    }
+  });
+
   const [theme, setTheme] = useState<ThemeMode>(() => {
     try {
       const saved = localStorage.getItem("brandmuse_theme") as ThemeMode;
@@ -48,6 +61,30 @@ export const AppShell: React.FC<AppShellProps> = ({
       return "dark";
     }
   });
+
+  const toggleSidebar = () => {
+    setIsExpanded((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("brandmuse_sidebar_expanded", String(next));
+      } catch {
+        // Ignore localStorage error
+      }
+      return next;
+    });
+  };
+
+  // Keyboard shortcut: Cmd+B / Ctrl+B to toggle sidebar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+        e.preventDefault();
+        toggleSidebar();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Apply theme class to document element
   useEffect(() => {
@@ -80,11 +117,36 @@ export const AppShell: React.FC<AppShellProps> = ({
   }, [location.pathname]);
 
   const navItems = [
-    { label: "Ask AI", path: "/ask", icon: MessageSquare },
-    { label: "Brand Rules", path: "/rules", icon: ShieldCheck },
-    { label: "Campaign", path: "/campaign", icon: Megaphone },
-    { label: "Gallery", path: "/gallery", icon: ImageIcon },
-    { label: "Documents", path: "/documents", icon: FileText },
+    {
+      label: "Ask AI",
+      subtitle: "Grounded Chat",
+      path: "/ask",
+      icon: MessageSquare,
+    },
+    {
+      label: "Brand Rules",
+      subtitle: "Extracted Tokens",
+      path: "/rules",
+      icon: ShieldCheck,
+    },
+    {
+      label: "Campaign",
+      subtitle: "Creative Concepts",
+      path: "/campaign",
+      icon: Megaphone,
+    },
+    {
+      label: "Gallery",
+      subtitle: "Generated Visuals",
+      path: "/gallery",
+      icon: ImageIcon,
+    },
+    {
+      label: "Documents",
+      subtitle: "PDF Guidelines",
+      path: "/documents",
+      icon: FileText,
+    },
   ];
 
   const cycleTheme = () => {
@@ -99,21 +161,21 @@ export const AppShell: React.FC<AppShellProps> = ({
   const ThemeIcon = theme === "light" ? Sun : theme === "dark" ? Moon : Laptop;
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-[#08080A] text-foreground antialiased selection:bg-white/20">
+    <div className="min-h-screen flex flex-col md:flex-row bg-background text-foreground antialiased selection:bg-foreground/20">
       {/* Accessibility: Skip to Content Link */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-surface focus:text-foreground focus:rounded-md focus:shadow-md focus:ring-2 focus:ring-white/40"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-surface focus:text-foreground focus:rounded-md focus:shadow-md focus:ring-2 focus:ring-foreground/40"
       >
         Skip to main content
       </a>
 
       {/* Mobile Top Bar */}
-      <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-white/[0.08] bg-[#09090C]/90 backdrop-blur-md shrink-0 sticky top-0 z-40">
+      <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-surface/90 backdrop-blur-md shrink-0 sticky top-0 z-40">
         <div className="flex items-center gap-3">
           <BrandMuseOrb size={28} glow />
           <div>
-            <span className="font-bold text-sm tracking-tight text-white">BrandMuse</span>
+            <span className="font-bold text-sm tracking-tight text-foreground">BrandMuse</span>
             <span className="block text-[11px] text-muted-foreground truncate max-w-[180px]">
               {effectiveDocumentName}
             </span>
@@ -124,7 +186,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           size="icon"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
-          className="text-white hover:bg-white/10"
+          className="text-foreground hover:bg-foreground/10"
         >
           {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </Button>
@@ -133,19 +195,26 @@ export const AppShell: React.FC<AppShellProps> = ({
       {/* Mobile Drawer (Slides out when opened on small screens) */}
       {mobileOpen && (
         <aside
-          className="fixed inset-y-0 left-0 z-50 w-[260px] bg-[#09090C] border-r border-white/10 p-5 flex flex-col justify-between md:hidden shadow-2xl animate-in slide-in-from-left duration-200"
+          className="fixed inset-y-0 left-0 z-50 w-[270px] bg-surface border-r border-border p-5 flex flex-col justify-between md:hidden shadow-2xl animate-in slide-in-from-left duration-200"
           aria-label="Mobile navigation drawer"
         >
           <div className="flex flex-col gap-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <BrandMuseOrb size={32} glow />
-                <span className="font-bold text-base text-white tracking-tight">BrandMuse AI</span>
+                <div>
+                  <span className="font-bold text-base text-foreground tracking-tight block">
+                    BrandMuse AI
+                  </span>
+                  <span className="text-[11px] text-muted-foreground truncate max-w-[160px] block">
+                    {effectiveDocumentName}
+                  </span>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setMobileOpen(false)}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-white"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
                 aria-label="Close menu"
               >
                 <X className="w-5 h-5" />
@@ -158,7 +227,7 @@ export const AppShell: React.FC<AppShellProps> = ({
                 window.dispatchEvent(new CustomEvent("brandmuse:new-chat"));
                 setMobileOpen(false);
               }}
-              className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] border border-white/15 text-white text-xs font-medium"
+              className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-foreground/10 hover:bg-foreground/15 border border-foreground/15 text-foreground text-xs font-semibold shadow-xs transition-all"
             >
               <Plus className="w-4 h-4" />
               <span>New Chat</span>
@@ -175,40 +244,53 @@ export const AppShell: React.FC<AppShellProps> = ({
                     key={item.path}
                     to={item.path}
                     onClick={() => setMobileOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
+                    className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-sm transition-all ${
                       active
-                        ? "bg-white/[0.12] text-white font-medium border border-white/20 shadow-xs"
-                        : "text-muted-foreground hover:text-white hover:bg-white/[0.04]"
+                        ? "bg-foreground/10 text-foreground font-semibold border border-foreground/20 shadow-xs"
+                        : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
-                    <span>{item.label}</span>
+                    <div className="flex items-center gap-3">
+                      <Icon className="w-4 h-4" />
+                      <span>{item.label}</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground font-normal">
+                      {item.subtitle}
+                    </span>
                   </Link>
                 );
               })}
             </nav>
           </div>
 
-          <div className="flex flex-col gap-3 pt-4 border-t border-white/10">
+          <div className="flex flex-col gap-3 pt-4 border-t border-border">
             <button
               type="button"
               onClick={() => {
                 handleUseSample?.();
                 setMobileOpen(false);
               }}
-              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs text-muted-foreground hover:text-white hover:bg-white/[0.04]"
+              className="flex items-center justify-between px-3 py-2 rounded-xl text-xs text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
             >
-              <Bookmark className="w-4 h-4" />
-              <span>Load Aura Living Demo</span>
+              <span className="flex items-center gap-2.5">
+                <Bookmark className="w-4 h-4" />
+                <span>Load Aura Living Demo</span>
+              </span>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-foreground/5 text-muted-foreground">
+                Demo
+              </span>
             </button>
             <button
               type="button"
               onClick={cycleTheme}
-              className="flex items-center justify-between px-3 py-2 rounded-xl text-xs text-muted-foreground hover:text-white hover:bg-white/[0.04]"
+              className="flex items-center justify-between px-3 py-2 rounded-xl text-xs text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
             >
               <span className="flex items-center gap-2.5">
                 <ThemeIcon className="w-4 h-4" />
-                <span className="capitalize">{theme} mode</span>
+                <span className="capitalize">{theme} Mode</span>
+              </span>
+              <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-foreground/5 text-muted-foreground">
+                Toggle
               </span>
             </button>
           </div>
@@ -218,29 +300,63 @@ export const AppShell: React.FC<AppShellProps> = ({
       {/* Backdrop for mobile drawer */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/70 z-40 md:hidden backdrop-blur-sm"
+          className="fixed inset-0 bg-black/60 dark:bg-black/70 z-40 md:hidden backdrop-blur-sm"
           onClick={() => setMobileOpen(false)}
           aria-hidden="true"
         />
       )}
 
-      {/* Desktop Navigation Rail Dock (Behance AI Assistant Standard 72px) */}
+      {/* Desktop Navigation Rail / Expandable Sidebar */}
       <aside
-        className="hidden md:flex sticky top-0 inset-y-0 left-0 z-40 w-[72px] h-screen bg-[#08080A]/95 backdrop-blur-2xl border-r border-white/[0.08] flex-col justify-between items-center py-5 shrink-0 select-none"
-        aria-label="Desktop icon rail"
+        className={`
+          hidden md:flex sticky top-0 inset-y-0 left-0 z-40 h-screen
+          bg-surface/90 dark:bg-[#08080A]/95 backdrop-blur-2xl border-r border-border dark:border-white/[0.08]
+          flex-col justify-between shrink-0 select-none transition-[width] duration-300 ease-in-out
+          ${isExpanded ? "w-[240px] px-3.5 py-4" : "w-[72px] px-2 py-4 items-center"}
+        `}
+        aria-label="Desktop navigation sidebar"
       >
-        {/* Top: Brand AI Emblem & New Chat */}
-        <div className="flex flex-col items-center gap-4 w-full">
-          <Link
-            to="/"
-            title="BrandMuse AI"
-            aria-label="BrandMuse AI Home"
-            className="p-1 rounded-2xl hover:scale-105 transition-transform flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-          >
-            <BrandMuseOrb size={32} glow />
-          </Link>
+        {/* Top: Header, Logo, and Expand/Collapse Toggle */}
+        <div className="flex flex-col gap-4 w-full">
+          {/* Top Bar with Logo & Collapse Toggle */}
+          <div className={`flex items-center w-full ${isExpanded ? "justify-between" : "justify-center"}`}>
+            <Link
+              to="/"
+              title="BrandMuse AI"
+              aria-label="BrandMuse AI Home"
+              className="flex items-center gap-3 p-1 rounded-2xl hover:scale-105 transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40 group"
+            >
+              <BrandMuseOrb size={30} glow />
+              {isExpanded && (
+                <div className="flex flex-col animate-in fade-in duration-200">
+                  <span className="font-bold text-sm tracking-tight text-foreground flex items-center gap-1.5">
+                    BrandMuse
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-foreground/10 text-foreground font-semibold">
+                      AI
+                    </span>
+                  </span>
+                  <span className="text-[10px] text-muted-foreground truncate max-w-[130px]" title={effectiveDocumentName}>
+                    {effectiveDocumentName}
+                  </span>
+                </div>
+              )}
+            </Link>
 
-          {/* New Chat Squircle Button */}
+            {/* Toggle Button in Header when expanded */}
+            {isExpanded && (
+              <button
+                type="button"
+                onClick={toggleSidebar}
+                title="Tutup sidebar (⌘B)"
+                aria-label="Collapse sidebar"
+                className="p-1.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all"
+              >
+                <PanelLeftClose className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          {/* New Chat Button */}
           <Link
             to="/ask"
             onClick={() => {
@@ -248,13 +364,31 @@ export const AppShell: React.FC<AppShellProps> = ({
             }}
             title="New Chat (⌘K)"
             aria-label="Start new chat session"
-            className="w-11 h-11 rounded-2xl flex items-center justify-center bg-white/[0.04] hover:bg-white/[0.12] border border-white/10 text-white transition-all hover:scale-105 active:scale-95 shadow-xs group"
+            className={`
+              rounded-2xl flex items-center transition-all shadow-xs group
+              bg-foreground/5 hover:bg-foreground/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.12]
+              border border-border dark:border-white/10 text-foreground
+              hover:scale-[1.02] active:scale-[0.98]
+              ${isExpanded ? "w-full py-2.5 px-3 justify-between" : "w-11 h-11 justify-center mx-auto"}
+            `}
           >
-            <Plus className="w-4 h-4 text-muted-foreground group-hover:text-white transition-colors" />
+            <span className="flex items-center gap-2.5">
+              <span className="p-1 rounded-lg bg-foreground/10 text-foreground group-hover:scale-105 transition-transform">
+                <Plus className="w-3.5 h-3.5" />
+              </span>
+              {isExpanded && (
+                <span className="text-xs font-semibold tracking-tight">New Chat</span>
+              )}
+            </span>
+            {isExpanded && (
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-foreground/5 text-muted-foreground">
+                ⌘K
+              </span>
+            )}
           </Link>
 
-          {/* Center Vertical Nav Rail */}
-          <nav className="flex flex-col items-center gap-2 w-full mt-2" aria-label="Main menu">
+          {/* Nav Rail / Menu Items */}
+          <nav className="flex flex-col gap-1.5 w-full mt-1" aria-label="Main menu">
             {navItems.map((item) => {
               const active =
                 location.pathname === item.path ||
@@ -264,27 +398,45 @@ export const AppShell: React.FC<AppShellProps> = ({
                 <Link
                   key={item.path}
                   to={item.path}
-                  title={item.label}
+                  title={`${item.label} — ${item.subtitle}`}
                   aria-label={item.label}
                   className={`
-                    relative w-11 h-11 rounded-2xl flex items-center justify-center transition-all duration-200 group
+                    relative rounded-2xl flex items-center transition-all duration-200 group
+                    ${
+                      isExpanded
+                        ? "w-full px-3 py-2.5 justify-between"
+                        : "w-11 h-11 justify-center mx-auto"
+                    }
                     ${
                       active
-                        ? "bg-white/[0.14] text-white border border-white/20 shadow-[0_0_20px_rgba(255,255,255,0.08)] scale-100"
-                        : "text-muted-foreground hover:text-white hover:bg-white/[0.05] border border-transparent hover:scale-105"
+                        ? "bg-foreground/10 text-foreground font-semibold border border-foreground/20 dark:bg-white/[0.14] dark:text-white dark:border-white/20 dark:shadow-[0_0_20px_rgba(255,255,255,0.08)]"
+                        : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] border border-transparent hover:scale-[1.02]"
                     }
                   `}
                   aria-current={active ? "page" : undefined}
                 >
-                  <Icon
-                    className={`w-4 h-4 shrink-0 transition-transform ${
-                      active ? "text-white" : "text-muted-foreground group-hover:text-white"
-                    }`}
-                    aria-hidden="true"
-                  />
-                  {/* Subtle active indicator dot */}
-                  {active && (
-                    <span className="absolute -left-1 w-1 h-3 rounded-full bg-white shadow-[0_0_8px_#FFF]" />
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Icon
+                      className={`w-4 h-4 shrink-0 transition-transform ${
+                        active ? "text-foreground dark:text-white scale-105" : "text-muted-foreground group-hover:text-foreground"
+                      }`}
+                      aria-hidden="true"
+                    />
+                    {isExpanded && (
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs tracking-tight truncate leading-tight font-medium">
+                          {item.label}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground truncate leading-tight mt-0.5">
+                          {item.subtitle}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Active indicator dot/pill */}
+                  {active && !isExpanded && (
+                    <span className="absolute -left-1 w-1 h-3 rounded-full bg-foreground dark:bg-white shadow-[0_0_8px_currentColor]" />
                   )}
                 </Link>
               );
@@ -292,45 +444,105 @@ export const AppShell: React.FC<AppShellProps> = ({
           </nav>
         </div>
 
-        {/* Bottom Section: Sample brand, Theme toggle, Avatar */}
-        <div className="flex flex-col items-center gap-3 w-full">
-          {/* Sample Brand Shortcut */}
+        {/* Bottom Section: Sample Brand, Theme Toggle, Avatar, and Expand Toggle Button */}
+        <div className="flex flex-col gap-2 w-full pt-3 border-t border-border dark:border-white/[0.08]">
+          {/* Sample Brand Demo Shortcut */}
           <button
             type="button"
             onClick={() => handleUseSample?.()}
             title="Load demo brand guideline (Aura Living)"
             aria-label="Load demo brand guideline"
-            className="w-11 h-11 rounded-2xl flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/[0.06] border border-transparent hover:border-white/10 transition-all group"
+            className={`
+              rounded-2xl flex items-center text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] border border-transparent hover:border-border dark:hover:border-white/10 transition-all group
+              ${isExpanded ? "w-full justify-between px-3 py-2 text-xs" : "w-11 h-11 justify-center mx-auto"}
+            `}
           >
-            <Bookmark className="w-4 h-4 text-muted-foreground group-hover:text-white transition-colors" />
+            <span className="flex items-center gap-2.5">
+              <Bookmark className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
+              {isExpanded && <span className="font-medium text-xs">Sample Brand</span>}
+            </span>
+            {isExpanded && (
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-foreground/5 text-muted-foreground">
+                Demo
+              </span>
+            )}
           </button>
 
-          {/* Theme Toggle */}
+          {/* Theme Toggle (Light / Dark / System) */}
           <button
             type="button"
             onClick={cycleTheme}
-            title={`Toggle theme (current: ${theme})`}
+            title={`Toggle theme (current: ${theme}). Click to change.`}
             aria-label={`Toggle theme, current is ${theme}`}
-            className="w-11 h-11 rounded-2xl flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/[0.06] border border-transparent hover:border-white/10 transition-all group"
+            className={`
+              rounded-2xl flex items-center text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] border border-transparent hover:border-border dark:hover:border-white/10 transition-all group
+              ${isExpanded ? "w-full justify-between px-3 py-2 text-xs" : "w-11 h-11 justify-center mx-auto"}
+            `}
           >
-            <ThemeIcon className="w-4 h-4 text-muted-foreground group-hover:text-white transition-colors" />
+            <span className="flex items-center gap-2.5">
+              <ThemeIcon className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
+              {isExpanded && <span className="capitalize font-medium text-xs">{theme} Mode</span>}
+            </span>
+            {isExpanded && (
+              <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-foreground/5 text-muted-foreground">
+                Switch
+              </span>
+            )}
           </button>
 
-          {/* User Profile Avatar with Online Dot */}
+          {/* User Profile Workspace Status Card */}
           <div
-            className="relative w-9 h-9 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white mt-1 cursor-pointer hover:border-white/40 transition-colors"
-            title={`Active Workspace • ${effectiveDocumentName}`}
+            className={`flex items-center gap-2.5 pt-1 w-full ${
+              isExpanded ? "px-2 py-1.5 rounded-xl bg-foreground/[0.03] border border-border/60 dark:border-white/5" : "justify-center"
+            }`}
           >
-            <User className="w-4 h-4 text-white/90" />
-            <span
-              className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-[#08080A]"
-              title="Online / Ready"
-            />
+            <div
+              className="relative w-8 h-8 rounded-full bg-foreground/10 border border-border dark:border-white/20 flex items-center justify-center text-foreground shrink-0 shadow-xs"
+              title={`Active Workspace • ${effectiveDocumentName}`}
+            >
+              <User className="w-4 h-4" />
+              <span
+                className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-400 ring-2 ring-background"
+                title="Online / Ready"
+              />
+            </div>
+            {isExpanded && (
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-semibold text-foreground truncate">Workspace</span>
+                <span className="text-[10px] text-muted-foreground truncate max-w-[120px]" title={effectiveDocumentName}>
+                  {effectiveDocumentName}
+                </span>
+              </div>
+            )}
           </div>
+
+          {/* Bottom Expand / Collapse Sidebar Toggle */}
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            title={isExpanded ? "Tutup sidebar (⌘B)" : "Buka sidebar (⌘B)"}
+            aria-label={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
+            className={`
+              mt-1 flex items-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all
+              ${isExpanded ? "w-full justify-between px-2.5 py-1.5 text-xs" : "w-11 h-8 justify-center mx-auto"}
+            `}
+          >
+            <span className="flex items-center gap-2">
+              {isExpanded ? (
+                <PanelLeftClose className="w-3.5 h-3.5" />
+              ) : (
+                <PanelLeft className="w-3.5 h-3.5" />
+              )}
+              {isExpanded && <span className="text-[11px] font-medium">Collapse Sidebar</span>}
+            </span>
+            {isExpanded && (
+              <span className="text-[9px] font-mono text-muted-foreground">⌘B</span>
+            )}
+          </button>
         </div>
       </aside>
 
-      {/* Main Stage (Dead Center, Cosmic Obsidian Canvas) */}
+      {/* Main Content Stage (Centered, Clean, Light/Dark Responsive) */}
       <main
         id="main-content"
         className="flex-1 flex flex-col items-center px-4 md:px-8 py-6 md:py-10 overflow-y-auto min-h-screen relative"

@@ -326,18 +326,18 @@ export const AskPage: React.FC = () => {
       {/* Active Guideline Top Status Pill */}
       {selectedDocument && (
         <div className="flex items-center justify-between gap-3 text-xs">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/[0.05] border border-white/10 backdrop-blur-md">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-medium text-white">{selectedDocument.filename}</span>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-foreground/[0.04] border border-border dark:border-white/10 backdrop-blur-md">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-medium text-foreground">{selectedDocument.filename}</span>
             <span className="text-muted-foreground">• {selectedDocument.page_count} pages</span>
           </div>
 
           <div className="flex items-center gap-2">
             <Link
               to="/rules"
-              className="text-xs text-muted-foreground hover:text-white flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/10"
+              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded-full bg-foreground/[0.03] hover:bg-foreground/[0.06] border border-border dark:border-white/10"
             >
-              <ShieldCheck className="w-3.5 h-3.5 text-white/80" />
+              <ShieldCheck className="w-3.5 h-3.5 text-foreground/80" />
               <span>View Brand Rules</span>
             </Link>
           </div>
@@ -354,14 +354,14 @@ export const AskPage: React.FC = () => {
           <div className="relative z-10 flex flex-col items-center gap-4">
             <BrandMuseOrb size={54} glow animate />
             <div className="max-w-xl">
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-normal tracking-tight text-white">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-normal tracking-tight text-foreground">
                 How can I help you today?
               </h1>
-              <p className="text-xs sm:text-sm text-[#9F9F9F] mt-2 max-w-md mx-auto">
+              <p className="text-xs sm:text-sm text-muted-foreground mt-2 max-w-md mx-auto">
                 {selectedDocument ? (
                   <>
                     Grounded strictly in{" "}
-                    <span className="text-white font-medium">
+                    <span className="text-foreground font-medium">
                       {selectedDocument.filename}
                     </span>{" "}
                     with exact page citations and audit traces.
@@ -378,14 +378,14 @@ export const AskPage: React.FC = () => {
                     type="button"
                     onClick={() => loadSampleBrand()}
                     disabled={isLoadingSample}
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium bg-white/10 hover:bg-white/15 text-white border border-white/20 backdrop-blur-md transition-all shadow-xs hover:scale-105 active:scale-95"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold bg-foreground/10 hover:bg-foreground/15 text-foreground border border-foreground/20 dark:bg-white/10 dark:hover:bg-white/15 dark:text-white dark:border-white/20 backdrop-blur-md transition-all shadow-xs hover:scale-105 active:scale-95"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-white" />
+                    <Sparkles className="w-3.5 h-3.5 text-foreground dark:text-white" />
                     <span>{isLoadingSample ? "Loading demo..." : "Load Aura Living (Demo)"}</span>
                   </button>
                   <Link
                     to="/documents"
-                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium bg-white/[0.04] hover:bg-white/[0.08] text-muted-foreground hover:text-white border border-white/10 backdrop-blur-md transition-all hover:scale-105"
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium bg-foreground/[0.04] hover:bg-foreground/[0.08] text-muted-foreground hover:text-foreground border border-border dark:border-white/10 backdrop-blur-md transition-all hover:scale-105"
                   >
                     <Upload className="w-3.5 h-3.5" />
                     <span>Upload PDF</span>
@@ -402,7 +402,7 @@ export const AskPage: React.FC = () => {
                 e.preventDefault();
                 handleSubmit();
               }}
-              className="glass-capsule rounded-3xl p-4 sm:p-5 flex flex-col gap-3 transition-all focus-within:border-white/20 focus-within:ring-2 focus-within:ring-white/10"
+              className="glass-capsule rounded-3xl p-4 sm:p-5 flex flex-col gap-3 transition-all focus-within:border-foreground/30 focus-within:ring-2 focus-within:ring-foreground/10"
             >
               <textarea
                 ref={textareaRef}
@@ -412,27 +412,27 @@ export const AskPage: React.FC = () => {
                 onKeyDown={handleKeyDown}
                 placeholder="What do you want to know?"
                 disabled={!selectedDocumentId || isStreaming}
-                className="field-sizing-content w-full bg-transparent resize-none border-none outline-none text-base text-white placeholder:text-muted-foreground/60 leading-relaxed max-h-[160px]"
+                className="field-sizing-content w-full bg-transparent resize-none border-none outline-none text-base text-foreground placeholder:text-muted-foreground/60 leading-relaxed max-h-[160px]"
                 aria-label="Ask about brand guidelines"
                 autoFocus
               />
 
               {/* Bottom Capsule Controls */}
-              <div className="flex items-center justify-between pt-1 border-t border-white/[0.06] dark:border-white/[0.08]">
+              <div className="flex items-center justify-between pt-1 border-t border-border/60 dark:border-white/[0.08]">
                 {/* Mode Selector Pill */}
                 <div className="relative">
                   <button
                     type="button"
                     onClick={() => setShowModeDropdown(!showModeDropdown)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs font-medium text-white transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-foreground/[0.04] hover:bg-foreground/[0.08] border border-border dark:border-white/10 text-xs font-medium text-foreground transition-all"
                   >
-                    <Sparkles className="w-3 h-3 text-white" />
+                    <Sparkles className="w-3 h-3 text-foreground" />
                     <span className="capitalize">{executionMode}</span>
                     <ChevronDown className="w-3 h-3 text-muted-foreground ml-0.5" />
                   </button>
 
                   {showModeDropdown && (
-                    <div className="absolute left-0 bottom-full mb-2 w-48 rounded-xl bg-[#141418] border border-white/10 shadow-2xl p-1 z-30 flex flex-col gap-0.5 backdrop-blur-xl">
+                    <div className="absolute left-0 bottom-full mb-2 w-48 rounded-xl bg-surface border border-border shadow-2xl p-1 z-30 flex flex-col gap-0.5 backdrop-blur-xl">
                       <button
                         type="button"
                         onClick={() => {
@@ -441,12 +441,12 @@ export const AskPage: React.FC = () => {
                         }}
                         className={`px-3 py-1.5 rounded-lg text-xs text-left flex items-center justify-between ${
                           executionMode === "auto"
-                            ? "bg-white/10 font-medium text-white"
-                            : "text-muted-foreground hover:bg-white/5 hover:text-white"
+                            ? "bg-foreground/10 font-semibold text-foreground"
+                            : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                         }`}
                       >
                         <span>Auto (Balanced)</span>
-                        {executionMode === "auto" && <Check className="w-3 h-3 text-white" />}
+                        {executionMode === "auto" && <Check className="w-3 h-3 text-foreground" />}
                       </button>
                       <button
                         type="button"
@@ -456,12 +456,12 @@ export const AskPage: React.FC = () => {
                         }}
                         className={`px-3 py-1.5 rounded-lg text-xs text-left flex items-center justify-between ${
                           executionMode === "strict"
-                            ? "bg-white/10 font-medium text-white"
-                            : "text-muted-foreground hover:bg-white/5 hover:text-white"
+                            ? "bg-foreground/10 font-semibold text-foreground"
+                            : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
                         }`}
                       >
                         <span>Strict Rules Only</span>
-                        {executionMode === "strict" && <Check className="w-3 h-3 text-white" />}
+                        {executionMode === "strict" && <Check className="w-3 h-3 text-foreground" />}
                       </button>
                     </div>
                   )}
@@ -471,7 +471,7 @@ export const AskPage: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <Link
                     to="/documents"
-                    className="p-2 rounded-xl text-muted-foreground hover:text-white hover:bg-white/[0.06] transition-colors"
+                    className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] transition-colors"
                     title="Upload or manage brand PDFs"
                     aria-label="Manage documents"
                   >
@@ -480,7 +480,7 @@ export const AskPage: React.FC = () => {
 
                   <button
                     type="button"
-                    className="p-2 rounded-xl text-muted-foreground hover:text-white hover:bg-white/[0.06] transition-colors"
+                    className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] transition-colors"
                     title="Voice input"
                     aria-label="Voice input"
                   >
@@ -490,10 +490,10 @@ export const AskPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={!input.trim() || isStreaming || !selectedDocumentId}
-                    className="w-9 h-9 rounded-xl bg-white text-black hover:bg-white/90 disabled:opacity-25 flex items-center justify-center transition-all shadow-xs hover:scale-105 active:scale-95 shrink-0"
+                    className="w-9 h-9 rounded-xl bg-foreground text-background hover:opacity-90 disabled:opacity-25 flex items-center justify-center transition-all shadow-xs hover:scale-105 active:scale-95 shrink-0"
                     aria-label="Send query"
                   >
-                    <ArrowUpRight className="w-4 h-4 text-black stroke-[2.5]" />
+                    <ArrowUpRight className="w-4 h-4 text-background stroke-[2.5]" />
                   </button>
                 </div>
               </div>
@@ -508,9 +508,9 @@ export const AskPage: React.FC = () => {
                     <Link
                       key={item.label}
                       to={item.to}
-                      className="glass-pill px-4 py-2 rounded-full text-xs font-medium text-white flex items-center gap-2 shadow-xs group"
+                      className="glass-pill px-4 py-2 rounded-full text-xs font-medium text-foreground flex items-center gap-2 shadow-xs group"
                     >
-                      <Icon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-white transition-colors" />
+                      <Icon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
                       <span>{item.label}</span>
                     </Link>
                   );
@@ -523,9 +523,9 @@ export const AskPage: React.FC = () => {
                       if (item.prompt) handleSubmit(item.prompt);
                     }}
                     disabled={!selectedDocumentId}
-                    className="glass-pill px-4 py-2 rounded-full text-xs font-medium text-white flex items-center gap-2 shadow-xs group disabled:opacity-40"
+                    className="glass-pill px-4 py-2 rounded-full text-xs font-medium text-foreground flex items-center gap-2 shadow-xs group disabled:opacity-40"
                   >
-                    <Icon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-white transition-colors" />
+                    <Icon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
                     <span>{item.label}</span>
                   </button>
                 );
@@ -540,7 +540,7 @@ export const AskPage: React.FC = () => {
                   type="button"
                   onClick={() => handleSubmit(prompt)}
                   disabled={!selectedDocumentId}
-                  className="px-3 py-1.5 rounded-full text-[11px] font-medium text-[#9F9F9F] hover:text-white bg-white/[0.02] hover:bg-white/[0.06] border border-white/5 hover:border-white/10 transition-all disabled:opacity-40"
+                  className="px-3 py-1.5 rounded-full text-[11px] font-medium text-muted-foreground hover:text-foreground bg-foreground/[0.03] hover:bg-foreground/[0.07] border border-border dark:border-white/5 transition-all disabled:opacity-40"
                 >
                   {prompt}
                 </button>
@@ -692,10 +692,10 @@ export const AskPage: React.FC = () => {
             }}
             className="sticky bottom-4 z-20 w-full"
           >
-            <div className="glass-capsule rounded-2xl p-2.5 px-4 flex items-center gap-3 shadow-2xl focus-within:border-white/20 transition-all">
+            <div className="glass-capsule rounded-2xl p-2.5 px-4 flex items-center gap-3 shadow-2xl focus-within:border-foreground/20 transition-all">
               <Link
                 to="/documents"
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-white transition-colors"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] transition-colors"
                 title="Manage guidelines"
                 aria-label="Switch or upload brand guidelines"
               >
@@ -714,17 +714,17 @@ export const AskPage: React.FC = () => {
                     : "Select a guideline above..."
                 }
                 disabled={!selectedDocumentId || isStreaming}
-                className="field-sizing-content flex-1 min-h-[38px] max-h-[160px] bg-transparent resize-none border-none outline-none text-sm text-white placeholder:text-muted-foreground/60 leading-relaxed"
+                className="field-sizing-content flex-1 min-h-[38px] max-h-[160px] bg-transparent resize-none border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/60 leading-relaxed"
                 aria-label="Ask about brand guidelines"
               />
 
               <button
                 type="submit"
                 disabled={!input.trim() || isStreaming || !selectedDocumentId}
-                className="w-8 h-8 rounded-xl bg-white text-black hover:bg-white/90 disabled:opacity-20 flex items-center justify-center transition-all shrink-0 shadow-xs hover:scale-105 active:scale-95"
+                className="w-8 h-8 rounded-xl bg-foreground text-background hover:opacity-90 disabled:opacity-20 flex items-center justify-center transition-all shrink-0 shadow-xs hover:scale-105 active:scale-95"
                 aria-label="Send message"
               >
-                <ArrowUpRight className="w-4 h-4 text-black stroke-[2.5]" />
+                <ArrowUpRight className="w-4 h-4 text-background stroke-[2.5]" />
               </button>
             </div>
           </form>

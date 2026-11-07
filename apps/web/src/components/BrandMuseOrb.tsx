@@ -25,7 +25,7 @@ export const BrandMuseOrb: React.FC<BrandMuseOrbProps> = ({
     <div className={`relative inline-flex items-center justify-center shrink-0 ${className}`}>
       {glow && (
         <div
-          className="absolute inset-0 rounded-full bg-white/25 blur-xl scale-150 pointer-events-none"
+          className="absolute inset-0 rounded-full bg-foreground/15 dark:bg-white/25 blur-xl scale-150 pointer-events-none"
           aria-hidden="true"
         />
       )}
