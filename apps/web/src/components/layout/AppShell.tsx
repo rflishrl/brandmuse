@@ -338,14 +338,14 @@ export const AppShell: React.FC<AppShellProps> = ({
             onClick={() => {
               window.dispatchEvent(new CustomEvent("brandmuse:new-chat"));
             }}
-            title="New Chat (⌘K)"
+            title="New Chat"
             aria-label="Start new chat session"
             className={`
               rounded-2xl flex items-center transition-all shadow-xs group
               bg-foreground/5 hover:bg-foreground/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.12]
               border border-border dark:border-white/10 text-foreground
               hover:scale-[1.02] active:scale-[0.98]
-              ${isExpanded ? "w-full py-2.5 px-3 justify-between" : "w-11 h-11 justify-center mx-auto"}
+              ${isExpanded ? "w-full py-2.5 px-3" : "w-11 h-11 justify-center mx-auto"}
             `}
           >
             <span className="flex items-center gap-2.5">
@@ -356,11 +356,6 @@ export const AppShell: React.FC<AppShellProps> = ({
                 <span className="text-xs font-semibold tracking-tight">New Chat</span>
               )}
             </span>
-            {isExpanded && (
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-foreground/5 text-muted-foreground">
-                ⌘K
-              </span>
-            )}
           </Link>
 
           {/* Nav Rail / Menu Items */}
