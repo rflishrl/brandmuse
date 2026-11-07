@@ -13,6 +13,7 @@ import {
   Bookmark,
   ExternalLink,
   ShieldCheck,
+  Plus,
 } from "lucide-react";
 import { BrandMuseOrb } from "@/components/BrandMuseOrb";
 import { Button } from "@/components/ui/button";
@@ -41,9 +42,9 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [theme, setTheme] = useState<ThemeMode>(() => {
     try {
       const saved = localStorage.getItem("brandmuse_theme") as ThemeMode;
-      return saved || "system";
+      return saved || "dark";
     } catch {
-      return "system";
+      return "dark";
     }
   });
 
@@ -135,36 +136,76 @@ export const AppShell: React.FC<AppShellProps> = ({
         `}
         aria-label="Sidebar navigation"
       >
-        <div className="p-5 flex flex-col gap-6">
+        <div className="p-5 flex flex-col gap-5">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-3 group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg p-1">
-              <BrandMuseOrb size={30} />
+            <Link
+              to="/"
+              className="flex items-center gap-3 group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg p-1"
+            >
+              <BrandMuseOrb size={32} glow />
               <div>
-                <h1 className="font-semibold text-base tracking-tight leading-none">BrandMuse</h1>
-                <p className="text-[12px] text-muted-foreground mt-1 truncate max-w-[170px]" title={effectiveDocumentName}>
+                <h1 className="font-bold text-base tracking-tight leading-none text-foreground flex items-center gap-1.5">
+                  BrandMuse
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-white/10 text-muted-foreground">
+                    AI
+                  </span>
+                </h1>
+                <p
+                  className="text-[11px] text-muted-foreground mt-1 truncate max-w-[170px]"
+                  title={effectiveDocumentName}
+                >
                   {effectiveDocumentName}
                 </p>
               </div>
             </Link>
           </div>
 
+          {/* New Session Action Button (Behance Style) */}
+          <Link
+            to="/ask"
+            onClick={() => {
+              // Dispatch custom event to reset chat if already on /ask
+              window.dispatchEvent(new CustomEvent("brandmuse:new-chat"));
+            }}
+            className="w-full flex items-center justify-between px-3.5 py-2 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] dark:bg-white/[0.05] dark:hover:bg-white/[0.1] text-foreground text-xs font-medium border border-border transition-all group"
+          >
+            <span className="flex items-center gap-2">
+              <span className="p-1 rounded-md bg-white/10 text-foreground group-hover:scale-105 transition-transform">
+                <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+              </span>
+              <span>New Chat</span>
+            </span>
+            <span className="text-[10px] font-mono text-muted-foreground">⌘K</span>
+          </Link>
+
           {/* Nav Items */}
-          <nav className="flex flex-col gap-1.5" aria-label="Main menu">
+          <nav className="flex flex-col gap-1" aria-label="Main menu">
             {navItems.map((item) => {
-              const active = location.pathname === item.path || (item.path === "/ask" && location.pathname === "/");
+              const active =
+                location.pathname === item.path ||
+                (item.path === "/ask" && location.pathname === "/");
               const Icon = item.icon;
               return (
                 <Link
                   key={item.path}
                   to={item.path}
                   className={`
-                    flex items-center gap-3 px-3.5 py-2.5 rounded-nav text-sm font-medium transition-colors
-                    ${active ? "bg-nav-active text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground hover:bg-surface-user"}
+                    flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all
+                    ${
+                      active
+                        ? "bg-white/[0.08] dark:bg-white/[0.09] text-foreground border border-white/10 shadow-xs"
+                        : "text-muted-foreground hover:text-foreground hover:bg-surface-user border border-transparent"
+                    }
                   `}
                   aria-current={active ? "page" : undefined}
                 >
-                  <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />
+                  <Icon
+                    className={`w-4 h-4 shrink-0 transition-colors ${
+                      active ? "text-ring" : "text-muted-foreground"
+                    }`}
+                    aria-hidden="true"
+                  />
                   <span>{item.label}</span>
                 </Link>
               );
@@ -224,9 +265,9 @@ export const AppShell: React.FC<AppShellProps> = ({
         />
       )}
 
-      {/* Content Column (Centered, Max Width ~760px) */}
+      {/* Content Column (Responsive Dashboard Max Width) */}
       <main id="main-content" className="flex-1 flex flex-col items-center px-4 md:px-8 py-6 md:py-10 overflow-y-auto">
-        <div className="w-full max-w-[760px] flex flex-col gap-6">
+        <div className="w-full max-w-5xl flex flex-col gap-6">
           {children}
         </div>
       </main>

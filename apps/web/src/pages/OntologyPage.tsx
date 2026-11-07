@@ -442,7 +442,7 @@ export const OntologyPage: React.FC = () => {
 
           {/* Brand Identity Showcase Card */}
           {identity && (
-            <div className="p-6 sm:p-7 rounded-card bg-surface border border-border shadow-xs flex flex-col gap-5">
+            <div className="p-6 sm:p-7 rounded-card bg-surface/90 dark:bg-[#141418]/80 backdrop-blur-xl border border-border dark:border-white/10 shadow-card flex flex-col gap-5">
               <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 border-b border-border pb-4">
                 <div>
                   <span className="text-[11px] font-bold text-ring tracking-wider uppercase">

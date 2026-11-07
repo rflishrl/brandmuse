@@ -26,19 +26,19 @@
   .dark {
     color-scheme: dark;
     accent-color: var(--ring);
-    --background: #0E0E11;
-    --background-gradient-end: #141418;
-    --surface: #1B1B20;
-    --surface-user: #26262D;
-    --quote: #23243A;
-    --foreground: #F2F2F5;
-    --muted-foreground: #A0A0AB;
-    --border: #2E2E36;
-    --ring: #8B8BF0;
+    --background: #09090C;
+    --background-gradient-end: #0F0F14;
+    --surface: #141418;
+    --surface-user: #1C1C23;
+    --quote: #181924;
+    --foreground: #FDFDFD;
+    --muted-foreground: #9F9F9F;
+    --border: rgba(255, 255, 255, 0.08);
+    --ring: #8E8EFF;
     --success-icon: #4ADE80;
     --success-text: #4ADE80;
     --danger: #FB923C;
-    --nav-active: #23242F;
+    --nav-active: #1D1D26;
   }
 
   * {
@@ -105,6 +105,66 @@ dialog:modal {
 dialog::backdrop {
   overflow: hidden;
   overscroll-behavior: contain;
-  background-color: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(4px);
+  background-color: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+/* Behance AI Assistant: Ethereal Aurora Light Beam */
+.aurora-beam {
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 380px;
+  height: 520px;
+  background: radial-gradient(ellipse at 50% 30%, rgba(255, 255, 255, 0.22) 0%, rgba(160, 160, 255, 0.12) 35%, transparent 70%);
+  pointer-events: none;
+  filter: blur(32px);
+  z-index: 0;
+}
+
+:root:not(.dark) .aurora-beam {
+  background: radial-gradient(ellipse at 50% 30%, rgba(91, 91, 214, 0.14) 0%, rgba(124, 108, 240, 0.06) 45%, transparent 70%);
+}
+
+/* Behance AI Assistant: Floating Glass Prompt Capsule */
+.glass-capsule {
+  background: rgba(20, 20, 24, 0.65);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+}
+
+:root:not(.dark) .glass-capsule {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.95);
+}
+
+/* Glass Pill Buttons */
+.glass-pill {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-pill:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  transform: translateY(-1px);
+}
+
+:root:not(.dark) .glass-pill {
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+:root:not(.dark) .glass-pill:hover {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.15);
 }

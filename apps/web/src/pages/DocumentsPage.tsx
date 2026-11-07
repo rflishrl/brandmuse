@@ -123,7 +123,7 @@ export const DocumentsPage: React.FC = () => {
         onDragOver={handleDrag}
         onDrop={handleDrop}
         className={`
-          relative border-2 border-dashed rounded-card p-8 flex flex-col items-center justify-center text-center transition-all duration-200 bg-surface shadow-xs
+          relative border-2 border-dashed rounded-card p-8 flex flex-col items-center justify-center text-center transition-all duration-200 bg-surface/90 dark:bg-[#141418]/80 backdrop-blur-xl shadow-xs
           ${dragActive ? "border-ring bg-quote/30" : "border-border hover:border-ring/50"}
         `}
       >
@@ -194,7 +194,7 @@ export const DocumentsPage: React.FC = () => {
                 <div
                   key={doc.id}
                   className={`
-                    p-5 rounded-card bg-surface border transition-all duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs
+                    p-5 rounded-card bg-surface/90 dark:bg-[#141418]/80 backdrop-blur-xl border transition-all duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs
                     ${isActive ? "border-ring ring-1 ring-ring/30 bg-surface" : "border-border hover:border-border/80"}
                   `}
                 >

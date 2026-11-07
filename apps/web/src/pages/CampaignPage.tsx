@@ -164,7 +164,7 @@ export const CampaignPage: React.FC = () => {
       )}
 
       {/* Campaign Brief Form Card */}
-      <div className="p-6 rounded-card bg-surface border border-border shadow-md">
+      <div className="p-6 sm:p-7 rounded-card bg-surface/90 dark:bg-[#141418]/80 border border-border dark:border-white/10 shadow-card backdrop-blur-xl">
         <form onSubmit={handleGenerateCampaign} className="flex flex-col gap-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Product / Service */}
@@ -276,7 +276,7 @@ export const CampaignPage: React.FC = () => {
               return (
                 <div
                   key={concept.title}
-                  className="p-6 rounded-card bg-surface border border-border shadow-md flex flex-col justify-between gap-5 transition-all hover:shadow-lg"
+                  className="p-6 rounded-card bg-surface/90 dark:bg-[#141418]/80 border border-border dark:border-white/10 shadow-card backdrop-blur-xl flex flex-col justify-between gap-5 transition-all hover:border-white/25 hover:shadow-glow"
                 >
                   <div className="flex flex-col gap-3">
                     <div className="flex items-start justify-between gap-2">

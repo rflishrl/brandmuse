@@ -5,13 +5,16 @@ import {
   Square,
   Copy,
   Check,
-  CheckCircle2,
-  ChevronRight,
-  ExternalLink,
   Plus,
   User,
   Sparkles,
   BookOpen,
+  Lightbulb,
+  Palette,
+  Image as ImageIcon,
+  HelpCircle,
+  ChevronDown,
+  ShieldCheck,
 } from "lucide-react";
 import { useBrand } from "@/context/BrandContext";
 import { BrandMuseOrb } from "@/components/BrandMuseOrb";
@@ -31,12 +34,41 @@ interface Message {
   quotedText?: string;
 }
 
+const QUICK_STARTERS = [
+  {
+    label: "Generate ideas",
+    icon: Lightbulb,
+    to: "/campaign",
+    prompt: null,
+  },
+  {
+    label: "Brand rules & tokens",
+    icon: Palette,
+    to: "/rules",
+    prompt: null,
+  },
+  {
+    label: "Visual gallery",
+    icon: ImageIcon,
+    to: "/gallery",
+    prompt: null,
+  },
+  {
+    label: "Ask AI anything",
+    icon: HelpCircle,
+    to: null,
+    prompt: "What is our official brand tone of voice and core philosophy?",
+  },
+];
+
 const SUGGESTED_PROMPTS = [
   "What is our brand tone of voice?",
   "Which primary and secondary colors can I use?",
   "What visual elements should we strictly avoid?",
-  "What are our photography and lighting guidelines?",
+  "What are our typography and font hierarchy rules?",
 ];
+
+type ExecutionMode = "auto" | "strict" | "creative";
 
 export const AskPage: React.FC = () => {
   const { selectedDocumentId, selectedDocument, loadSampleBrand, isLoadingSample } = useBrand();
@@ -44,6 +76,8 @@ export const AskPage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
+  const [executionMode, setExecutionMode] = useState<ExecutionMode>("auto");
+  const [showModeDropdown, setShowModeDropdown] = useState(false);
   const [activeSources, setActiveSources] = useState<{
     citations: CitationItem[];
     traceUrl?: string | null;
@@ -54,6 +88,20 @@ export const AskPage: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Listen to New Chat action from sidebar
+  useEffect(() => {
+    const handleNewChat = () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      setMessages([]);
+      setInput("");
+      setIsStreaming(false);
+    };
+    window.addEventListener("brandmuse:new-chat", handleNewChat);
+    return () => window.removeEventListener("brandmuse:new-chat", handleNewChat);
+  }, []);
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -62,12 +110,16 @@ export const AskPage: React.FC = () => {
     scrollToBottom();
   }, [messages, isStreaming]);
 
-  // Auto-resize textarea (modern-web-guidance fallback when field-sizing: content is unsupported)
+  // Auto-resize textarea
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
-    if (textareaRef.current && typeof CSS !== "undefined" && !CSS.supports("field-sizing", "content")) {
+    if (
+      textareaRef.current &&
+      typeof CSS !== "undefined" &&
+      !CSS.supports("field-sizing", "content")
+    ) {
       textareaRef.current.style.height = "auto";
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 160)}px`;
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
     }
   };
 
@@ -100,7 +152,8 @@ export const AskPage: React.FC = () => {
     // Find previous assistant message to quote if relevant
     const lastAssistantMessage = [...messages].reverse().find((m) => m.role === "assistant");
     const quotedSnippet = lastAssistantMessage
-      ? lastAssistantMessage.content.slice(0, 100) + (lastAssistantMessage.content.length > 100 ? "..." : "")
+      ? lastAssistantMessage.content.slice(0, 100) +
+        (lastAssistantMessage.content.length > 100 ? "..." : "")
       : undefined;
 
     const userMessage: Message = {
@@ -257,7 +310,7 @@ export const AskPage: React.FC = () => {
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
-      // Guard against premature submit during IME character composition per modern-web-guidance
+      // Guard against premature submit during IME composition per modern-web-guidance
       if (e.nativeEvent.isComposing || e.keyCode === 229) {
         return;
       }
@@ -267,16 +320,39 @@ export const AskPage: React.FC = () => {
   };
 
   return (
-    <div className="w-full flex flex-col gap-6 animate-in fade-in duration-200">
-      {/* Active Document Indicator / Prompt to Load */}
+    <div className="w-full flex flex-col gap-8 animate-in fade-in duration-300 relative">
+      {/* Active Guideline Top Status Pill */}
+      {selectedDocument && (
+        <div className="flex items-center justify-between gap-3 text-xs">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] dark:bg-white/[0.05] border border-border dark:border-white/10 backdrop-blur-md">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-medium text-foreground">{selectedDocument.filename}</span>
+            <span className="text-muted-foreground">• {selectedDocument.page_count} pages</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link
+              to="/rules"
+              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors px-2 py-1 rounded-md hover:bg-surface-user"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-ring" />
+              <span>View Brand Rules</span>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Case 0: No Document Selected Alert */}
       {!selectedDocumentId && (
-        <div className="p-4 rounded-card bg-surface border border-border shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="p-5 rounded-2xl bg-surface/80 border border-border shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 backdrop-blur-md">
           <div className="flex items-center gap-3">
-            <BookOpen className="w-5 h-5 text-ring shrink-0" aria-hidden="true" />
+            <div className="p-2.5 rounded-xl bg-surface-user text-ring shrink-0">
+              <BookOpen className="w-5 h-5" aria-hidden="true" />
+            </div>
             <div>
               <p className="text-sm font-semibold text-foreground">No Brand Guideline Selected</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Load our fictional "Aura Living" guideline or upload your own PDF to start chatting.
+                Load our sample brand &ldquo;Aura Living&rdquo; or upload your brand PDF to get started.
               </p>
             </div>
           </div>
@@ -286,9 +362,10 @@ export const AskPage: React.FC = () => {
               size="sm"
               onClick={() => loadSampleBrand()}
               disabled={isLoadingSample}
+              className="gap-1.5"
             >
-              <Sparkles className="w-3.5 h-3.5 mr-1.5" />
-              {isLoadingSample ? "Loading sample..." : "Use sample brand"}
+              <Sparkles className="w-3.5 h-3.5" />
+              {isLoadingSample ? "Loading demo..." : "Load Sample Brand"}
             </Button>
             <Button variant="outline" size="sm" asChild>
               <Link to="/documents">Upload PDF</Link>
@@ -297,235 +374,365 @@ export const AskPage: React.FC = () => {
         </div>
       )}
 
-      {/* Date Divider */}
-      <div className="flex items-center gap-3 my-1">
-        <div className="flex-1 h-px bg-border" />
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-          Today
-        </span>
-        <div className="flex-1 h-px bg-border" />
-      </div>
+      {/* STATE 1: Empty Hero State (Behance AI Assistant SaaS Style) */}
+      {messages.length === 0 ? (
+        <div className="relative flex flex-col items-center justify-center py-10 md:py-16 text-center gap-7 overflow-visible">
+          {/* Ethereal Aurora Light Beam */}
+          <div className="aurora-beam" aria-hidden="true" />
 
-      {/* Message List */}
-      <div
-        className="flex flex-col gap-6 min-h-[340px]"
-        aria-live="polite"
-        role="log"
-        aria-label="Brand guideline conversation history"
-      >
-        {messages.length === 0 ? (
-          /* Empty State */
-          <div className="flex flex-col items-center justify-center py-12 text-center gap-4">
-            <BrandMuseOrb size={48} />
-            <div className="max-w-md">
-              <h2 className="text-xl font-bold tracking-tight text-foreground">
-                Ask about {selectedDocument?.filename || "your brand"}
-              </h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Grounded strictly in verified guideline pages with exact page citations and audit traces.
+          {/* Central AI Mark */}
+          <div className="relative z-10 flex flex-col items-center gap-4">
+            <BrandMuseOrb size={54} glow animate />
+            <div className="max-w-xl">
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-semibold tracking-tight text-foreground">
+                How can I help you today?
+              </h1>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-2 max-w-md mx-auto">
+                {selectedDocument ? (
+                  <>
+                    Grounded strictly in{" "}
+                    <span className="text-foreground font-medium">
+                      {selectedDocument.filename}
+                    </span>{" "}
+                    with exact page citations and audit traces.
+                  </>
+                ) : (
+                  "Select or upload a brand guideline to begin."
+                )}
               </p>
+            </div>
+          </div>
+
+          {/* Floating Glass Prompt Capsule (Hero Input) */}
+          <div className="relative z-10 w-full max-w-2xl mx-auto">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSubmit();
+              }}
+              className="glass-capsule rounded-3xl p-4 sm:p-5 flex flex-col gap-3 transition-all focus-within:border-white/20 focus-within:ring-2 focus-within:ring-ring/20"
+            >
+              <textarea
+                ref={textareaRef}
+                rows={2}
+                value={input}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                placeholder="What do you want to know?"
+                disabled={!selectedDocumentId || isStreaming}
+                className="field-sizing-content w-full bg-transparent resize-none border-none outline-none text-base text-foreground placeholder:text-muted-foreground/60 leading-relaxed max-h-[160px]"
+                aria-label="Ask about brand guidelines"
+                autoFocus
+              />
+
+              {/* Bottom Capsule Controls */}
+              <div className="flex items-center justify-between pt-1 border-t border-white/[0.06] dark:border-white/[0.08]">
+                {/* Mode Selector Pill */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowModeDropdown(!showModeDropdown)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 text-xs font-medium text-foreground transition-all"
+                  >
+                    <Sparkles className="w-3 h-3 text-ring" />
+                    <span className="capitalize">{executionMode}</span>
+                    <ChevronDown className="w-3 h-3 text-muted-foreground ml-0.5" />
+                  </button>
+
+                  {showModeDropdown && (
+                    <div className="absolute left-0 bottom-full mb-2 w-48 rounded-xl bg-surface border border-border shadow-xl p-1 z-30 flex flex-col gap-0.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExecutionMode("auto");
+                          setShowModeDropdown(false);
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs text-left flex items-center justify-between ${
+                          executionMode === "auto"
+                            ? "bg-surface-user font-medium text-foreground"
+                            : "text-muted-foreground hover:bg-surface-user"
+                        }`}
+                      >
+                        <span>Auto (Balanced)</span>
+                        {executionMode === "auto" && <Check className="w-3 h-3 text-ring" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setExecutionMode("strict");
+                          setShowModeDropdown(false);
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs text-left flex items-center justify-between ${
+                          executionMode === "strict"
+                            ? "bg-surface-user font-medium text-foreground"
+                            : "text-muted-foreground hover:bg-surface-user"
+                        }`}
+                      >
+                        <span>Strict Rules Only</span>
+                        {executionMode === "strict" && <Check className="w-3 h-3 text-ring" />}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Action Tools */}
+                <div className="flex items-center gap-2">
+                  <Link
+                    to="/documents"
+                    className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+                    title="Upload or switch guidelines"
+                    aria-label="Manage documents"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Link>
+
+                  <button
+                    type="submit"
+                    disabled={!input.trim() || isStreaming || !selectedDocumentId}
+                    className="px-4 py-1.5 rounded-xl bg-foreground text-background hover:opacity-90 disabled:opacity-30 text-xs font-semibold flex items-center gap-1.5 shadow-sm transition-all"
+                    aria-label="Send query"
+                  >
+                    <span>Send</span>
+                    <Send className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            {/* Behance Quick Action Starters Row */}
+            <div className="flex flex-wrap items-center justify-center gap-2.5 mt-5">
+              {QUICK_STARTERS.map((item) => {
+                const Icon = item.icon;
+                if (item.to) {
+                  return (
+                    <Link
+                      key={item.label}
+                      to={item.to}
+                      className="glass-pill px-4 py-2 rounded-full text-xs font-medium text-foreground flex items-center gap-2 shadow-xs group"
+                    >
+                      <Icon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                }
+                return (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => {
+                      if (item.prompt) handleSubmit(item.prompt);
+                    }}
+                    disabled={!selectedDocumentId}
+                    className="glass-pill px-4 py-2 rounded-full text-xs font-medium text-foreground flex items-center gap-2 shadow-xs group disabled:opacity-40"
+                  >
+                    <Icon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Suggested Prompt Chips */}
-            <div className="flex flex-wrap justify-center gap-2 max-w-lg mt-3">
+            <div className="flex flex-wrap justify-center gap-2 max-w-lg mx-auto mt-4">
               {SUGGESTED_PROMPTS.map((prompt) => (
                 <button
                   key={prompt}
                   type="button"
                   onClick={() => handleSubmit(prompt)}
                   disabled={!selectedDocumentId}
-                  className="px-3.5 py-2 rounded-full text-xs font-medium bg-surface text-foreground border border-border shadow-xs hover:border-ring hover:bg-surface-user transition-colors disabled:opacity-50"
+                  className="px-3 py-1.5 rounded-full text-[11px] font-medium text-muted-foreground hover:text-foreground bg-white/[0.02] hover:bg-white/[0.06] border border-border/80 dark:border-white/5 transition-all disabled:opacity-40"
                 >
                   {prompt}
                 </button>
               ))}
             </div>
           </div>
-        ) : (
-          /* Conversation Stream */
-          messages.map((msg) => {
-            if (msg.role === "user") {
+        </div>
+      ) : (
+        /* STATE 2: Active Conversation Stream */
+        <div className="flex flex-col gap-6">
+          {/* Messages Log */}
+          <div
+            className="flex flex-col gap-6 min-h-[380px]"
+            aria-live="polite"
+            role="log"
+            aria-label="Brand guideline conversation history"
+          >
+            {messages.map((msg) => {
+              if (msg.role === "user") {
+                return (
+                  <div
+                    key={msg.id}
+                    className="flex flex-col items-end gap-1.5 max-w-[85%] sm:max-w-[75%] self-end animate-in fade-in duration-200"
+                  >
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-1">
+                      <span>You</span>
+                      <User className="w-3.5 h-3.5" aria-hidden="true" />
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-surface-user border border-border text-sm text-foreground shadow-xs">
+                      {msg.quotedText && (
+                        <div className="mb-2 px-3 py-1.5 rounded-md bg-quote border-l-2 border-ring text-xs text-muted-foreground italic">
+                          &ldquo;{msg.quotedText}&rdquo;
+                        </div>
+                      )}
+                      <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                      <span className="block text-right text-[10px] text-muted-foreground mt-2 font-mono">
+                        {msg.timestamp}
+                      </span>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Assistant Message Card
               return (
-                <div key={msg.id} className="flex flex-col items-end gap-1.5 max-w-[85%] self-end">
-                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-1">
-                    <span>You</span>
-                    <User className="w-3.5 h-3.5" aria-hidden="true" />
+                <div
+                  key={msg.id}
+                  className="flex flex-col items-start gap-1.5 max-w-[95%] sm:max-w-[85%] self-start animate-in fade-in duration-200"
+                >
+                  <div className="flex items-center gap-2 text-xs font-semibold text-foreground px-1">
+                    <BrandMuseOrb size={18} glow />
+                    <span>BrandMuse</span>
                   </div>
 
-                  <div className="p-4 rounded-card bg-surface-user border border-border shadow-xs text-sm text-foreground">
-                    {msg.quotedText && (
-                      <div className="mb-2 px-3 py-1.5 rounded-md bg-quote border-l-2 border-ring text-xs text-muted-foreground italic">
-                        "{msg.quotedText}"
+                  <div className="w-full p-5 sm:p-6 rounded-2xl bg-surface/90 dark:bg-[#141418]/80 border border-border dark:border-white/10 backdrop-blur-xl shadow-card text-sm text-foreground relative">
+                    {msg.content ? (
+                      <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                    ) : (
+                      <div className="flex items-center gap-2 text-muted-foreground text-xs py-2">
+                        <span className="inline-block w-2 h-4 bg-ring animate-pulse" />
+                        <span>Searching brand guidelines and fusing ranks...</span>
                       </div>
                     )}
-                    <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                    <span className="block text-right text-[11px] text-muted-foreground mt-2">
-                      {msg.timestamp}
-                    </span>
+
+                    {/* Sources row & citations */}
+                    {msg.citations && msg.citations.length > 0 && (
+                      <div className="mt-4 pt-3 border-t border-border flex flex-wrap items-center justify-between gap-2 text-xs">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setActiveSources({
+                              citations: msg.citations || [],
+                              traceUrl: msg.traceUrl,
+                            })
+                          }
+                          className="inline-flex items-center gap-1.5 font-medium text-ring hover:underline"
+                        >
+                          <BookOpen className="w-3.5 h-3.5" />
+                          <span>
+                            {msg.citations.length} guideline source
+                            {msg.citations.length === 1 ? "" : "s"}
+                          </span>
+                        </button>
+
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {msg.citations.slice(0, 4).map((c, i) => (
+                            <span
+                              key={i}
+                              className="px-2 py-0.5 rounded bg-surface-user border border-border font-mono text-[10px] text-muted-foreground"
+                            >
+                              p. {c.page}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </div>
-              );
-            }
 
-            // Assistant Message Card
-            return (
-              <div key={msg.id} className="flex flex-col items-start gap-1.5 max-w-[92%] self-start">
-                <div className="flex items-center gap-2 text-xs font-semibold text-foreground px-1">
-                  <BrandMuseOrb size={18} />
-                  <span>BrandMuse</span>
-                </div>
-
-                <div className="w-full p-5 rounded-card bg-surface shadow-md text-sm text-foreground relative">
-                  {msg.content ? (
-                    <p className="whitespace-pre-wrap leading-relaxed">
-                      {msg.content}
-                      {isStreaming && msg.id === messages[messages.length - 1]?.id && (
-                        <span className="inline-block w-2 h-4 ml-1 bg-ring animate-pulse align-middle" />
-                      )}
-                    </p>
-                  ) : (
-                    <div className="flex items-center gap-2 text-muted-foreground text-xs py-2">
-                      <span className="inline-block w-2 h-4 bg-ring animate-pulse" />
-                      <span>Reviewing brand guideline chunks...</span>
-                    </div>
-                  )}
-
-                  {/* Sources row & citations */}
-                  {msg.citations && msg.citations.length > 0 && (
-                    <div className="mt-4 pt-3 border-t border-border flex flex-wrap items-center justify-between gap-2 text-xs">
+                  {/* Actions row: Copy Button */}
+                  {msg.content && (
+                    <div className="flex items-center gap-2 px-1">
                       <button
                         type="button"
-                        onClick={() =>
-                          setActiveSources({
-                            citations: msg.citations || [],
-                            traceUrl: msg.traceUrl,
-                          })
-                        }
-                        className="inline-flex items-center gap-1.5 font-medium text-muted-foreground hover:text-foreground transition-colors group"
+                        onClick={() => handleCopy(msg.id, msg.content)}
+                        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors py-1 px-2 rounded-md hover:bg-surface-user"
+                        aria-label="Copy answer to clipboard"
                       >
-                        <CheckCircle2 className="w-3.5 h-3.5 text-success-icon" aria-hidden="true" />
-                        <span className="italic">
-                          Sources: {Array.from(new Set(msg.citations.map((c) => `p. ${c.page}`))).join(", ")}
-                        </span>
-                        <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                        {copiedId === msg.id ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-success-icon" />
+                            <span>Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3.5 h-3.5" />
+                            <span>Copy</span>
+                          </>
+                        )}
                       </button>
-
-                      {msg.traceUrl && (
-                        <a
-                          href={msg.traceUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] text-ring hover:underline"
-                        >
-                          <span>Trace</span>
-                          <ExternalLink className="w-3 h-3" aria-hidden="true" />
-                        </a>
-                      )}
                     </div>
                   )}
-
-                  <span className="block text-right text-[11px] text-muted-foreground mt-2">
-                    {msg.timestamp}
-                  </span>
                 </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
 
-                {/* Actions row: Copy Button */}
-                {msg.content && (
-                  <div className="flex items-center gap-2 px-1">
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(msg.id, msg.content)}
-                      className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors py-1 px-2 rounded-md hover:bg-surface-user"
-                      aria-label="Copy answer to clipboard"
-                    >
-                      {copiedId === msg.id ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-success-icon" />
-                          <span>Copied</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3.5 h-3.5" />
-                          <span>Copy</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+          {/* Stop Generating Button */}
+          {isStreaming && (
+            <div className="flex justify-center -mb-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleStopStreaming}
+                className="shadow-sm rounded-full bg-surface"
+              >
+                <Square className="w-3 h-3 mr-1.5 fill-current" />
+                Stop generating
+              </Button>
+            </div>
+          )}
 
-      {/* Stop Generating Button */}
-      {isStreaming && (
-        <div className="flex justify-center -mb-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleStopStreaming}
-            className="shadow-sm rounded-full bg-surface"
+          {/* Sticky Bottom Floating Glass Prompt Capsule */}
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmit();
+            }}
+            className="sticky bottom-4 z-20 w-full"
           >
-            <Square className="w-3 h-3 mr-1.5 fill-current" />
-            Stop generating
-          </Button>
+            <div className="glass-capsule rounded-2xl p-2.5 px-4 flex items-center gap-3 shadow-2xl focus-within:border-white/20 transition-all">
+              <Link
+                to="/documents"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground transition-colors"
+                title="Manage guidelines"
+                aria-label="Switch or upload brand guidelines"
+              >
+                <Plus className="w-4 h-4" />
+              </Link>
+
+              <textarea
+                ref={textareaRef}
+                rows={1}
+                value={input}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                placeholder={
+                  selectedDocument
+                    ? `Ask about ${selectedDocument.filename}...`
+                    : "Select a guideline above..."
+                }
+                disabled={!selectedDocumentId || isStreaming}
+                className="field-sizing-content flex-1 min-h-[38px] max-h-[160px] bg-transparent resize-none border-none outline-none text-sm text-foreground placeholder:text-muted-foreground/60 leading-relaxed"
+                aria-label="Ask about brand guidelines"
+              />
+
+              <button
+                type="submit"
+                disabled={!input.trim() || isStreaming || !selectedDocumentId}
+                className="p-2 rounded-xl bg-foreground text-background hover:opacity-90 disabled:opacity-30 transition-all shrink-0"
+                aria-label="Send message"
+              >
+                <Send className="w-4 h-4" />
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
       {/* Demo Limits Banner */}
       <DemoLimitsBanner />
-
-      {/* Input Bar (Pill-shaped Container, Radius 28px) */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSubmit();
-        }}
-        className="sticky bottom-4 z-10 w-full"
-      >
-        <div className="flex items-center gap-2 p-2 px-3 rounded-full bg-surface border border-border shadow-lg focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20 transition-all">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="rounded-full shrink-0 h-9 w-9 text-muted-foreground hover:text-foreground"
-            asChild
-            title="Manage guidelines"
-            aria-label="Switch or upload brand guidelines"
-          >
-            <Link to="/documents">
-              <Plus className="w-4 h-4" />
-            </Link>
-          </Button>
-
-          <textarea
-            ref={textareaRef}
-            rows={1}
-            value={input}
-            onChange={handleInputChange}
-            onKeyDown={handleKeyDown}
-            placeholder={
-              selectedDocument
-                ? `Ask about ${selectedDocument.filename}...`
-                : "Select a guideline above to ask questions..."
-            }
-            disabled={!selectedDocumentId || isStreaming}
-            className="field-sizing-content flex-1 min-h-[38px] max-h-[160px] bg-transparent resize-none border-none outline-none text-sm text-foreground placeholder:text-muted-foreground px-1 py-1.5 leading-relaxed"
-            aria-label="Ask about brand guidelines"
-          />
-
-          <Button
-            type="submit"
-            size="icon"
-            disabled={!input.trim() || isStreaming || !selectedDocumentId}
-            className="rounded-full shrink-0 h-9 w-9"
-            aria-label="Send message"
-          >
-            <Send className="w-4 h-4" />
-          </Button>
-        </div>
-      </form>
 
       {/* Sources Drawer Panel */}
       <SourcesDrawer
@@ -537,3 +744,5 @@ export const AskPage: React.FC = () => {
     </div>
   );
 };
+
+export default AskPage;

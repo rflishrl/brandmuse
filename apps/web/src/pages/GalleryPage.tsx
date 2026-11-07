@@ -86,7 +86,7 @@ export const GalleryPage: React.FC = () => {
               <div
                 key={gen.id}
                 onClick={() => setActiveLightboxItem(gen)}
-                className="group relative rounded-card overflow-hidden bg-surface border border-border shadow-md hover:shadow-xl transition-all cursor-pointer flex flex-col"
+                className="group relative rounded-card overflow-hidden bg-surface/90 dark:bg-[#141418]/80 border border-border dark:border-white/10 shadow-card hover:border-white/20 transition-all cursor-pointer flex flex-col"
               >
                 <div className="aspect-square w-full overflow-hidden bg-surface-user">
                   <img
