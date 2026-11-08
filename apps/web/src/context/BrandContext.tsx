@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import type React from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import { useListDocuments, useLoadSampleBrand } from "@/api/generated";
-import { DocumentResponse } from "@/api/model";
+import type { DocumentResponse } from "@/api/model";
 
 const STORAGE_KEY = "brandmuse:selected_document_id";
 

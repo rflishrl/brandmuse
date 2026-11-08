@@ -17,7 +17,7 @@ from app.rag.ontology import format_ontology_context
 from app.rag.prompt import format_context_block
 from app.rag.retrieve import hybrid_retrieve
 from app.rag.rrf import FusedResult
-from app.schemas.campaign import CampaignBrief, CampaignOutput, CampaignResponse
+from app.schemas.campaign import CampaignBrief, CampaignOutput, CampaignResponse, Concept
 from app.services.usage import check_and_increment_daily_usage
 
 settings = get_settings()
@@ -47,6 +47,10 @@ composition, environment, lighting, textures, camera angle.
 and colors.
 6. Brand Rules Used: List 2 to 4 specific rules from the guideline that shaped this concept \
 (e.g. "Warm terracotta and sage palette", "Empathetic, grounded tone").
+7. Compliance Checks: Provide 2 to 3 structured rule checks evaluating adherence to:
+   - Tone of Voice (passed: true/false, detail: concise rationale)
+   - Color Palette & Art Direction (passed: true/false, detail: palette used)
+   - Restrictions / Prohibited Elements (passed: true/false, detail: check status)
 
 Generate exactly 3 diverse concepts:
 - Concept 1: Core / Signature Brand Focus
@@ -123,12 +127,21 @@ async def generate_campaign_concepts(
 
     system_prompt = f"{CAMPAIGN_SYSTEM_PROMPT}{ontology_context}\n\n{context_text}"
 
+    ref_block = (
+        f"\n- Golden Voice References (Past winning copy to emulate):\n"
+        f"\"\"\"\n{brief.reference_examples.strip()}\n\"\"\"\n"
+        f"Match the sentence cadence and style of these golden references.\n"
+        if brief.reference_examples and brief.reference_examples.strip()
+        else ""
+    )
+
     user_content = (
         f"Campaign Brief:\n"
         f"- Product/Service: {brief.product}\n"
         f"- Target Audience: {brief.audience}\n"
         f"- Primary Channel: {brief.channel}\n"
-        f"- Desired Mood: {brief.mood}\n\n"
+        f"- Desired Mood: {brief.mood}\n"
+        f"{ref_block}\n"
         f"Please generate 3 distinct on-brand campaign concepts following all brand rules."
     )
 
@@ -181,3 +194,110 @@ async def generate_campaign_concepts(
         brand_rules_used=all_rules,
         trace_url=get_trace_url(trace_id),
     )
+
+
+REFINE_SYSTEM_PROMPT = """You are BrandMuse Creative Director, an AI branding strategist.
+Your task is to refine and revise a single campaign concept based on specific user feedback, strictly aligned \
+with the provided Brand Guideline Context.
+
+Requirements:
+1. Faithfully incorporate the user's creative feedback and direction into the revised concept.
+2. Maintain strict grounding in brand guidelines (colors, typography, tone of voice, prohibited elements).
+3. Copywriting Restrictions (Anti-Slop Guardrail):
+   - NEVER use em dashes (—). Use clean periods, colons, or commas.
+   - NEVER use empty AI marketing clichés (e.g. "elevate", "unlock", "delve", "seamless", "revolutionary").
+4. Visual Art Direction & Image Prompt:
+   - Pure visual tokens describing lighting, materials, subjects, and colors.
+   - NEVER include rendered text, typography, watermarks, or celebrity names.
+5. Compliance Checks: Provide 2 to 3 structured rule checks evaluating Tone of Voice, Palette, and Restrictions."""
+
+
+async def refine_campaign_concept(
+    db: AsyncSession,
+    session_id: uuid.UUID,
+    document_id: uuid.UUID,
+    concept: Concept,
+    instruction: str,
+) -> Concept:
+    """Refine a single campaign concept based on creative feedback while enforcing brand rules."""
+    # 1. Verify document access
+    stmt = select(Document).where(Document.id == document_id)
+    res = await db.execute(stmt)
+    doc = res.scalar_one_or_none()
+
+    if not doc or (doc.session_id != session_id and not doc.is_sample):
+        raise APIError(
+            code="DOCUMENT_NOT_FOUND",
+            message="Brand guideline document not found or access denied.",
+            status_code=404,
+        )
+
+    # 2. Check & increment daily usage quota
+    await check_and_increment_daily_usage(db, "llm", settings.DAILY_LLM_LIMIT)
+
+    # 3. Targeted retrieval for feedback context
+    fused_chunks = await hybrid_retrieve(db, document_id, query_text=f"{instruction} {concept.title}", top_k=3)
+    raw_context_pieces = [
+        {
+            "page": str(c.metadata.get("page", 1)),
+            "content": str(c.metadata.get("content", "")),
+        }
+        for c in fused_chunks
+    ]
+    context_text = format_context_block(raw_context_pieces)
+
+    ontology_stmt = select(BrandOntology).where(BrandOntology.document_id == document_id)
+    ontology_res = await db.execute(ontology_stmt)
+    ontology = ontology_res.scalar_one_or_none()
+    ontology_data = getattr(ontology, "ontology_data", None)
+    ontology_context = f"\n\n{format_ontology_context(ontology_data)}" if ontology_data else ""
+
+    system_prompt = f"{REFINE_SYSTEM_PROMPT}{ontology_context}\n\n{context_text}"
+
+    user_content = (
+        f"Current Concept to Refine:\n"
+        f"- Title: {concept.title}\n"
+        f"- Caption: {concept.caption}\n"
+        f"- Visual Direction: {concept.visual_direction}\n"
+        f"- Image Prompt: {concept.image_prompt}\n"
+        f"- Hashtags: {', '.join(concept.hashtags or [])}\n\n"
+        f"Creative Feedback / Revision Request:\n"
+        f"\"{instruction}\"\n\n"
+        f"Please return the revised on-brand concept applying this direction."
+    )
+
+    messages = [
+        SystemMessage(content=system_prompt),
+        HumanMessage(content=user_content),
+    ]
+
+    trace_id = str(uuid.uuid4())
+    handler = get_langfuse_callback(
+        session_id=session_id,
+        feature="campaign_refine",
+        trace_id=trace_id,
+        metadata={"document_id": str(document_id), "title": concept.title},
+    )
+    config = RunnableConfig(callbacks=[handler] if handler else [])
+
+    llm = get_llm(streaming=False, temperature=0.7, max_tokens=2000)
+    structured_llm = llm.with_structured_output(Concept)
+
+    try:
+        updated_concept = await structured_llm.ainvoke(messages, config=config)
+    except Exception as exc:
+        logger.warning("First concept refinement attempt failed, retrying: %s", exc)
+        try:
+            updated_concept = await structured_llm.ainvoke(messages, config=config)
+        except Exception as retry_exc:
+            logger.error("Concept refinement retry failed: %s", retry_exc)
+            raise APIError(
+                code="CAMPAIGN_REFINE_FAILED",
+                message="Failed to refine concept. Please try again.",
+                status_code=502,
+            ) from retry_exc
+
+    if isinstance(updated_concept, dict):
+        updated_concept = Concept(**updated_concept)
+
+    return updated_concept

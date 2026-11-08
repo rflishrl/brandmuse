@@ -41,6 +41,22 @@ async def test_mock_image_provider_generates_valid_png() -> None:
 
 
 @pytest.mark.asyncio
+async def test_mock_image_provider_multi_aspect_ratios() -> None:
+    """Verify MockImageProvider produces exact pixel dimensions for 9:16 and 16:9."""
+    provider = MockImageProvider()
+
+    # 9:16 (vertical story / reels)
+    img_9_16 = await provider.generate_image("Vertical story", aspect_ratio="9:16")
+    im1 = Image.open(io.BytesIO(img_9_16))
+    assert im1.size == (576, 1024)
+
+    # 16:9 (horizontal banner)
+    img_16_9 = await provider.generate_image("Landscape banner", aspect_ratio="16:9")
+    im2 = Image.open(io.BytesIO(img_16_9))
+    assert im2.size == (1024, 576)
+
+
+@pytest.mark.asyncio
 async def test_post_image_generation_endpoint(
     client: AsyncClient,
     mock_db: AsyncMock,

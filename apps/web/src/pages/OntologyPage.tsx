@@ -1,39 +1,41 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Link } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  ShieldCheck,
-  ShieldAlert,
-  FileSearch,
-  Palette,
-  Type,
-  ListChecks,
-  CheckCircle2,
-  XCircle,
-  Info,
-  Copy,
-  Check,
-  RefreshCw,
-  Bookmark,
-  FileText,
-  Radio,
   AlertCircle,
+  Bookmark,
+  Check,
+  CheckCircle2,
+  Copy,
+  Download,
+  FileSearch,
+  FileText,
+  Info,
+  ListChecks,
+  Palette,
+  Radio,
+  RefreshCw,
+  ShieldAlert,
+  ShieldCheck,
+  Type,
   X,
+  XCircle,
 } from "lucide-react";
-import { useBrand } from "@/context/BrandContext";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router";
 import {
-  useGetOntologyApiDocumentsDocumentIdOntologyGet,
-  useExtractOntologyApiDocumentsDocumentIdOntologyExtractPost,
-  useCertifyOntologyApiDocumentsDocumentIdOntologyCertifyPost,
   getGetOntologyApiDocumentsDocumentIdOntologyGetQueryKey,
+  useCertifyOntologyApiDocumentsDocumentIdOntologyCertifyPost,
+  useExtractOntologyApiDocumentsDocumentIdOntologyExtractPost,
+  useGetOntologyApiDocumentsDocumentIdOntologyGet,
 } from "@/api/generated";
-import { ColorToken } from "@/api/model/colorToken";
-import { TypographyToken } from "@/api/model/typographyToken";
-import { BrandRuleItem } from "@/api/model/brandRuleItem";
-import { ChannelRule } from "@/api/model/channelRule";
-import { Button } from "@/components/ui/button";
+import type { BrandRuleItem } from "@/api/model/brandRuleItem";
+import type { ChannelRule } from "@/api/model/channelRule";
+import type { ColorToken } from "@/api/model/colorToken";
+import type { TypographyToken } from "@/api/model/typographyToken";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useBrand } from "@/context/BrandContext";
 
 type ActiveTab = "overview" | "colors" | "typography" | "rules" | "channels";
 type RuleTypeFilter = "all" | "do" | "dont" | "guideline";
@@ -200,6 +202,74 @@ export const OntologyPage: React.FC = () => {
       })
     : null;
 
+  // Export W3C DTCG Design Tokens JSON
+  const exportTokensAsDTCG = () => {
+    if (!ontologyData) return;
+
+    const dtcgTokens: Record<string, unknown> = {
+      $schema: "https://design-tokens.github.io/community-group/format/",
+      $name: identity?.brand_name || selectedDocument?.filename || "Brand Tokens",
+      $description: `Design tokens for ${identity?.brand_name || "Brand"}. Compatible with Figma Tokens Studio and Style Dictionary.`,
+      color: {} as Record<string, unknown>,
+      typography: {} as Record<string, unknown>,
+      metadata: {
+        created_at: ontologyResponse?.created_at || null,
+        updated_at: ontologyResponse?.updated_at || null,
+        certified: isCertified,
+        certified_by: ontologyResponse?.certified_by || null,
+      },
+    };
+
+    const colorGroup = dtcgTokens.color as Record<string, unknown>;
+    colors.forEach((c) => {
+      const key = (c.name || c.role || "color").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      colorGroup[key] = {
+        $value: c.hex,
+        $type: "color",
+        $description:
+          `${c.role || "Brand color"}${c.usage_notes ? ` - ${c.usage_notes}` : ""}`.trim(),
+        extensions: {
+          role: c.role,
+          page: c.page,
+        },
+      };
+    });
+
+    const typographyGroup = dtcgTokens.typography as Record<string, unknown>;
+    typography.forEach((t) => {
+      const key = (t.role || t.font_family || "text").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      typographyGroup[key] = {
+        $type: "typography",
+        $value: {
+          fontFamily: t.font_family,
+          fontWeight: t.weights && t.weights.length > 0 ? t.weights.join(", ") : "400",
+        },
+        $description:
+          `${t.role || "Typography token"}${t.usage_notes ? ` - ${t.usage_notes}` : ""}`.trim(),
+        extensions: {
+          page: t.page,
+          permitted_weights: t.weights || [],
+        },
+      };
+    });
+
+    const blob = new Blob([JSON.stringify(dtcgTokens, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    const filename = `${(identity?.brand_name || "brand").toLowerCase().replace(/\s+/g, "-")}-tokens.json`;
+    anchor.href = url;
+    anchor.download = filename;
+    anchor.click();
+    URL.revokeObjectURL(url);
+
+    setStatusNotification({
+      type: "success",
+      message: `Exported W3C Design Tokens JSON (${filename}) for Figma and Style Dictionary.`,
+    });
+  };
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 flex flex-col gap-8">
       {/* Hidden Live Region for Screen Readers */}
@@ -286,7 +356,8 @@ export const OntologyPage: React.FC = () => {
           <div className="max-w-md">
             <h2 className="text-lg font-semibold text-foreground">No Brand Guideline Selected</h2>
             <p className="text-xs text-muted-foreground mt-1">
-              Select an uploaded brand guideline document, or test with our sample Aura Living brand guideline.
+              Select an uploaded brand guideline document, or test with our sample Aura Living brand
+              guideline.
             </p>
           </div>
           <div className="flex items-center gap-3 mt-2">
@@ -411,7 +482,18 @@ export const OntologyPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2.5 self-end md:self-center shrink-0">
+            <div className="flex items-center gap-2.5 self-end md:self-center shrink-0 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportTokensAsDTCG}
+                className="gap-1.5 text-xs bg-foreground/5 hover:bg-foreground/10 border-border"
+                title="Export W3C Design Tokens JSON for Figma and Style Dictionary"
+              >
+                <Download className="w-3.5 h-3.5" aria-hidden="true" />
+                Export Tokens
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -484,9 +566,7 @@ export const OntologyPage: React.FC = () => {
 
               {identity.tone_attributes && identity.tone_attributes.length > 0 && (
                 <div className="pt-3 border-t border-border flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-semibold text-foreground mr-1">
-                    Tone of Voice:
-                  </span>
+                  <span className="text-xs font-semibold text-foreground mr-1">Tone of Voice:</span>
                   {identity.tone_attributes.map((tone) => (
                     <Badge key={tone} variant="quote" className="text-xs py-0.5 px-3">
                       {tone}
@@ -576,7 +656,10 @@ export const OntologyPage: React.FC = () => {
             <section aria-labelledby="colors-heading" className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 id="colors-heading" className="font-semibold text-lg text-foreground flex items-center gap-2">
+                  <h3
+                    id="colors-heading"
+                    className="font-semibold text-lg text-foreground flex items-center gap-2"
+                  >
                     <Palette className="w-5 h-5 text-foreground" aria-hidden="true" />
                     Color Palette &amp; Tokens
                   </h3>
@@ -669,7 +752,10 @@ export const OntologyPage: React.FC = () => {
             <section aria-labelledby="typography-heading" className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 id="typography-heading" className="font-semibold text-lg text-foreground flex items-center gap-2">
+                  <h3
+                    id="typography-heading"
+                    className="font-semibold text-lg text-foreground flex items-center gap-2"
+                  >
                     <Type className="w-5 h-5 text-foreground" aria-hidden="true" />
                     Typography System
                   </h3>
@@ -750,7 +836,10 @@ export const OntologyPage: React.FC = () => {
             <section aria-labelledby="rules-heading" className="flex flex-col gap-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <h3 id="rules-heading" className="font-semibold text-lg text-foreground flex items-center gap-2">
+                  <h3
+                    id="rules-heading"
+                    className="font-semibold text-lg text-foreground flex items-center gap-2"
+                  >
                     <ListChecks className="w-5 h-5 text-foreground" aria-hidden="true" />
                     Brand DOs &amp; DONTs
                   </h3>
@@ -851,8 +940,8 @@ export const OntologyPage: React.FC = () => {
                           isDo
                             ? "bg-emerald-500/[0.03] border-emerald-500/25 dark:bg-emerald-950/20"
                             : isDont
-                            ? "bg-rose-500/[0.03] border-rose-500/25 dark:bg-rose-950/20"
-                            : "bg-surface border-border"
+                              ? "bg-rose-500/[0.03] border-rose-500/25 dark:bg-rose-950/20"
+                              : "bg-surface border-border"
                         }`}
                       >
                         <div className="flex items-start gap-3">
@@ -861,8 +950,8 @@ export const OntologyPage: React.FC = () => {
                               isDo
                                 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
                                 : isDont
-                                ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300"
-                                : "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                                  ? "bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300"
+                                  : "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
                             }`}
                           >
                             {isDo ? (
@@ -907,7 +996,10 @@ export const OntologyPage: React.FC = () => {
             <section aria-labelledby="channels-heading" className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 id="channels-heading" className="font-semibold text-lg text-foreground flex items-center gap-2">
+                  <h3
+                    id="channels-heading"
+                    className="font-semibold text-lg text-foreground flex items-center gap-2"
+                  >
                     <Radio className="w-5 h-5 text-foreground" aria-hidden="true" />
                     Channel-Specific Requirements
                   </h3>
@@ -1018,7 +1110,10 @@ export const OntologyPage: React.FC = () => {
                 <ShieldCheck className="w-5 h-5" aria-hidden="true" />
               </span>
               <div>
-                <h2 id="certify-dialog-title" className="font-bold text-lg text-foreground leading-tight">
+                <h2
+                  id="certify-dialog-title"
+                  className="font-bold text-lg text-foreground leading-tight"
+                >
                   Certify Brand Ontology
                 </h2>
                 <p id="certify-dialog-desc" className="text-xs text-muted-foreground mt-0.5">
@@ -1088,13 +1183,7 @@ export const OntologyPage: React.FC = () => {
           </div>
 
           <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={closeCertifyModal}
-              autoFocus
-            >
+            <Button type="button" variant="outline" size="sm" onClick={closeCertifyModal} autoFocus>
               Cancel
             </Button>
             <Button

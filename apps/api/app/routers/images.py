@@ -47,14 +47,22 @@ async def generate_image(
 
     # 3. Generate image bytes
     provider = get_image_provider()
-    image_bytes = await provider.generate_image(payload.image_prompt)
+    image_bytes = await provider.generate_image(
+        payload.image_prompt,
+        aspect_ratio=payload.aspect_ratio,
+        negative_prompt=payload.negative_prompt,
+    )
 
     # 4. Upload to persistent Supabase Storage
     filename = f"{session_id}/{uuid.uuid4()}.png"
     image_url = await upload_image_to_storage(image_bytes, filename=filename)
 
     # 5. Persist generation record
-    concept_data = {"title": payload.concept_title, **payload.concept_json}
+    concept_data = {
+        "title": payload.concept_title,
+        "aspect_ratio": payload.aspect_ratio,
+        **payload.concept_json,
+    }
     generation = Generation(
         id=uuid.uuid4(),
         session_id=session_id,

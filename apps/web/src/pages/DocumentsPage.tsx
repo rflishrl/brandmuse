@@ -1,20 +1,21 @@
-import React, { useState, useRef } from "react";
-import { Link } from "react-router";
 import {
-  UploadCloud,
-  FileText,
-  CheckCircle,
-  Bookmark,
   AlertCircle,
+  Bookmark,
   Calendar,
-  Layers,
   Check,
+  CheckCircle,
+  FileText,
+  Layers,
   ShieldCheck,
+  UploadCloud,
 } from "lucide-react";
-import { useBrand } from "@/context/BrandContext";
+import type React from "react";
+import { useRef, useState } from "react";
+import { Link } from "react-router";
 import { useUploadDocument } from "@/api/generated";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useBrand } from "@/context/BrandContext";
 
 export const DocumentsPage: React.FC = () => {
   const {
@@ -61,8 +62,11 @@ export const DocumentsPage: React.FC = () => {
       setUploadStatus(null);
     } catch (err: unknown) {
       setUploadStatus(null);
-      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message;
-      setErrorMessage(msg || "Failed to process and index PDF. Please verify it is a valid PDF under 40 pages.");
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response
+        ?.data?.error?.message;
+      setErrorMessage(
+        msg || "Failed to process and index PDF. Please verify it is a valid PDF under 40 pages."
+      );
     }
   };
 
@@ -81,13 +85,13 @@ export const DocumentsPage: React.FC = () => {
     e.stopPropagation();
     setDragActive(false);
 
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+    if (e.dataTransfer.files?.[0]) {
       handleFileProcess(e.dataTransfer.files[0]);
     }
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
+    if (e.target.files?.[0]) {
       handleFileProcess(e.target.files[0]);
     }
   };
@@ -97,9 +101,7 @@ export const DocumentsPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">
-            Brand Guidelines
-          </h2>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">Brand Guidelines</h2>
           <p className="text-sm text-muted-foreground mt-1">
             Upload custom PDFs or load the verified sample guideline for Instant RAG Q&A.
           </p>
@@ -165,7 +167,10 @@ export const DocumentsPage: React.FC = () => {
         )}
 
         {errorMessage && (
-          <div role="alert" className="mt-4 p-3 rounded-md bg-danger/10 border border-danger/20 flex items-center gap-2 text-xs text-danger">
+          <div
+            role="alert"
+            className="mt-4 p-3 rounded-md bg-danger/10 border border-danger/20 flex items-center gap-2 text-xs text-danger"
+          >
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{errorMessage}</span>
           </div>
@@ -237,7 +242,10 @@ export const DocumentsPage: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <Link to="/rules">
                           <Button variant="outline" size="sm" className="gap-1.5 text-xs">
-                            <ShieldCheck className="w-3.5 h-3.5 text-foreground" aria-hidden="true" />
+                            <ShieldCheck
+                              className="w-3.5 h-3.5 text-foreground"
+                              aria-hidden="true"
+                            />
                             Brand Rules
                           </Button>
                         </Link>

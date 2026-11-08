@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
 import { Info, X } from "lucide-react";
+import type React from "react";
+import { useEffect, useState } from "react";
 
 const STORAGE_KEY = "brandmuse:demo_limits_dismissed";
 
@@ -35,7 +36,8 @@ export const DemoLimitsBanner: React.FC = () => {
       <div className="flex items-center gap-2">
         <Info className="w-3.5 h-3.5 text-foreground/80 shrink-0" aria-hidden="true" />
         <span>
-          <strong className="text-foreground font-medium">Demo limits:</strong> 10 MB PDF max, 5 image generations per hour, quotas reset at midnight.
+          <strong className="text-foreground font-medium">Demo limits:</strong> 10 MB PDF max, 5
+          image generations per hour, quotas reset at midnight.
         </span>
       </div>
       <button

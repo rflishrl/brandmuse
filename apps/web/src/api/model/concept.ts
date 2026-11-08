@@ -5,6 +5,7 @@
  * FastAPI Backend for BrandMuse - AI Brand Assistant for Creative Teams
  * OpenAPI spec version: 0.1.0
  */
+import type { ComplianceCheck } from './complianceCheck';
 
 /**
  * A generated marketing campaign concept grounded in brand guidelines.
@@ -22,4 +23,6 @@ export interface Concept {
   image_prompt: string;
   /** Specific brand guideline rules and colors incorporated into this concept */
   brand_rules_used?: string[];
+  /** Structured verification checklist against guideline rules (tone, colors, restrictions) */
+  compliance_checks?: ComplianceCheck[];
 }

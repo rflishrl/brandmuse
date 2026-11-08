@@ -1,17 +1,18 @@
-import React, { useState, useEffect } from "react";
-import { Link } from "react-router";
 import {
-  Image as ImageIcon,
-  Download,
-  X,
-  ExternalLink,
-  Calendar,
-  Megaphone,
   AlertTriangle,
+  Calendar,
+  Download,
+  ExternalLink,
+  Image as ImageIcon,
+  Megaphone,
   RotateCcw,
+  X,
 } from "lucide-react";
+import type React from "react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import { useGetGallery } from "@/api/generated";
-import { GenerationItem } from "@/api/model";
+import type { GenerationItem } from "@/api/model";
 import { Button } from "@/components/ui/button";
 
 export const GalleryPage: React.FC = () => {
@@ -36,9 +37,7 @@ export const GalleryPage: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">
-            Asset Gallery
-          </h2>
+          <h2 className="text-2xl font-bold tracking-tight text-foreground">Asset Gallery</h2>
           <p className="text-sm text-muted-foreground mt-1">
             Permanent Stable Diffusion assets generated during your active creative session.
           </p>
@@ -56,7 +55,10 @@ export const GalleryPage: React.FC = () => {
       {isLoading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="aspect-square rounded-card bg-surface-user border border-border/50 dark:bg-white/[0.04] animate-pulse" />
+            <div
+              key={i}
+              className="aspect-square rounded-card bg-surface-user border border-border/50 dark:bg-white/[0.04] animate-pulse"
+            />
           ))}
         </div>
       ) : isError ? (
@@ -67,7 +69,8 @@ export const GalleryPage: React.FC = () => {
           <div className="max-w-md">
             <h3 className="font-semibold text-sm text-foreground">Failed to load asset gallery</h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {(error as { message?: string })?.message || "Could not retrieve session images. Please check your network connection."}
+              {(error as { message?: string })?.message ||
+                "Could not retrieve session images. Please check your network connection."}
             </p>
           </div>
           <Button variant="outline" size="sm" onClick={() => refetch()} className="gap-2 mt-1">
@@ -83,7 +86,8 @@ export const GalleryPage: React.FC = () => {
           <div className="max-w-sm">
             <h3 className="font-bold text-base text-foreground">No images generated yet</h3>
             <p className="text-xs text-muted-foreground mt-1">
-              Generate 3 on-brand campaign concepts and click "Generate image asset" to populate your permanent gallery.
+              Generate 3 on-brand campaign concepts and click "Generate image asset" to populate
+              your permanent gallery.
             </p>
           </div>
           <Button variant="default" size="sm" asChild className="mt-2">
@@ -166,7 +170,10 @@ export const GalleryPage: React.FC = () => {
             <div className="w-full md:w-[320px] p-6 bg-surface flex flex-col justify-between border-t md:border-t-0 md:border-l border-border shrink-0">
               <div className="flex flex-col gap-4">
                 <div className="flex items-start justify-between gap-2">
-                  <h3 id="lightbox-title" className="font-bold text-lg text-foreground leading-snug">
+                  <h3
+                    id="lightbox-title"
+                    className="font-bold text-lg text-foreground leading-snug"
+                  >
                     {activeLightboxItem.concept_title}
                   </h3>
                   <button
@@ -188,10 +195,7 @@ export const GalleryPage: React.FC = () => {
                 <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
                   <span className="font-medium text-foreground">Generation Details</span>
                   <span>Provider: {activeLightboxItem.provider}</span>
-                  <span>
-                    Created:{" "}
-                    {new Date(activeLightboxItem.created_at).toLocaleString()}
-                  </span>
+                  <span>Created: {new Date(activeLightboxItem.created_at).toLocaleString()}</span>
                 </div>
               </div>
 

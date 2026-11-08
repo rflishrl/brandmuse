@@ -17,6 +17,19 @@ DEFAULT_NEGATIVE_PROMPT = (
     "disfigured, celebrity portrait, real living people names, oversaturated, neon glare"
 )
 
+ASPECT_RATIO_DIMENSIONS: dict[str, tuple[int, int]] = {
+    "1:1": (1024, 1024),
+    "9:16": (576, 1024),
+    "16:9": (1024, 576),
+}
+
+
+def build_negative_prompt(custom_negative: str | None = None) -> str:
+    """Combine base safety negative prompt with dynamic brand restrictions."""
+    if not custom_negative or not custom_negative.strip():
+        return DEFAULT_NEGATIVE_PROMPT
+    return f"{DEFAULT_NEGATIVE_PROMPT}, {custom_negative.strip()}"
+
 # Basic safety blocklist for prompt moderation
 PROMPT_BLOCKLIST = [
     "nsfw",
@@ -52,7 +65,12 @@ class BaseImageProvider(ABC):
     """Abstract interface for Stable Diffusion image generation APIs."""
 
     @abstractmethod
-    async def generate_image(self, prompt: str) -> bytes:
+    async def generate_image(
+        self,
+        prompt: str,
+        aspect_ratio: str = "1:1",
+        negative_prompt: str | None = None,
+    ) -> bytes:
         """Generate an image from prompt and return raw image bytes (PNG/JPEG)."""
         pass
 
@@ -64,7 +82,12 @@ class StabilityImageProvider(BaseImageProvider):
         self.api_key = api_key or settings.STABILITY_API_KEY
         self.engine_id = "stable-diffusion-xl-1024-v1-0"
 
-    async def generate_image(self, prompt: str) -> bytes:
+    async def generate_image(
+        self,
+        prompt: str,
+        aspect_ratio: str = "1:1",
+        negative_prompt: str | None = None,
+    ) -> bytes:
         moderate_prompt(prompt)
 
         if not self.api_key:
@@ -75,15 +98,17 @@ class StabilityImageProvider(BaseImageProvider):
             )
 
         api_url = f"https://api.stability.ai/v1/generation/{self.engine_id}/text-to-image"
+        w, h = ASPECT_RATIO_DIMENSIONS.get(aspect_ratio, (1024, 1024))
+        neg = build_negative_prompt(negative_prompt)
 
         payload = {
             "text_prompts": [
                 {"text": prompt, "weight": 1.0},
-                {"text": DEFAULT_NEGATIVE_PROMPT, "weight": -1.0},
+                {"text": neg, "weight": -1.0},
             ],
             "cfg_scale": 7.0,
-            "height": 1024,
-            "width": 1024,
+            "height": h,
+            "width": w,
             "samples": 1,
             "steps": 30,
         }
@@ -125,7 +150,12 @@ class ReplicateImageProvider(BaseImageProvider):
     def __init__(self, api_token: str | None = None):
         self.api_token = api_token or settings.REPLICATE_API_TOKEN
 
-    async def generate_image(self, prompt: str) -> bytes:
+    async def generate_image(
+        self,
+        prompt: str,
+        aspect_ratio: str = "1:1",
+        negative_prompt: str | None = None,
+    ) -> bytes:
         moderate_prompt(prompt)
 
         if not self.api_token:
@@ -141,14 +171,17 @@ class ReplicateImageProvider(BaseImageProvider):
             "Prefer": "wait",
         }
 
+        w, h = ASPECT_RATIO_DIMENSIONS.get(aspect_ratio, (1024, 1024))
+        neg = build_negative_prompt(negative_prompt)
+
         # Replicate SDXL official model endpoint
         create_url = "https://api.replicate.com/v1/models/stability-ai/sdxl/predictions"
         payload = {
             "input": {
                 "prompt": prompt,
-                "negative_prompt": DEFAULT_NEGATIVE_PROMPT,
-                "width": 1024,
-                "height": 1024,
+                "negative_prompt": neg,
+                "width": w,
+                "height": h,
             }
         }
 
@@ -202,14 +235,21 @@ class ReplicateImageProvider(BaseImageProvider):
 class MockImageProvider(BaseImageProvider):
     """Mock image provider for testing and offline development."""
 
-    async def generate_image(self, prompt: str) -> bytes:
+    async def generate_image(
+        self,
+        prompt: str,
+        aspect_ratio: str = "1:1",
+        negative_prompt: str | None = None,
+    ) -> bytes:
         moderate_prompt(prompt)
 
-        # Generate a clean synthetic 1024x1024 image
-        img = Image.new("RGB", (1024, 1024), color=(34, 43, 39))  # Deep Forest Slate
+        w, h = ASPECT_RATIO_DIMENSIONS.get(aspect_ratio, (1024, 1024))
+
+        # Generate a clean synthetic image matching requested aspect ratio
+        img = Image.new("RGB", (w, h), color=(34, 43, 39))  # Deep Forest Slate
         draw = ImageDraw.Draw(img)
-        draw.rectangle([50, 50, 974, 974], outline=(192, 108, 71), width=4)  # Terracotta accent
-        draw.text((100, 480), "BrandMuse Creative Asset", fill=(246, 244, 238))
+        draw.rectangle([30, 30, w - 30, h - 30], outline=(192, 108, 71), width=4)  # Terracotta accent
+        draw.text((w // 2 - 110, h // 2 - 10), f"BrandMuse ({aspect_ratio})", fill=(246, 244, 238))
 
         buf = io.BytesIO()
         img.save(buf, format="PNG")

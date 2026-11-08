@@ -315,6 +315,68 @@
         }
       }
     },
+    "/api/campaign/refine": {
+      "post": {
+        "tags": [
+          "campaign"
+        ],
+        "summary": "Iteratively refine a single campaign concept based on creative feedback",
+        "description": "Refine a single campaign concept incorporating user feedback while enforcing brand rules.",
+        "operationId": "refineConcept",
+        "parameters": [
+          {
+            "name": "X-Session-Id",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Client session identifier as UUID",
+              "title": "X-Session-Id"
+            },
+            "description": "Client session identifier as UUID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefineConceptRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Concept"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/images": {
       "post": {
         "tags": [
@@ -1010,6 +1072,19 @@
             "minLength": 2,
             "title": "Mood",
             "description": "Desired campaign mood or angle, e.g. serene, bold, playful, or minimalist"
+          },
+          "reference_examples": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 1000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Examples",
+            "description": "Optional winning past copy or golden voice examples to calibrate brand tone"
           }
         },
         "type": "object",
@@ -1233,6 +1308,33 @@
         "title": "ColorToken",
         "description": "Structured brand color definition."
       },
+      "ComplianceCheck": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "title": "Category",
+            "description": "Category, e.g. 'Tone of Voice', 'Color Palette', 'Restrictions'"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed",
+            "description": "Whether this concept complies with the guideline rule"
+          },
+          "detail": {
+            "type": "string",
+            "title": "Detail",
+            "description": "Brief rationale or specific guideline reference"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "passed",
+          "detail"
+        ],
+        "title": "ComplianceCheck",
+        "description": "Structured rule verification for a concept against brand guidelines."
+      },
       "Concept": {
         "properties": {
           "title": {
@@ -1271,6 +1373,15 @@
             "type": "array",
             "title": "Brand Rules Used",
             "description": "Specific brand guideline rules and colors incorporated into this concept",
+            "default": []
+          },
+          "compliance_checks": {
+            "items": {
+              "$ref": "#/components/schemas/ComplianceCheck"
+            },
+            "type": "array",
+            "title": "Compliance Checks",
+            "description": "Structured verification checklist against guideline rules (tone, colors, restrictions)",
             "default": []
           }
         },
@@ -1503,6 +1614,26 @@
             "type": "object",
             "title": "Concept Json",
             "description": "Full concept metadata object for gallery persistence"
+          },
+          "aspect_ratio": {
+            "type": "string",
+            "pattern": "^(1:1|9:16|16:9)$",
+            "title": "Aspect Ratio",
+            "description": "Aspect ratio for image generation (1:1 for Feed, 9:16 for Stories/Reels, 16:9 for Banner)",
+            "default": "1:1"
+          },
+          "negative_prompt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 500
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Negative Prompt",
+            "description": "Custom or brand-specific negative prompt restrictions"
           }
         },
         "type": "object",
@@ -1534,6 +1665,35 @@
         ],
         "title": "ImageGenerateResponse",
         "description": "Result of image generation including permanent public Supabase Storage URL."
+      },
+      "RefineConceptRequest": {
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Document Id",
+            "description": "Target brand guideline document ID"
+          },
+          "concept": {
+            "$ref": "#/components/schemas/Concept",
+            "description": "Current concept to refine"
+          },
+          "instruction": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 2,
+            "title": "Instruction",
+            "description": "Creative direction or feedback to apply (e.g. 'Make headline shorter', 'Adapt for LinkedIn')"
+          }
+        },
+        "type": "object",
+        "required": [
+          "document_id",
+          "concept",
+          "instruction"
+        ],
+        "title": "RefineConceptRequest",
+        "description": "Incoming request to iteratively refine a single campaign concept."
       },
       "TypographyToken": {
         "properties": {

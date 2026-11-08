@@ -85,6 +85,8 @@ async def test_stream_ask_chain_emits_tokens_and_citations() -> None:
         assert citation["page"] == 2
         assert "calm and articulate" in citation["snippet"]
         assert citation["rrf_score"] == 0.032
+        assert "suggested_follow_ups" in done_payload
+        assert len(done_payload["suggested_follow_ups"]) > 0
 
 
 @pytest.mark.asyncio

@@ -1,30 +1,33 @@
-import React, { useState, useRef, useEffect } from "react";
-import { Link } from "react-router";
 import {
-  Square,
-  Copy,
-  Check,
-  Plus,
-  User,
+  ArrowUpRight,
   Bookmark,
-  SlidersHorizontal,
   BookOpen,
+  Check,
+  ChevronDown,
+  Copy,
+  Download,
+  HelpCircle,
+  Image as ImageIcon,
   Lightbulb,
   Palette,
-  Image as ImageIcon,
-  HelpCircle,
-  ChevronDown,
+  Plus,
   ShieldCheck,
-  ArrowUpRight,
+  SlidersHorizontal,
+  Square,
+  Trash2,
   Upload,
+  User,
 } from "lucide-react";
-import { useBrand } from "@/context/BrandContext";
+import type React from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Link } from "react-router";
 import { BrandMuseOrb } from "@/components/BrandMuseOrb";
 import { DemoLimitsBanner } from "@/components/DemoLimitsBanner";
 import { SourcesDrawer } from "@/components/SourcesDrawer";
 import { Button } from "@/components/ui/button";
+import { useBrand } from "@/context/BrandContext";
 import { getSessionId } from "@/lib/session";
-import { CitationItem } from "@/types/chat";
+import type { CitationItem } from "@/types/chat";
 
 interface Message {
   id: string;
@@ -34,6 +37,7 @@ interface Message {
   citations?: CitationItem[];
   traceUrl?: string | null;
   quotedText?: string;
+  suggestedFollowUps?: string[];
 }
 
 const QUICK_STARTERS = [
@@ -126,13 +130,60 @@ export const AskPage: React.FC = () => {
     return () => window.removeEventListener("brandmuse:new-chat", handleNewChat);
   }, []);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
+  const exportChatAsMarkdown = () => {
+    if (messages.length === 0) return;
+
+    let md = `# BrandMuse Research Transcript\n\n`;
+    md += `**Brand Guideline:** ${selectedDocument?.filename || "Aura Living"}\n`;
+    md += `**Date:** ${new Date().toLocaleDateString(undefined, { dateStyle: "long" })}\n\n`;
+    md += `---\n\n`;
+
+    messages.forEach((msg) => {
+      if (msg.role === "user") {
+        md += `### User\n${msg.content}\n\n`;
+      } else {
+        md += `### BrandMuse Assistant\n${msg.content}\n\n`;
+        if (msg.citations && msg.citations.length > 0) {
+          md += `**Citations:**\n`;
+          msg.citations.forEach((c) => {
+            md += `- [Page ${c.page}] ${c.snippet.trim()}\n`;
+          });
+          md += `\n`;
+        }
+      }
+    });
+
+    const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const name = (selectedDocument?.filename || "brand")
+      .toLowerCase()
+      .replace(/\.pdf$/i, "")
+      .replace(/\s+/g, "-");
+    a.href = url;
+    a.download = `brandmuse-transcript-${name}-${Date.now()}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleClearChat = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setMessages([]);
+    setInput("");
+    setIsStreaming(false);
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isStreaming]);
+    if (messages.length > 0 || isStreaming) {
+      scrollToBottom();
+    }
+  }, [messages.length, isStreaming, scrollToBottom]);
 
   // Auto-resize textarea
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -227,9 +278,7 @@ export const AskPage: React.FC = () => {
         const errMessage = errorData.error?.message || `HTTP ${response.status} error`;
         setMessages((prev) =>
           prev.map((m) =>
-            m.id === assistantMessageId
-              ? { ...m, content: `Error: ${errMessage}` }
-              : m
+            m.id === assistantMessageId ? { ...m, content: `Error: ${errMessage}` } : m
           )
         );
         setIsStreaming(false);
@@ -255,7 +304,7 @@ export const AskPage: React.FC = () => {
           if (!line) continue;
           if (line.startsWith("event: token")) {
             const nextLine = lines[++i];
-            if (nextLine && nextLine.startsWith("data: ")) {
+            if (nextLine?.startsWith("data: ")) {
               const rawData = nextLine.slice(6);
               let tokenText = rawData;
               try {
@@ -268,15 +317,13 @@ export const AskPage: React.FC = () => {
               }
               setMessages((prev) =>
                 prev.map((m) =>
-                  m.id === assistantMessageId
-                    ? { ...m, content: m.content + tokenText }
-                    : m
+                  m.id === assistantMessageId ? { ...m, content: m.content + tokenText } : m
                 )
               );
             }
           } else if (line.startsWith("event: done")) {
             const nextLine = lines[++i];
-            if (nextLine && nextLine.startsWith("data: ")) {
+            if (nextLine?.startsWith("data: ")) {
               try {
                 const doneData = JSON.parse(nextLine.slice(6));
                 setMessages((prev) =>
@@ -286,6 +333,7 @@ export const AskPage: React.FC = () => {
                           ...m,
                           citations: doneData.citations,
                           traceUrl: doneData.trace_url,
+                          suggestedFollowUps: doneData.suggested_follow_ups,
                         }
                       : m
                   )
@@ -296,7 +344,7 @@ export const AskPage: React.FC = () => {
             }
           } else if (line.startsWith("event: error")) {
             const nextLine = lines[++i];
-            if (nextLine && nextLine.startsWith("data: ")) {
+            if (nextLine?.startsWith("data: ")) {
               try {
                 const errData = JSON.parse(nextLine.slice(6));
                 setMessages((prev) =>
@@ -364,6 +412,29 @@ export const AskPage: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {messages.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={exportChatAsMarkdown}
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded-full bg-foreground/[0.03] hover:bg-foreground/[0.06] border border-border dark:border-white/10"
+                  title="Export chat transcript as Markdown"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Export Chat</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearChat}
+                  className="text-xs text-muted-foreground hover:text-danger flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded-full bg-foreground/[0.03] hover:bg-danger/10 border border-border dark:border-white/10"
+                  title="Clear conversation history"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Clear</span>
+                </button>
+              </>
+            )}
+
             <Link
               to="/rules"
               className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors px-3 py-1.5 rounded-full bg-foreground/[0.03] hover:bg-foreground/[0.06] border border-border dark:border-white/10"
@@ -392,9 +463,7 @@ export const AskPage: React.FC = () => {
                 {selectedDocument ? (
                   <>
                     Grounded strictly in{" "}
-                    <span className="text-foreground font-medium">
-                      {selectedDocument.filename}
-                    </span>{" "}
+                    <span className="text-foreground font-medium">{selectedDocument.filename}</span>{" "}
                     with exact page citations and audit traces.
                   </>
                 ) : (
@@ -445,7 +514,6 @@ export const AskPage: React.FC = () => {
                 disabled={!selectedDocumentId || isStreaming}
                 className="field-sizing-content w-full bg-transparent resize-none border-none outline-none text-base text-foreground placeholder:text-muted-foreground leading-relaxed max-h-[160px]"
                 aria-label="Ask about brand guidelines"
-                autoFocus
               />
 
               {/* Bottom Capsule Controls */}
@@ -501,9 +569,13 @@ export const AskPage: React.FC = () => {
                       >
                         <div className="flex flex-col">
                           <span className="font-medium text-foreground">Auto (Balanced)</span>
-                          <span className="text-[10px] text-muted-foreground">Standard guideline reasoning</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            Standard guideline reasoning
+                          </span>
                         </div>
-                        {executionMode === "auto" && <Check className="w-3.5 h-3.5 text-foreground shrink-0" />}
+                        {executionMode === "auto" && (
+                          <Check className="w-3.5 h-3.5 text-foreground shrink-0" />
+                        )}
                       </button>
 
                       <button
@@ -522,9 +594,13 @@ export const AskPage: React.FC = () => {
                       >
                         <div className="flex flex-col">
                           <span className="font-medium text-foreground">Strict Rules Only</span>
-                          <span className="text-[10px] text-muted-foreground">Strict guideline matching</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            Strict guideline matching
+                          </span>
                         </div>
-                        {executionMode === "strict" && <Check className="w-3.5 h-3.5 text-foreground shrink-0" />}
+                        {executionMode === "strict" && (
+                          <Check className="w-3.5 h-3.5 text-foreground shrink-0" />
+                        )}
                       </button>
                     </div>
                   )}
@@ -715,6 +791,25 @@ export const AskPage: React.FC = () => {
                           </>
                         )}
                       </button>
+                    </div>
+                  )}
+
+                  {/* Contextual Follow-Up Suggestions (Dynamic Chips) */}
+                  {msg.suggestedFollowUps && msg.suggestedFollowUps.length > 0 && !isStreaming && (
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1 px-1">
+                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block w-full mb-0.5">
+                        Suggested follow-ups:
+                      </span>
+                      {msg.suggestedFollowUps.map((question, qIdx) => (
+                        <button
+                          key={qIdx}
+                          type="button"
+                          onClick={() => handleSubmit(question)}
+                          className="glass-pill rounded-full text-xs px-3 py-1 font-medium text-foreground/80 hover:text-foreground transition-all hover:scale-[1.02] active:scale-[0.98]"
+                        >
+                          {question}
+                        </button>
+                      ))}
                     </div>
                   )}
                 </div>

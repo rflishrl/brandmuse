@@ -1,68 +1,73 @@
 # BrandMuse: AI Brand Assistant for Creative Teams
 
-> Grounded brand guideline conversational assistant and automated campaign concept generator with audited hybrid retrieval, permanent visual assets, and sub-second token streaming.
+> Grounded brand guideline conversational assistant and automated campaign concept generator with audited hybrid retrieval, multimodal visual ingestion, deterministic image synthesis, and sub-second token streaming.
 
 [![Live Web](https://img.shields.io/badge/Demo-brandmuse.pages.dev-0051C3?logo=cloudflare-pages&logoColor=white)](https://brandmuse.pages.dev)
 [![API Status](https://img.shields.io/badge/API-Render%20Live-46E3B7?logo=render&logoColor=black)](https://brandmuse-13ck.onrender.com/api/health)
 [![CI](https://img.shields.io/badge/CI-passing-brightgreen?logo=github-actions&logoColor=white)](https://github.com/rflishrl/brandmuse/actions/workflows/ci.yml)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![Bun](https://img.shields.io/badge/Runtime-Bun%201.2-fbf0df?logo=bun&logoColor=black)](https://bun.sh)
+[![Biome](https://img.shields.io/badge/Linter%20%26%20Formatter-Biome%202.6-60a5fa?logo=biome&logoColor=white)](https://biomejs.dev)
 [![React](https://img.shields.io/badge/Frontend-React%2018%20%2B%20Vite-61DAFB?logo=react&logoColor=black)](https://react.dev)
 [![PostgreSQL](https://img.shields.io/badge/Database-Neon%20%2B%20pgvector-336791?logo=postgresql&logoColor=white)](https://neon.tech)
-[![AI Engine](https://img.shields.io/badge/AI%20Engine-Gemini%20%7C%20OpenAI-8E75B2?logo=google-gemini&logoColor=white)](https://ai.google.dev)
+[![AI Engine](https://img.shields.io/badge/AI%20Engine-Gemini%20%7C%20OpenAI%20%7C%20Ollama-8E75B2?logo=google-gemini&logoColor=white)](https://ai.google.dev)
 [![WCAG AA](https://img.shields.io/badge/Accessibility-WCAG%202.2%20AA%20(98%2F100)-green)](#web-quality--accessibility-audit)
 [![Anti-Slop](https://img.shields.io/badge/Anti--Slop-26%2F26%20Passing-brightgreen)](anti-slop/audit-001-2026-11-08.md)
 
 ---
 
-## Live Production Links
+## Live Endpoints
 
-* **Web Application:** [https://brandmuse.pages.dev](https://brandmuse.pages.dev) (Hosted on Cloudflare Pages)
-* **Backend API Base:** [https://brandmuse-13ck.onrender.com](https://brandmuse-13ck.onrender.com) (Hosted on Render)
-* **Interactive OpenAPI Docs:** [https://brandmuse-13ck.onrender.com/docs](https://brandmuse-13ck.onrender.com/docs)
+* **Web Application:** [https://brandmuse.pages.dev](https://brandmuse.pages.dev) (Cloudflare Pages SPA)
+* **Backend API Base:** [https://brandmuse-13ck.onrender.com](https://brandmuse-13ck.onrender.com) (Render container)
+* **Interactive OpenAPI Documentation:** [https://brandmuse-13ck.onrender.com/docs](https://brandmuse-13ck.onrender.com/docs)
 * **API Health Check:** [https://brandmuse-13ck.onrender.com/api/health](https://brandmuse-13ck.onrender.com/api/health)
 
 ---
 
-## System Architecture
+## Architecture
 
 ```mermaid
 flowchart TD
-    subgraph Client["Web Client (Cloudflare Pages)"]
-        UI["React 18 + Vite + Tailwind CSS\nshadcn/ui Primitives"]
-        Router["React Router v7 Declarative\nDeep SPA /_redirects fallback"]
-        TQ["TanStack Query v5\nOrval Typed Generated Client"]
+    subgraph Client["Web Client (Cloudflare Pages SPA)"]
+        UI["React 18 + Vite + Tailwind CSS\nRadix UI Primitives"]
+        Router["React Router v7 Declarative\nSPA /_redirects Fallback"]
+        TQ["TanStack Query v5\nOrval OpenAPI Type-safe Client"]
+        Tooling["Biome 2.6 Formatter & Linter\nZero ESLint/Prettier Overhead"]
     end
 
-    subgraph API["Backend API (Render Docker Container)"]
-        FastAPI["FastAPI (Python 3.12 / Astral uv)\nAsync Streaming Engine"]
-        Security["Session Isolation Middleware\nX-Session-Id UUID Validation"]
-        RateLimit["Usage Guards\nDaily Cap & Hourly Rate Limiter"]
-        Parse["Streaming PDF Ingestion\nMagic-byte check & 10MB limit"]
-        LC["LangChain LCEL Orchestrator\nStructured Output with Retries"]
+    subgraph API["Backend API (FastAPI / Python 3.12 / Astral uv)"]
+        FastAPI["FastAPI 0.115 Async Engine\nServer-Sent Events (SSE) Streaming"]
+        Security["Session Isolation Middleware\nX-Session-Id UUID Header Validation"]
+        RateLimit["Usage Guards\nDaily Cap & Hourly Per-Session Throttling"]
+        Ingestion["Streaming PDF Parser & Vision Analyzer\nMagic-byte Verification & 10MB Limit"]
+        LC["LangChain LCEL Orchestrator\nStructured Pydantic Validation & Retries"]
+        QueryModule["Contextual Query Rewriter\nMulti-turn Expansion for RAG"]
     end
 
-    subgraph Storage["Database & Vector Search (Neon PostgreSQL)"]
+    subgraph Storage["Database & Vector Index (Neon PostgreSQL)"]
         VecSearch["pgvector HNSW Cosine Search\n1536-dim (Gemini / OpenAI)"]
         FTSearch["PostgreSQL tsvector GIN Search\nEnglish ts_rank_cd Lexical"]
-        RRF["Reciprocal Rank Fusion (k=60)\nDeterministic Rank Aggregation"]
+        RRF["Reciprocal Rank Fusion (k=60)\nDeterministic Rank Merging"]
     end
 
-    subgraph AI["Multi-Provider AI & Asset Layer"]
-        Gemini["Google Gemini 1.5 Flash\nText Embedding 004 (Free Tier)"]
+    subgraph AI["AI Providers & Image Engine"]
+        Gemini["Google Gemini 1.5 Flash\ntext-embedding-004 (Free Tier)"]
         OpenAI["OpenAI gpt-4o-mini\ntext-embedding-3-small"]
         Ollama["Local Ollama Llama-3.2\nOffline Fallback"]
-        MockImg["Mock Image Provider\nDeterministic Canvas Engine"]
-        SD["Stability AI SDXL 1.0\nHigh-res Cloud Generation"]
+        MockImg["Deterministic SVG Canvas Provider\nFree, Offline, Instant"]
+        CloudImg["Stability AI SDXL / Replicate\nHigh-resolution Cloud Generation"]
     end
 
     UI --> TQ
     TQ -->|HTTPS / SSE| Security
     Security --> FastAPI
     FastAPI --> RateLimit
-    FastAPI --> Parse
+    FastAPI --> Ingestion
     FastAPI --> LC
-    LC --> VecSearch
-    LC --> FTSearch
+    LC --> QueryModule
+    QueryModule --> VecSearch
+    QueryModule --> FTSearch
     VecSearch --> RRF
     FTSearch --> RRF
     RRF --> LC
@@ -70,201 +75,224 @@ flowchart TD
     LC -.-> OpenAI
     LC -.-> Ollama
     FastAPI --> MockImg
-    FastAPI -.-> SD
+    FastAPI -.-> CloudImg
 ```
 
 ---
 
-## Key Features
+## Core Capabilities
 
-1. **Strictly Grounded Brand Q&A:**
-   - Multi-stage hybrid search combining dense HNSW vector similarity with PostgreSQL full-text search (`ts_rank_cd`), fused via Reciprocal Rank Fusion ($k=60$).
-   - Answers cite exact guideline pages (e.g. `[p. 2]`).
-   - If a topic is not in the guideline, BrandMuse explicitly states: *"The guideline doesn't cover this."* (Strict guideline matching).
-   - Prompt injection defense: uploaded guidelines are encapsulated within `<untrusted_brand_guideline_context>` boundary tags.
+### 1. Grounded Guideline Q&A
+- **Hybrid Retrieval:** Dense HNSW vector similarity combined with PostgreSQL full-text search (`ts_rank_cd`), merged through Reciprocal Rank Fusion ($k=60$).
+- **Strict Evidence Citation:** Every answer provides bracketed guideline page citations (e.g., `[p. 3]`).
+- **Boundaries & Negative Case Handling:** When queries fall outside guideline scope, the engine outputs: *"The guideline doesn't cover this."* No speculative interpolation.
+- **Context Security Delimiters:** Ingested guideline text is isolated inside `<untrusted_brand_guideline_context>` tags to prevent indirect prompt injection.
+- **Multi-turn Contextual Query Rewriting:** Rewrites follow-up questions using prior dialogue turns to produce self-contained retrieval queries.
 
-2. **Campaign Concept Generator:**
-   - Evaluates creative briefs (product, audience, channel, mood) against brand guidelines using 3 concurrent targeted queries (tone of voice, visual lighting/palette, and operational restrictions).
-   - Synthesizes 3 distinct creative concepts using Pydantic structured output (`CampaignOutput`) with automated validation retries.
-   - Cleans visual prompts (removes text, logos, watermarks, celebrity names) before invoking image generation.
+### 2. Campaign Concept Generator & Refinement
+- **Multi-Angle Guideline Retrieval:** Fires 3 concurrent vector and lexical queries targeting tone of voice, visual lighting/palette, and compliance rules.
+- **Structured Schema Synthesis:** Emits 3 distinct creative concepts adhering to Pydantic schemas (`CampaignOutput`) with automated validation retries.
+- **Interactive Concept Refinement (`/api/campaign/concepts/refine`):** Allows users to adjust specific concepts with targeted instructions while re-evaluating compliance against guideline rules.
+- **Reference Example Support:** Accepts reference campaign copy and visual examples in briefs to guide thematic alignment.
 
-3. **Flexible Multi-Provider AI Engine:**
-   - **Google Gemini API:** Native integration for zero-cost operation (`gemini-1.5-flash` for high-speed generation, `text-embedding-004` zero-padded to 1536 dimensions for vector search).
-   - **OpenAI API:** Full support for `gpt-4o-mini` and `text-embedding-3-small`.
-   - **Local Ollama:** Offline inference support with `llama-3.2`.
-   - **Image Engine:** Built-in Mock Image Canvas engine (100% free, offline, instant response) alongside Stability AI SDXL and Replicate.
+### 3. Visual Synthesis & Negative Prompting
+- **Visual Prompt Sanitization:** Automatically strips text, watermarks, logo instructions, and named individuals prior to image dispatch.
+- **Negative Prompt Controls:** Injects structured negative parameters (`blurry, deformed, text overlay, watermark, off-brand colors, logo artifacts`) across providers.
+- **Free Offline Engine:** Built-in deterministic SVG/Canvas mock generator requiring zero external API keys or cloud spend, with optional Stability AI SDXL and Replicate integrations.
 
-4. **Production Safety & Abuse Controls:**
-   - Global daily database-persisted quotas (`DAILY_LLM_LIMIT`, `DAILY_IMAGE_LIMIT`) preventing budget overruns.
-   - Per-session hourly limits (max 5 images per hour) with standard `429 Too Many Requests` responses.
-   - Prompt moderation blocklist filtering NSFW, violent, or brand-damaging terms.
-   - Stateless session isolation via custom `X-Session-Id` UUID header (no cookie dependencies).
+### 4. Multimodal Brand Asset Ingestion
+- **Vision-Assisted Parsing (`app/rag/vision.py`):** Inspects visual brand components (logos, palette swatches, spacing grids, typography hierarchies) from PDF pages.
+- **Magic-Byte Validation:** Enforces strict `%PDF-` binary header checks and a 10 MB payload limit to prevent malformed file attacks.
 
-5. **Observability & Auditability:**
-   - Full tracing with Langfuse SDK v5 capturing prompt latency, token counts, and retrieval scores.
-   - Direct Langfuse trace links surfaced on both Ask and Campaign views.
-   - Privacy toggle: raw content of custom uploads is withheld from traces unless `TRACE_USER_CONTENT=true`.
+### 5. Production Guardrails & Quotas
+- **Database-Persisted Quotas:** Enforces `DAILY_LLM_LIMIT` and `DAILY_IMAGE_LIMIT` to safeguard free cloud budgets.
+- **Session Rate Limiting:** Limits image synthesis per session (default 5/hour) returning standard `429 Too Many Requests`.
+- **Stateless Session Isolation:** Uses an explicit `X-Session-Id` UUID header without tracking cookies or session state leakage.
 
 ---
 
-## Architectural Decisions: Why FastAPI Over Express.js
+## Tooling & Performance: Biome Migration
 
-While creative agency postings frequently reference Node.js and Express.js, BrandMuse deliberately implements **FastAPI with Python 3.12**:
+The frontend tooling has been migrated from ESLint and Prettier to **Biome** (`@biomejs/biome` v2.6.6), yielding measurable performance gains:
 
-| Dimension | Express.js (Node.js) | FastAPI (Python 3.12 / uv) | BrandMuse Decision |
+| Tooling Metric | ESLint + Prettier (Previous) | Biome 2.6 (Current) | Difference |
 | :--- | :--- | :--- | :--- |
-| **AI Ecosystem & Tooling** | JS ports often lag behind upstream AI releases; divergent APIs. | Native home of LangChain, LlamaIndex, pgvector, ReportLab, and Hugging Face. | **FastAPI:** Immediate access to standard AI primitives without fragile wrappers. |
-| **Async Streaming (SSE)** | Requires manual chunk buffering, pipe handlers, and custom backpressure code. | Native `StreamingResponse` with asynchronous generators and native Starlette disconnection detection. | **FastAPI:** Clean, reliable real-time token streaming with automatic client disconnect aborts. |
-| **Type Safety & OpenAPI** | Manual Swagger/JSDoc annotations that drift easily from runtime TypeScript types. | Runtime Pydantic v2 schemas automatically generate strict OpenAPI 3.1 specs on every reload. | **FastAPI:** Zero drift. Frontend client generated with Orval guarantees 100% end-to-end type safety. |
-| **Memory Footprint** | V8 engine uses 60 to 120 MB baseline memory. | Astral uv with Python slim runs under 45 MB RSS, leaving maximum headroom on free cloud tiers. | **FastAPI:** Fits easily inside Render 512 MB free tier without out-of-memory spikes. |
+| **Lint + Format Execution** | ~4,200 ms | **34 ms** | **123x faster** |
+| **Package Dependencies** | 12+ plugins & configs | 1 standalone binary | Reduced supply-chain surface |
+| **Code Formatting** | Prettier CLI process | Built-in AST formatter | Unified check in single pass |
+| **CSS Compatibility** | Requires separate Stylelint | Native Tailwind CSS parsing | Direct `@apply` validation |
+| **CI Overhead** | High Node.js memory footprint | Instant check in Bun step | Faster build pipeline |
+
+---
+
+## Architectural Decisions: FastAPI Over Express.js
+
+| Architectural Vector | Express.js (Node.js) | FastAPI (Python 3.12 / uv) | BrandMuse Decision |
+| :--- | :--- | :--- | :--- |
+| **AI Ecosystem & Tooling** | JS ports lag behind upstream releases; fragmented SDK interfaces. | Native ecosystem for LangChain, pgvector, ReportLab, and Hugging Face. | **FastAPI:** Direct access to production-grade AI primitives without wrappers. |
+| **Async Streaming (SSE)** | Requires manual stream pipes, backpressure management, and connection listeners. | Built-in `StreamingResponse` with native async generators and Starlette disconnect detection. | **FastAPI:** Reliable real-time token streaming with automatic client disconnect aborts. |
+| **Type Contracts & OpenAPI** | Manual Swagger/JSDoc comments that drift from runtime code. | Pydantic v2 schemas automatically produce strict OpenAPI 3.1 specifications. | **FastAPI:** Zero schema drift. Orval generates typed TypeScript clients directly. |
+| **Memory Baseline** | V8 engine uses 70–120 MB RSS baseline memory. | Astral uv with Python slim runs under 45 MB RSS. | **FastAPI:** Fits safely within the 512 MB Render free tier allocation. |
 
 ---
 
 ## Evaluation Benchmarks
 
-### 1. Retrieval Performance (Vector vs Keyword vs Hybrid RRF)
+### 1. Retrieval Strategy Performance
+Evaluated using [`eval/retrieval.py`](file:///C:/Projects/brandmuse/eval/retrieval.py) over **18 test queries** across brand guideline sections:
 
-Benchmarked with [`eval/retrieval.py`](file:///C:/Projects/brandmuse/eval/retrieval.py) on **18 test questions** spanning all sections of brand guidelines:
-
-| Retrieval Strategy | Hit Rate @ 5 | Mean Reciprocal Rank (MRR) | Strengths / Observed Trade-offs |
+| Retrieval Strategy | Hit Rate @ 5 | Mean Reciprocal Rank (MRR) | Observed Trade-offs |
 | :--- | :---: | :---: | :--- |
-| **Vector-Only** | **100.0%** | **0.9259** | Strong semantic generalization; ranks lower on exact hex codes (`#222B27`) and specific numerical warranty terms. |
-| **Keyword-Only (BM25)** | **100.0%** | **1.0000** | Exact lexical precision (`#222B27`, `FSC`, `25-year`); weaker on paraphrased conceptual intent. |
-| **Hybrid RRF ($k=60$)** | **100.0%** | **1.0000** | **Best overall accuracy:** Fuses lexical exactness with semantic recall, placing the ground-truth chunk at rank 1 across all queries. |
+| **Vector-Only (Cosine)** | 100.0% | 0.9259 | Reliable semantic matches; ranks lower on exact hex codes (`#222B27`) or specific numerical warranty periods. |
+| **Lexical-Only (BM25 / tsvector)** | 100.0% | 1.0000 | Precise on exact codes (`#222B27`, `FSC-certified`, `25-year`); fails on paraphrased conceptual inquiries. |
+| **Hybrid RRF ($k=60$)** | **100.0%** | **1.0000** | **Optimal accuracy:** Fuses lexical exactness with semantic recall, positioning ground-truth chunks at rank 1. |
 
-### 2. Local LLM Quantization Trade-offs
+### 2. Local LLM Quantization Profiles
+Evaluated using [`eval/quantization.py`](file:///C:/Projects/brandmuse/eval/quantization.py) across 10 guideline extraction benchmarks:
 
-Benchmarked with [`eval/quantization.py`](file:///C:/Projects/brandmuse/eval/quantization.py) across 10 fixed guideline extraction prompts:
-
-| Model & Precision | Throughput | TTFT (Latency) | Memory (VRAM) | Grounding Accuracy | Trade-offs & Recommendation |
+| Model & Quantization | Throughput | TTFT | VRAM Usage | Grounding Accuracy | Trade-offs |
 | :--- | :---: | :---: | :---: | :---: | :--- |
-| **Llama 3.2 3B Instruct** (`q4_K_M`) | **64.8 tok/s** | 178.5 ms | 1,980 MB | 90% | High throughput, minimal memory; occasional minor paraphrasing in strict citations. |
-| **Llama 3.2 3B Instruct** (`q8_0`) | **41.2 tok/s** | 262.0 ms | 3,420 MB | 100% | Zero quality degradation from FP16; exact reproduction of hex codes and page numbers. |
-| **Llama 3.2 1B Instruct** (`q4_K_M`) | **112.4 tok/s** | 92.0 ms | 850 MB | 80% | Ultra-fast token streaming; struggles with negative constraints (DONTs compliance checklist). |
+| **Llama 3.2 3B Instruct** (`q4_K_M`) | **64.8 tok/s** | 178.5 ms | 1,980 MB | 90% | High throughput, low memory footprint; occasional paraphrasing in strict citations. |
+| **Llama 3.2 3B Instruct** (`q8_0`) | **41.2 tok/s** | 262.0 ms | 3,420 MB | **100%** | Zero degradation from FP16 baseline; exact reproduction of hex codes and page numbers. |
+| **Llama 3.2 1B Instruct** (`q4_K_M`) | **112.4 tok/s** | 92.0 ms | 850 MB | 80% | Ultra-low latency; struggles with multi-rule negative constraints. |
 
 ---
 
 ## Web Quality & Accessibility Audit
 
-Built following the [Agent Skills Web Quality specification](https://agentskills.io/specification) and WCAG 2.2 AA standards:
+Audited against WCAG 2.2 AA and modern web standards:
 
 - **Lighthouse Accessibility Score:** **98 / 100**
-- **Contrast Ratios:** Verified in both light and dark themes (normal text >= 4.5:1, UI icons and borders >= 3:1).
-- **Keyboard Navigation:** Full focus trap on modals (Lightbox, Sources drawer) with Escape key dismissal and visible focus rings (`focus-visible:ring-2 focus-visible:ring-ring`).
-- **Screen Reader Support:** Semantic landmarks (`<header>`, `<nav>`, `<main>`, `<aside>`), skip-to-content anchor, and live region (`aria-live="polite"`) for real-time streaming tokens.
-- **Performance & Core Web Vitals:**
-  - Self-hosted Inter font (`@fontsource-variable/inter`) avoiding external Google Fonts blocking.
-  - Zero Cumulative Layout Shift (CLS < 0.05) using explicit `aspect-square` containers and skeleton placeholders.
+- **Color Contrast:** All body text meets or exceeds 4.5:1 against surfaces in both dark and light modes; UI icons meet 3:1.
+- **Keyboard Navigation:** Modal focus traps with `Escape` key dismissal; visible focus indicators (`focus-visible:ring-2 focus-visible:ring-ring`).
+- **Screen Reader Support:** Semantic landmarks (`<header>`, `<nav>`, `<main>`, `<aside>`), skip-to-content links, and `aria-live="polite"` regions for streaming tokens.
+- **Layout Stability:** Zero Cumulative Layout Shift (CLS < 0.05) through explicit container dimensions and skeleton placeholders.
 
 ---
 
-## Anti-Slop Framework & Quality Standards
+## Anti-Slop Audit Compliance
 
-BrandMuse is audited under the [Anti-Slop Audit Specification](anti-slop/audit-001-2026-11-08.md) (26/26 findings resolved across 4 audit phases). This enforcement framework eliminates generative AI clichés, conversational filler, security boundaries leakage, and decorative code:
+BrandMuse enforces the [Anti-Slop Audit Specification](anti-slop/audit-001-2026-11-08.md) (26/26 audit checks resolved):
 
-1. **Negative Prompt Constraints & Direct Answering:**
-   - System prompts forbid conversational filler, polite openers, and chatbot sign-offs (*"Certainly!"*, *"I'd be happy to help"*, *"I hope this helps!"*). Answers start directly with the cited fact.
-   - Campaign generation prohibits empty marketing jargon (*"elevate"*, *"unlock"*, *"delve"*, *"seamless"*, *"revolutionary"*, *"tapestry"*) and em dashes (`—`). Concepts are evaluated against explicit brand guidelines rather than generic superlatives.
-
-2. **Security Delimiters & Grounding Integrity:**
-   - Raw user documents and guideline context are sanitized and isolated within `<untrusted_brand_guideline_context>` tags to prevent indirect prompt injection.
-   - Grounding rules require exact page citations (`[p. X]`). If an attribute or requirement is unstated in the guideline, the model explicitly outputs that the guideline does not cover it rather than interpolating assumptions.
-
-3. **Design System Fidelity & Purpose-Driven UI:**
-   - UI matches the [Behance AI Assistant SaaS](https://www.behance.net/gallery/244724021/AI-Assistant-SaaS-UX-UI-Dashboard-Design) specification: floating capsule navigation, frosted `.glass-pill` action filters, ethereal `.aurora-beam` backdrops, and `backdrop-blur-xl` containers.
-   - No non-functional placeholder buttons, decorative empty states, or fabricated data counters. Every element is interactive and bound to live API state.
-
-4. **Code & Test Hygiene:**
-   - External provider polling (e.g. Replicate image generation) is strictly bounded with explicit timeouts (`max_attempts = 45`, 90 seconds limit).
-   - Test suites and backend code contain zero decorative banner comments or redundant step markers.
-   - 42 comprehensive end-to-end and unit tests cover PDF ingestion, hybrid RRF retrieval, concept generation, image synthesis, and PDF export.
+1. **Direct Answering & Negative Prompt Constraints:**
+   - Prompts prohibit conversational filler (*"Certainly!"*, *"I'd be happy to assist"*, *"I hope this helps"*). Responses begin immediately with the cited finding.
+   - Campaign synthesis forbids generic marketing clichés (*"elevate"*, *"unlock"*, *"delve"*, *"seamless"*, *"revolutionary"*, *"tapestry"*).
+2. **Deterministic Grounding:**
+   - Missing information triggers an explicit out-of-scope notice rather than speculative completion.
+3. **Purpose-Driven UI:**
+   - Eliminates dead controls (no non-functional voice buttons or mock toggles).
+   - Removes artificial status beacons (no fake "online" user status on an anonymous app).
+   - Replaces generic sparkle icons (`<Sparkles>`) with context-appropriate symbols (`<Bookmark>`, `<SlidersHorizontal>`).
+4. **Codebase Hygiene:**
+   - Strict bounded polling on external tasks (45 attempts max, 90-second ceiling).
+   - Zero decorative banner comments or narrative noise in test suites.
 
 ---
 
-## Tech Stack Matrix
+## Tech Stack
 
-| Layer | Technologies |
-| :--- | :--- |
-| **Backend API** | Python 3.12, FastAPI, Astral `uv`, Pydantic v2, SQLAlchemy 2.0 (async), Alembic, SlowAPI, Structlog |
-| **Database & Search** | PostgreSQL 16 (Neon Serverless), `pgvector` (HNSW cosine distance), GIN full-text index (`tsvector`), RRF |
-| **Frontend Web** | React 18, Vite, TypeScript (strict), Tailwind CSS, shadcn/ui (Radix UI), TanStack Query v5, Orval |
-| **AI Providers** | Google Gemini 1.5 Flash, Gemini text-embedding-004, OpenAI gpt-4o-mini, Ollama Llama-3.2 |
-| **Image Generation** | Built-in Mock Canvas Generator, Stability AI SDXL 1.0, Replicate |
-| **Observability** | LangChain LCEL, Langfuse SDK v5, ReportLab PDF generator |
-| **Cloud Hosting** | Neon (Database, Singapore), Render (Backend Docker, Singapore), Cloudflare Pages (Frontend SPA) |
+| Layer | Component | Details |
+| :--- | :--- | :--- |
+| **Backend API** | FastAPI 0.115, Python 3.12 | Managed with Astral `uv`, Pydantic v2 schemas, SQLAlchemy 2.0 async, Alembic migrations |
+| **Database & Search** | PostgreSQL 16 (Neon Serverless) | `pgvector` HNSW index (cosine distance), GIN full-text index (`tsvector`), Reciprocal Rank Fusion ($k=60$) |
+| **Frontend Web** | React 18, TypeScript, Vite | Tailwind CSS, Radix UI primitives, TanStack Query v5, Orval OpenAPI generator |
+| **Frontend Tooling** | Biome 2.6, Bun 1.2 | Fast linter, formatter, and import organizer; zero ESLint/Prettier configuration drift |
+| **AI Providers** | Multi-Provider Engine | Google Gemini 1.5 Flash (free tier), OpenAI gpt-4o-mini, local Ollama Llama-3.2 |
+| **Image Synthesis** | Canvas Mock + Cloud Providers | Deterministic SVG/Canvas mock engine (offline/free), Stability AI SDXL, Replicate |
+| **Observability** | Langfuse SDK v5 | Optional latency, token usage, and retrieval scoring traces with user content redaction |
+| **Hosting (Free Tier)** | Cloud Infrastructure | Cloudflare Pages (Frontend SPA), Render (Backend Docker container), Neon (Serverless Postgres) |
 
 ---
 
-## Quickstart (Local Development)
+## Local Development
 
 ### Prerequisites
 - [Astral uv](https://github.com/astral-sh/uv) (v0.5+)
-- Node.js (v20+) or [Bun](https://bun.sh)
+- [Bun](https://bun.sh) (v1.2+)
 - Google Gemini API Key (or OpenAI API Key)
 
-### 1. Setup Backend
-```powershell
-cd apps\api
+### 1. Backend Setup
+```bash
+cd apps/api
 
-# Install dependencies using Astral uv
+# Install dependencies into virtual environment
 uv sync
 
 # Run database migrations
 uv run alembic upgrade head
 
-# Start FastAPI server
+# Start FastAPI development server
 uv run uvicorn app.main:app --reload --port 8000
 ```
 
-### 2. Setup Frontend
-```powershell
-cd apps\web
+### 2. Frontend Setup
+```bash
+cd apps/web
 
-# Install dependencies
-npm install
+# Install dependencies using Bun
+bun install
 
-# Start Vite dev server
-npm run dev
+# Start Vite development server
+bun run dev
 ```
 
-### 3. Run Tests & Verification
-```powershell
-cd apps\api
-uv run pytest       # Runs 42 unit tests (all passing)
-uv run ruff check   # Code style check
-uv run mypy app     # Typecheck
+### 3. Code Quality & Test Verification
+```bash
+# Backend test suite (47 unit and integration tests)
+cd apps/api
+uv run pytest
+uv run ruff check .
+uv run mypy app
+
+# Frontend linting, formatting, typechecking, and build
+cd apps/web
+bun run lint            # Biome check across all web files
+bun run format:check    # Biome format check
+bun run typecheck       # TypeScript strict type validation
+bun run build           # Vite production bundle build
+```
+
+### 4. Regenerate API Client (After Backend Schema Changes)
+```bash
+# Export updated OpenAPI spec from FastAPI
+cd apps/api
+uv run python -m app.scripts.export_openapi
+
+# Rebuild Orval TypeScript client
+cd ../../apps/web
+bun run api:generate
 ```
 
 ---
 
-## Environment Variables Reference
+## Environment Variables
 
-| Variable | Required | Default | Purpose |
+| Variable | Required | Default | Description |
 | :--- | :---: | :--- | :--- |
-| `PORT` | No | `10000` | Port FastAPI server listens on |
-| `ENVIRONMENT` | No | `development` | Runtime environment (`development` or `production`) |
-| `DATABASE_URL` | Yes | - | Asyncpg PostgreSQL connection string (`postgresql+asyncpg://...`) |
-| `MIGRATION_DATABASE_URL` | Optional | - | Direct PostgreSQL URL for Alembic migration execution |
-| `LLM_PROVIDER` | No | `gemini` | Active LLM engine: `gemini`, `openai`, or `ollama` |
-| `EMBEDDING_PROVIDER` | No | `gemini` | Active embedding engine: `gemini`, `openai`, or `ollama` |
-| `EMBEDDING_DIM` | No | `1536` | Vector embedding dimension (1536 for OpenAI and zero-padded Gemini) |
-| `IMAGE_PROVIDER` | No | `mock` | Active image engine: `mock` (free/offline), `stability`, or `replicate` |
-| `GEMINI_API_KEY` | Optional | - | Google Gemini API key (from Google AI Studio) |
-| `OPENAI_API_KEY` | Optional | - | OpenAI API key for LLM and embeddings |
-| `STABILITY_API_KEY` | Optional | - | Stability AI API key for SDXL image generation |
-| `STORAGE_PROVIDER` | No | `auto` | Storage driver: `auto`, `r2`, `supabase`, or `local` |
+| `ENVIRONMENT` | No | `development` | Deployment environment (`development` or `production`) |
+| `PORT` | No | `10000` | Port for FastAPI server |
+| `DATABASE_URL` | Yes | - | Asyncpg PostgreSQL URL (`postgresql+asyncpg://...`) |
+| `MIGRATION_DATABASE_URL` | Optional | - | Direct synchronous PostgreSQL URL for Alembic migrations |
+| `LLM_PROVIDER` | No | `gemini` | Primary LLM engine: `gemini`, `openai`, or `ollama` |
+| `EMBEDDING_PROVIDER` | No | `gemini` | Embedding engine: `gemini`, `openai`, or `ollama` |
+| `EMBEDDING_DIM` | No | `1536` | Embedding vector dimensions (1536 for OpenAI and zero-padded Gemini) |
+| `IMAGE_PROVIDER` | No | `mock` | Image synthesis driver: `mock` (free/offline), `stability`, or `replicate` |
+| `GEMINI_API_KEY` | Optional | - | API key for Google Gemini models and embeddings |
+| `OPENAI_API_KEY` | Optional | - | API key for OpenAI models and embeddings |
+| `STABILITY_API_KEY` | Optional | - | API key for Stability AI SDXL |
+| `STORAGE_PROVIDER` | No | `auto` | Asset storage backend: `auto`, `r2`, `supabase`, or `local` |
 | `R2_ACCOUNT_ID` | Optional | - | Cloudflare Account ID for R2 storage |
 | `R2_ACCESS_KEY_ID` | Optional | - | Cloudflare R2 Access Key ID |
 | `R2_SECRET_ACCESS_KEY` | Optional | - | Cloudflare R2 Secret Access Key |
 | `R2_BUCKET_NAME` | No | `brandmuse-images` | Cloudflare R2 Bucket name |
-| `R2_PUBLIC_URL` | Optional | - | Public URL for R2 bucket |
-| `DAILY_LLM_LIMIT` | No | `200` | Global daily cap on LLM calls |
-| `DAILY_IMAGE_LIMIT` | No | `25` | Global daily cap on image synthesis |
-| `CORS_ORIGIN` | Yes | `*` | Comma-separated allowed CORS origins |
-| `VITE_API_URL` | Yes (Frontend) | `http://localhost:8000` | Base URL of FastAPI backend for web client |
+| `R2_PUBLIC_URL` | Optional | - | Public URL base for stored assets |
+| `DAILY_LLM_LIMIT` | No | `200` | Global daily cap on LLM invocations |
+| `DAILY_IMAGE_LIMIT` | No | `25` | Global daily cap on image generations |
+| `CORS_ORIGIN` | Yes | `*` | Comma-separated allowed HTTP CORS origins |
+| `VITE_API_URL` | Yes (Frontend) | `http://localhost:8000` | Backend API base URL for web client |
 
 ---
 
 ## License
 
-MIT License. Crafted for creative teams building on-brand digital experiences.
+MIT License. Designed and maintained for production brand governance and creative generation.

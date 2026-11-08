@@ -9,6 +9,10 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "format:check": "biome format .",
     "api:generate": "orval"
   },
   "dependencies": {
@@ -34,6 +38,7 @@
     "vite": "^6.0.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.6.6",
     "bun-types": "^1.4.4",
     "orval": "^7.3.0"
   }

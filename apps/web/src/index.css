@@ -8,36 +8,36 @@
   :root {
     color-scheme: light;
     accent-color: var(--foreground);
-    --background: #F7F7F8;
-    --background-gradient-end: #FFFFFF;
-    --surface: #FFFFFF;
-    --surface-user: #F1F1F3;
-    --quote: #F4F4F6;
+    --background: #f7f7f8;
+    --background-gradient-end: #ffffff;
+    --surface: #ffffff;
+    --surface-user: #f1f1f3;
+    --quote: #f4f4f6;
     --foreground: #111114;
-    --muted-foreground: #6B6B76;
-    --border: #E4E4E8;
+    --muted-foreground: #6b6b76;
+    --border: #e4e4e8;
     --ring: #111114;
-    --success-icon: #1F9D55;
-    --success-text: #15803D;
-    --danger: #C2410C;
-    --nav-active: #EAEAEF;
+    --success-icon: #1f9d55;
+    --success-text: #15803d;
+    --danger: #c2410c;
+    --nav-active: #eaeaef;
   }
 
   .dark {
     color-scheme: dark;
     accent-color: var(--foreground);
-    --background: #09090C;
-    --background-gradient-end: #0D0D11;
+    --background: #09090c;
+    --background-gradient-end: #0d0d11;
     --surface: #141418;
-    --surface-user: #1C1C23;
-    --quote: #16161B;
-    --foreground: #FDFDFD;
-    --muted-foreground: #9F9F9F;
+    --surface-user: #1c1c23;
+    --quote: #16161b;
+    --foreground: #fdfdfd;
+    --muted-foreground: #9f9f9f;
     --border: rgba(255, 255, 255, 0.08);
-    --ring: #FDFDFD;
-    --success-icon: #4ADE80;
-    --success-text: #4ADE80;
-    --danger: #FB923C;
+    --ring: #fdfdfd;
+    --success-icon: #4ade80;
+    --success-text: #4ade80;
+    --danger: #fb923c;
     --nav-active: rgba(255, 255, 255, 0.08);
   }
 
@@ -117,23 +117,36 @@ dialog::backdrop {
   transform: translateX(-50%);
   width: 420px;
   height: 520px;
-  background: radial-gradient(ellipse at 50% 30%, rgba(255, 255, 255, 0.22) 0%, rgba(160, 160, 255, 0.14) 35%, rgba(120, 120, 240, 0.06) 55%, transparent 75%);
+  background: radial-gradient(
+    ellipse at 50% 30%,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(160, 160, 255, 0.14) 35%,
+    rgba(120, 120, 240, 0.06) 55%,
+    transparent 75%
+  );
   pointer-events: none;
   filter: blur(36px);
   z-index: 0;
 }
 
 :root:not(.dark) .aurora-beam {
-  background: radial-gradient(ellipse at 50% 30%, rgba(91, 91, 214, 0.16) 0%, rgba(124, 108, 240, 0.08) 45%, transparent 70%);
+  background: radial-gradient(
+    ellipse at 50% 30%,
+    rgba(91, 91, 214, 0.16) 0%,
+    rgba(124, 108, 240, 0.08) 45%,
+    transparent 70%
+  );
 }
 
 /* Behance AI Assistant: Floating Glass Prompt Capsule */
 .glass-capsule {
-  background: rgba(18, 18, 24, 0.70);
+  background: rgba(18, 18, 24, 0.7);
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+  box-shadow:
+    0 30px 70px -15px rgba(0, 0, 0, 0.75),
+    inset 0 1px 1px rgba(255, 255, 255, 0.15);
 }
 
 :root:not(.dark) .glass-capsule {
@@ -141,7 +154,9 @@ dialog::backdrop {
   backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
   border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 20px 45px -12px rgba(0, 0, 0, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.95);
+  box-shadow:
+    0 20px 45px -12px rgba(0, 0, 0, 0.08),
+    inset 0 1px 1px rgba(255, 255, 255, 0.95);
 }
 
 /* Behance AI Assistant: Frosted Glass Pills */
@@ -149,7 +164,7 @@ dialog::backdrop {
   background: rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 

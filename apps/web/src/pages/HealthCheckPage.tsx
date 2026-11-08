@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { CheckCircle2, AlertTriangle, RefreshCw, Database, Cpu, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Cpu, Database, RefreshCw, ShieldCheck } from "lucide-react";
+import type React from "react";
+import { useEffect, useState } from "react";
 import { useGetHealth } from "@/api/generated";
 import { Button } from "@/components/ui/button";
 import { getSessionId } from "@/lib/session";
@@ -39,7 +40,8 @@ export const HealthCheckPage: React.FC = () => {
         </div>
         <h2 className="text-2xl font-bold tracking-tight mt-1">System Health & API Contract</h2>
         <p className="text-sm text-muted-foreground">
-          Live verification of the FastAPI backend, PostgreSQL database, and typed Orval TanStack Query client.
+          Live verification of the FastAPI backend, PostgreSQL database, and typed Orval TanStack
+          Query client.
         </p>
       </div>
 
@@ -65,13 +67,21 @@ export const HealthCheckPage: React.FC = () => {
           <div className="flex items-center gap-3">
             <div
               className={`w-3.5 h-3.5 rounded-full ${
-                data?.status === "ok" ? "bg-success-icon" : isLoading ? "bg-amber-400 animate-pulse" : "bg-danger"
+                data?.status === "ok"
+                  ? "bg-success-icon"
+                  : isLoading
+                    ? "bg-amber-400 animate-pulse"
+                    : "bg-danger"
               }`}
             />
             <div>
               <span className="font-semibold text-base">Backend Status</span>
               <p className="text-xs text-muted-foreground">
-                {isLoading ? "Querying /api/health..." : data?.status === "ok" ? "Online and healthy" : "Connection issue"}
+                {isLoading
+                  ? "Querying /api/health..."
+                  : data?.status === "ok"
+                    ? "Online and healthy"
+                    : "Connection issue"}
               </p>
             </div>
           </div>
@@ -104,7 +114,9 @@ export const HealthCheckPage: React.FC = () => {
             <div>
               <p className="font-semibold">Unable to reach API backend</p>
               <p className="text-xs mt-1 text-danger/90">
-                {error instanceof Error ? error.message : "Ensure the FastAPI server is running on port 8000."}
+                {error instanceof Error
+                  ? error.message
+                  : "Ensure the FastAPI server is running on port 8000."}
               </p>
             </div>
           </div>

@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.db.models import Chunk
 from app.providers.embeddings import BaseEmbeddingProvider, get_embedding_provider
+from app.rag.query import build_fts_query_expression, expand_query_for_retrieval
 from app.rag.rrf import FusedResult, RankedItem, reciprocal_rank_fusion
 
 settings = get_settings()
@@ -57,8 +58,9 @@ async def search_keyword_chunks(
     """Retrieve top-K chunks via Postgres tsvector full-text search using GIN index."""
     config_name = fts_config or settings.FTS_CONFIG
 
-    # Use plainto_tsquery for safe handling of arbitrary natural user queries
-    ts_query = func.plainto_tsquery(config_name, query_text)
+    # Use websearch_to_tsquery with keyword expansion for high-recall brand search
+    fts_expr = build_fts_query_expression(query_text)
+    ts_query = func.websearch_to_tsquery(config_name, fts_expr)
     rank_col = func.ts_rank_cd(Chunk.tsv, ts_query).label("rank")
 
     stmt = (
@@ -96,8 +98,9 @@ async def hybrid_retrieve(
     """Execute concurrent vector & FTS queries and merge using Reciprocal Rank Fusion."""
     provider = embedding_provider or get_embedding_provider()
 
-    # Generate query embedding
-    query_embedding = await provider.embed_query(query_text)
+    # Expand query for vector search to bridge cross-lingual and colloquial phrasing
+    expanded_vector_query = expand_query_for_retrieval(query_text)
+    query_embedding = await provider.embed_query(expanded_vector_query)
 
     # Run vector and full-text searches concurrently
     vector_results, keyword_results = await asyncio.gather(

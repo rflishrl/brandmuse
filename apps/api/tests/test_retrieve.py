@@ -75,3 +75,27 @@ async def test_hybrid_retrieve_merges_vector_and_keyword() -> None:
     assert r1.vector_rank == 1
     assert r1.keyword_rank == 2
     assert r1.metadata["page"] == 1
+
+
+def test_query_expansion_bilingual_and_colloquial() -> None:
+    """Verify expand_query_for_retrieval and build_fts_query_expression extract domain keywords."""
+    from app.rag.query import build_fts_query_expression, expand_query_for_retrieval
+
+    # Indonesian colloquial question
+    query = "apa warna primer brand ini?"
+    expanded = expand_query_for_retrieval(query)
+    assert "color" in expanded
+    assert "primary" in expanded
+
+    fts_expr = build_fts_query_expression(query)
+    assert "color" in fts_expr
+    assert "primary" in fts_expr
+    assert "or" in fts_expr
+
+    # English query with stop words
+    en_query = "what is the permitted logo clearspace?"
+    en_expanded = expand_query_for_retrieval(en_query)
+    assert "logo" in en_expanded
+    en_fts = build_fts_query_expression(en_query)
+    assert "clearspace" in en_fts or "logo" in en_fts
+

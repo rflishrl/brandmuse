@@ -24,6 +24,16 @@ class ImageGenerateRequest(BaseModel):
         default_factory=dict,
         description="Full concept metadata object for gallery persistence",
     )
+    aspect_ratio: str = Field(
+        default="1:1",
+        description="Aspect ratio for image generation (1:1 for Feed, 9:16 for Stories/Reels, 16:9 for Banner)",
+        pattern="^(1:1|9:16|16:9)$",
+    )
+    negative_prompt: str | None = Field(
+        default=None,
+        description="Custom or brand-specific negative prompt restrictions",
+        max_length=500,
+    )
 
 
 class ImageGenerateResponse(BaseModel):

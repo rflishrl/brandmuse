@@ -4,11 +4,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import AsyncClient
 
-from app.chains.campaign import generate_campaign_concepts
+from app.chains.campaign import generate_campaign_concepts, refine_campaign_concept
 from app.core.errors import APIError
 from app.db.models import Document
 from app.rag.rrf import FusedResult
-from app.schemas.campaign import CampaignBrief, CampaignOutput, Concept
+from app.schemas.campaign import CampaignBrief, CampaignOutput, Concept, ComplianceCheck
 
 
 @pytest.mark.asyncio
@@ -191,3 +191,111 @@ async def test_post_campaign_endpoint(
         data = resp.json()
         assert len(data["concepts"]) == 3
         assert data["concepts"][0]["title"] == "Concept 1"
+
+
+@pytest.mark.asyncio
+async def test_refine_campaign_concept_success() -> None:
+    """Verify refine_campaign_concept incorporates feedback and returns updated Concept."""
+    session_id = uuid.uuid4()
+    doc_id = uuid.uuid4()
+
+    mock_doc = Document(
+        id=doc_id,
+        session_id=session_id,
+        filename="Aura Living.pdf",
+        page_count=6,
+        is_sample=True,
+    )
+
+    mock_db = AsyncMock()
+    mock_res = MagicMock()
+    mock_res.scalar_one_or_none.return_value = mock_doc
+    mock_db.execute.return_value = mock_res
+
+    initial_concept = Concept(
+        title="Original Concept",
+        caption="A simple caption.",
+        hashtags=["#Original"],
+        visual_direction="Soft lighting.",
+        image_prompt="A ceramic bowl on a wooden table.",
+        brand_rules_used=["Terracotta accent"],
+    )
+
+    refined_output = Concept(
+        title="Refined Punchy Concept",
+        caption="Punchy concise caption for TikTok.",
+        hashtags=["#Punchy", "#Aura"],
+        visual_direction="High-contrast warm daylight.",
+        image_prompt="Close up textured ceramic bowl in dramatic warm afternoon light.",
+        brand_rules_used=["Terracotta accent", "Raw natural materials"],
+        compliance_checks=[
+            ComplianceCheck(category="Tone of Voice", passed=True, detail="Short, direct cadence."),
+        ],
+    )
+
+    mock_llm = MagicMock()
+    mock_structured = MagicMock()
+    mock_structured.ainvoke = AsyncMock(return_value=refined_output)
+    mock_llm.with_structured_output.return_value = mock_structured
+
+    with (
+        patch("app.chains.campaign.check_and_increment_daily_usage", AsyncMock()),
+        patch("app.chains.campaign.hybrid_retrieve", AsyncMock(return_value=[])),
+        patch("app.chains.campaign.get_llm", return_value=mock_llm),
+    ):
+        result = await refine_campaign_concept(
+            db=mock_db,
+            session_id=session_id,
+            document_id=doc_id,
+            concept=initial_concept,
+            instruction="Make the headline punchier and shorten the caption for TikTok",
+        )
+
+        assert result.title == "Refined Punchy Concept"
+        assert result.caption == "Punchy concise caption for TikTok."
+        assert len(result.compliance_checks) == 1
+        assert result.compliance_checks[0].passed is True
+
+
+@pytest.mark.asyncio
+async def test_refine_campaign_endpoint_integration(client: AsyncClient) -> None:
+    """Verify POST /api/campaign/refine endpoint returns revised concept."""
+    session_id = str(uuid.uuid4())
+    doc_id = str(uuid.uuid4())
+
+    fake_refined_concept = {
+        "title": "Endpoint Refined Concept",
+        "caption": "Refined copy.",
+        "hashtags": ["#Refined"],
+        "visual_direction": "Golden hour.",
+        "image_prompt": "Golden hour ceramic studio.",
+        "brand_rules_used": ["Warm tones"],
+        "compliance_checks": [
+            {"category": "Tone", "passed": True, "detail": "Compliant tone"},
+        ],
+    }
+
+    with patch(
+        "app.routers.campaign.refine_campaign_concept",
+        AsyncMock(return_value=fake_refined_concept),
+    ):
+        resp = await client.post(
+            "/api/campaign/refine",
+            headers={"X-Session-Id": session_id},
+            json={
+                "document_id": doc_id,
+                "concept": {
+                    "title": "Old Concept",
+                    "caption": "Old caption",
+                    "visual_direction": "Old visual",
+                    "image_prompt": "Old prompt",
+                },
+                "instruction": "Adapt for Instagram Reels",
+            },
+        )
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["title"] == "Endpoint Refined Concept"
+        assert data["caption"] == "Refined copy."
+

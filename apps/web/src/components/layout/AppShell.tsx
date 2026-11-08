@@ -1,21 +1,22 @@
-import React, { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router";
 import {
-  FileText,
-  MessageSquare,
-  Megaphone,
-  Image as ImageIcon,
-  Menu,
-  X,
-  Sun,
-  Moon,
-  Laptop,
   Bookmark,
-  ShieldCheck,
-  Plus,
-  PanelLeftClose,
+  FileText,
+  Image as ImageIcon,
+  Laptop,
+  Megaphone,
+  Menu,
+  MessageSquare,
+  Moon,
   PanelLeft,
+  PanelLeftClose,
+  Plus,
+  ShieldCheck,
+  Sun,
+  X,
 } from "lucide-react";
+import type React from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Link, useLocation } from "react-router";
 import { BrandMuseOrb } from "@/components/BrandMuseOrb";
 import { Button } from "@/components/ui/button";
 import { useBrand } from "@/context/BrandContext";
@@ -61,7 +62,7 @@ export const AppShell: React.FC<AppShellProps> = ({
     }
   });
 
-  const toggleSidebar = () => {
+  const toggleSidebar = useCallback(() => {
     setIsExpanded((prev) => {
       const next = !prev;
       try {
@@ -71,7 +72,7 @@ export const AppShell: React.FC<AppShellProps> = ({
       }
       return next;
     });
-  };
+  }, []);
 
   // Keyboard shortcut: Cmd+B / Ctrl+B to toggle sidebar
   useEffect(() => {
@@ -83,7 +84,7 @@ export const AppShell: React.FC<AppShellProps> = ({
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [toggleSidebar]);
 
   // Apply theme class to document element
   useEffect(() => {
@@ -113,7 +114,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   // Close mobile drawer on route change
   useEffect(() => {
     setMobileOpen(false);
-  }, [location.pathname]);
+  }, []);
 
   const navItems = [
     {
@@ -308,7 +309,9 @@ export const AppShell: React.FC<AppShellProps> = ({
         {/* Top: Header, Logo, and Expand/Collapse Toggle */}
         <div className="flex flex-col gap-4 w-full">
           {/* Top Bar with Logo */}
-          <div className={`flex items-center w-full ${isExpanded ? "justify-start px-1" : "justify-center"}`}>
+          <div
+            className={`flex items-center w-full ${isExpanded ? "justify-start px-1" : "justify-center"}`}
+          >
             <Link
               to="/"
               title="BrandMuse AI"
@@ -324,7 +327,10 @@ export const AppShell: React.FC<AppShellProps> = ({
                       AI
                     </span>
                   </span>
-                  <span className="text-[10px] text-muted-foreground truncate max-w-[140px]" title={effectiveDocumentName}>
+                  <span
+                    className="text-[10px] text-muted-foreground truncate max-w-[140px]"
+                    title={effectiveDocumentName}
+                  >
                     {effectiveDocumentName}
                   </span>
                 </div>
@@ -352,9 +358,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               <span className="p-1 rounded-lg bg-foreground/10 text-foreground group-hover:scale-105 transition-transform">
                 <Plus className="w-3.5 h-3.5" />
               </span>
-              {isExpanded && (
-                <span className="text-xs font-semibold tracking-tight">New Chat</span>
-              )}
+              {isExpanded && <span className="text-xs font-semibold tracking-tight">New Chat</span>}
             </span>
           </Link>
 
@@ -388,7 +392,9 @@ export const AppShell: React.FC<AppShellProps> = ({
                 >
                   <Icon
                     className={`w-4 h-4 shrink-0 transition-transform ${
-                      active ? "text-foreground dark:text-white scale-105" : "text-muted-foreground group-hover:text-foreground"
+                      active
+                        ? "text-foreground dark:text-white scale-105"
+                        : "text-muted-foreground group-hover:text-foreground"
                     }`}
                     aria-hidden="true"
                   />
@@ -457,7 +463,9 @@ export const AppShell: React.FC<AppShellProps> = ({
           {/* Active Brand Workspace Status Indicator */}
           <div
             className={`flex items-center gap-2.5 pt-1 w-full ${
-              isExpanded ? "px-2 py-1.5 rounded-xl bg-foreground/[0.03] border border-border/60 dark:border-white/5" : "justify-center"
+              isExpanded
+                ? "px-2 py-1.5 rounded-xl bg-foreground/[0.03] border border-border/60 dark:border-white/5"
+                : "justify-center"
             }`}
           >
             <div
@@ -469,7 +477,10 @@ export const AppShell: React.FC<AppShellProps> = ({
             {isExpanded && (
               <div className="flex flex-col min-w-0">
                 <span className="text-xs font-semibold text-foreground truncate">Active Brand</span>
-                <span className="text-[10px] text-muted-foreground truncate max-w-[130px]" title={effectiveDocumentName}>
+                <span
+                  className="text-[10px] text-muted-foreground truncate max-w-[130px]"
+                  title={effectiveDocumentName}
+                >
                   {effectiveDocumentName}
                 </span>
               </div>
@@ -495,9 +506,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               )}
               {isExpanded && <span className="text-[11px] font-medium">Collapse sidebar</span>}
             </span>
-            {isExpanded && (
-              <span className="text-[9px] font-mono text-muted-foreground">⌘B</span>
-            )}
+            {isExpanded && <span className="text-[9px] font-mono text-muted-foreground">⌘B</span>}
           </button>
         </div>
       </aside>
@@ -507,9 +516,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         id="main-content"
         className="flex-1 flex flex-col items-center px-4 md:px-8 py-6 md:py-10 overflow-y-auto min-h-screen relative"
       >
-        <div className="w-full max-w-5xl flex flex-col gap-6 relative z-10">
-          {children}
-        </div>
+        <div className="w-full max-w-5xl flex flex-col gap-6 relative z-10">{children}</div>
       </main>
     </div>
   );

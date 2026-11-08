@@ -30,9 +30,10 @@ export class CustomApiError extends Error {
 
 function getBaseUrl(): string {
   try {
-    // Dynamic access avoids Orval/esbuild CJS bundle warnings during code generation
-    const meta = (0, eval)("import.meta");
-    return meta?.env?.VITE_API_URL || "";
+    if (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) {
+      return import.meta.env.VITE_API_URL;
+    }
+    return "";
   } catch {
     return "";
   }
@@ -44,7 +45,7 @@ function getBaseUrl(): string {
  */
 export const customInstance = async <T>(
   config: MutatorConfig,
-  options?: RequestInit,
+  options?: RequestInit
 ): Promise<T> => {
   const baseUrl = getBaseUrl();
   let fullUrl = `${baseUrl}${config.url}`;

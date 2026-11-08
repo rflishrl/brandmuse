@@ -32,13 +32,15 @@ import type {
   CampaignRequest,
   CampaignResponse,
   ChatRequest,
+  Concept,
   DocumentListResponse,
   DocumentUploadResponse,
   GalleryResponse,
   HTTPValidationError,
   HealthResponse,
   ImageGenerateRequest,
-  ImageGenerateResponse
+  ImageGenerateResponse,
+  RefineConceptRequest
 } from './model';
 
 import { customInstance } from './mutator';
@@ -496,6 +498,72 @@ export const useGenerateCampaign = <TError = HTTPValidationError,
       > => {
 
       const mutationOptions = getGenerateCampaignMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    
+/**
+ * Refine a single campaign concept incorporating user feedback while enforcing brand rules.
+ * @summary Iteratively refine a single campaign concept based on creative feedback
+ */
+export const refineConcept = (
+    refineConceptRequest: RefineConceptRequest,
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<Concept>(
+      {url: `/api/campaign/refine`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: refineConceptRequest, signal
+    },
+      options);
+    }
+  
+
+
+export const getRefineConceptMutationOptions = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refineConcept>>, TError,{data: RefineConceptRequest}, TContext>, request?: SecondParameter<typeof customInstance>}
+): UseMutationOptions<Awaited<ReturnType<typeof refineConcept>>, TError,{data: RefineConceptRequest}, TContext> => {
+
+const mutationKey = ['refineConcept'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof refineConcept>>, {data: RefineConceptRequest}> = (props) => {
+          const {data} = props ?? {};
+
+          return  refineConcept(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RefineConceptMutationResult = NonNullable<Awaited<ReturnType<typeof refineConcept>>>
+    export type RefineConceptMutationBody = RefineConceptRequest
+    export type RefineConceptMutationError = HTTPValidationError
+
+    /**
+ * @summary Iteratively refine a single campaign concept based on creative feedback
+ */
+export const useRefineConcept = <TError = HTTPValidationError,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof refineConcept>>, TError,{data: RefineConceptRequest}, TContext>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof refineConcept>>,
+        TError,
+        {data: RefineConceptRequest},
+        TContext
+      > => {
+
+      const mutationOptions = getRefineConceptMutationOptions(options);
 
       return useMutation(mutationOptions, queryClient);
     }

@@ -9,15 +9,15 @@
     
     <!-- Inline Theme Bootstrap per Modern Web Guidance (Prevents Theme Flash) -->
     <script>
-      (function() {
+      (() => {
         try {
-          var saved = localStorage.getItem("brandmuse_theme");
+          const saved = localStorage.getItem("brandmuse_theme");
           if (saved === "light" || (saved === "system" && !window.matchMedia("(prefers-color-scheme: dark)").matches)) {
             document.documentElement.classList.remove("dark");
           } else {
             document.documentElement.classList.add("dark");
           }
-        } catch (e) {}
+        } catch {}
       })();
     </script>
 

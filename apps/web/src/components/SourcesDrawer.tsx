@@ -1,7 +1,8 @@
-import React, { useEffect } from "react";
-import { X, ExternalLink, CheckCircle2, BookOpen } from "lucide-react";
-import { CitationItem } from "@/types/chat";
+import { BookOpen, CheckCircle2, ExternalLink, X } from "lucide-react";
+import type React from "react";
+import { useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
+import type { CitationItem } from "@/types/chat";
 
 interface SourcesDrawerProps {
   isOpen: boolean;
@@ -30,7 +31,12 @@ export const SourcesDrawer: React.FC<SourcesDrawerProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true" aria-labelledby="sources-drawer-title">
+    <div
+      className="fixed inset-0 z-50 overflow-hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="sources-drawer-title"
+    >
       {/* Backdrop with modern-web scroll containment */}
       <div
         className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity overflow-hidden [overscroll-behavior:contain]"
@@ -49,7 +55,8 @@ export const SourcesDrawer: React.FC<SourcesDrawerProps> = ({
                   Retrieved Guideline Sources
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {citations.length} chunk{citations.length === 1 ? "" : "s"} fused with Reciprocal Rank Fusion
+                  {citations.length} chunk{citations.length === 1 ? "" : "s"} fused with Reciprocal
+                  Rank Fusion
                 </p>
               </div>
             </div>

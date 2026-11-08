@@ -5,6 +5,7 @@
  * FastAPI Backend for BrandMuse - AI Brand Assistant for Creative Teams
  * OpenAPI spec version: 0.1.0
  */
+import type { CampaignBriefReferenceExamples } from './campaignBriefReferenceExamples';
 
 /**
  * User input brief for generating on-brand campaign concepts.
@@ -34,4 +35,6 @@ export interface CampaignBrief {
    * @maxLength 100
    */
   mood: string;
+  /** Optional winning past copy or golden voice examples to calibrate brand tone */
+  reference_examples?: CampaignBriefReferenceExamples;
 }

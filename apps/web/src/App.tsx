@@ -1,4 +1,4 @@
-import React from "react";
+import type React from "react";
 import { RouterProvider } from "react-router";
 import { router } from "@/router";
 

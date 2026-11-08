@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ImageGenerateRequestConceptJson } from './imageGenerateRequestConceptJson';
+import type { ImageGenerateRequestNegativePrompt } from './imageGenerateRequestNegativePrompt';
 
 /**
  * Request payload to synthesize an image asset using Stable Diffusion.
@@ -25,4 +26,11 @@ export interface ImageGenerateRequest {
   concept_title: string;
   /** Full concept metadata object for gallery persistence */
   concept_json?: ImageGenerateRequestConceptJson;
+  /**
+   * Aspect ratio for image generation (1:1 for Feed, 9:16 for Stories/Reels, 16:9 for Banner)
+   * @pattern ^(1:1|9:16|16:9)$
+   */
+  aspect_ratio?: string;
+  /** Custom or brand-specific negative prompt restrictions */
+  negative_prompt?: ImageGenerateRequestNegativePrompt;
 }

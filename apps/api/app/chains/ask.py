@@ -126,12 +126,47 @@ async def stream_ask_chain(
                 data = json.dumps({"token": token})
                 yield f"event: token\ndata: {data}\n\n"
 
-        # 6. Emit final event with citations and trace link
+        # Generate contextual brand follow-up queries based on user intent
+        follow_ups: list[str] = []
+        msg_lower = message.lower()
+        if any(w in msg_lower for w in ("color", "warna", "palette", "hex")):
+            follow_ups = [
+                "What are the contrast rules for these colors?",
+                "Which colors are prohibited or secondary?",
+                "What is the recommended background color?",
+            ]
+        elif any(w in msg_lower for w in ("tone", "voice", "suara", "personality", "copy")):
+            follow_ups = [
+                "Which buzzwords are strictly forbidden?",
+                "How should we phrase calls-to-action?",
+                "What is our brand personality summary?",
+            ]
+        elif any(w in msg_lower for w in ("logo", "lambang", "clearspace", "spasi")):
+            follow_ups = [
+                "What is the minimum clearspace around the logo?",
+                "What are the forbidden logo treatments (DON'Ts)?",
+                "Can the logo be placed on dark backgrounds?",
+            ]
+        elif any(w in msg_lower for w in ("font", "typography", "huruf", "typeface")):
+            follow_ups = [
+                "What font weights are permitted for headings?",
+                "What is our secondary or fallback typeface?",
+                "Are there all-caps styling restrictions?",
+            ]
+        else:
+            follow_ups = [
+                "What is our brand tone of voice?",
+                "Which primary and secondary colors can I use?",
+                "What visual elements should we strictly avoid?",
+            ]
+
+        # 6. Emit final event with citations, trace link, and suggested follow-ups
         trace_url = get_trace_url(trace_id)
         done_payload = json.dumps(
             {
                 "citations": [c.model_dump() for c in citations],
                 "trace_url": trace_url,
+                "suggested_follow_ups": follow_ups[:3],
             }
         )
         yield f"event: done\ndata: {done_payload}\n\n"
