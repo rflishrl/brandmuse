@@ -2,12 +2,11 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, UploadFile
-from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import APIError
 from app.core.security import get_session_id
-from app.db.models import Document
+from app.db.repositories import DocumentRepository
 from app.db.session import get_db
 from app.rag.ingest import ingest_pdf_document
 from app.rag.parse import read_and_validate_pdf_stream
@@ -69,9 +68,7 @@ async def load_sample_brand(
 ) -> DocumentUploadResponse:
     """Ensure the shared sample brand guideline is loaded and return its metadata."""
     # Check if a sample document already exists
-    stmt = select(Document).where(Document.is_sample.is_(True)).limit(1)
-    result = await db.execute(stmt)
-    existing_sample = result.scalar_one_or_none()
+    existing_sample = await DocumentRepository.get_sample_document(db)
 
     if existing_sample:
         return DocumentUploadResponse(
@@ -129,13 +126,7 @@ async def list_documents(
     db: AsyncSession = Depends(get_db),
 ) -> DocumentListResponse:
     """List session-scoped documents and sample documents."""
-    stmt = (
-        select(Document)
-        .where(or_(Document.session_id == session_id, Document.is_sample.is_(True)))
-        .order_by(Document.created_at.desc())
-    )
-    result = await db.execute(stmt)
-    docs = result.scalars().all()
+    docs = await DocumentRepository.list_for_session(db, session_id)
 
     return DocumentListResponse(
         documents=[

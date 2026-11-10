@@ -1,7 +1,7 @@
 import asyncio
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -29,6 +29,12 @@ async def search_vector_chunks(
         .order_by(distance_col.asc())
         .limit(limit)
     )
+
+    # Optimize HNSW recall vs latency tradeoff for brand guidelines search
+    try:
+        await db.execute(text("SET LOCAL hnsw.ef_search = 60"))
+    except Exception:
+        pass
 
     result = await db.execute(stmt)
     ranked_items: list[RankedItem] = []

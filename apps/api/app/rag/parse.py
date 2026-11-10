@@ -107,7 +107,7 @@ async def parse_pdf_pages(
     timeout_seconds: float = 30.0,
     enable_vision: bool = True,
 ) -> list[tuple[int, str]]:
-    """Parse PDF bytes asynchronously with timeout and multimodal vision OCR fallback for sparse pages."""
+    """Parse PDF bytes asynchronously with timeout and multimodal vision OCR fallback."""
     try:
         pages_data = await asyncio.wait_for(
             asyncio.to_thread(_sync_parse_pdf, pdf_bytes),

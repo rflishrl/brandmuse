@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   Bookmark,
   FileText,
   Image as ImageIcon,
@@ -301,40 +302,45 @@ export const AppShell: React.FC<AppShellProps> = ({
         className={`
           hidden md:flex sticky top-0 inset-y-0 left-0 z-40 h-screen
           bg-surface/85 dark:bg-[#08080A]/80 backdrop-blur-xl border-r border-border dark:border-white/[0.08]
-          flex-col justify-between shrink-0 select-none transition-[width] duration-300 ease-in-out
-          ${isExpanded ? "w-[240px] px-3.5 py-4" : "w-[72px] px-2 py-4 items-center"}
+          flex-col justify-between shrink-0 select-none overflow-x-hidden
+          transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width] px-3 py-4
+          ${isExpanded ? "w-[240px]" : "w-[68px]"}
         `}
         aria-label="Desktop navigation sidebar"
       >
         {/* Top: Header, Logo, and Expand/Collapse Toggle */}
         <div className="flex flex-col gap-4 w-full">
           {/* Top Bar with Logo */}
-          <div
-            className={`flex items-center w-full ${isExpanded ? "justify-start px-1" : "justify-center"}`}
-          >
+          <div className="flex items-center w-full">
             <Link
               to="/"
               title="BrandMuse AI"
               aria-label="BrandMuse AI Home"
-              className="flex items-center gap-3 p-1 rounded-2xl hover:scale-105 transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40 group"
+              className="flex items-center h-11 w-full rounded-2xl hover:scale-[1.02] transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-foreground/40 group overflow-hidden"
             >
-              <BrandMuseOrb size={30} glow />
-              {isExpanded && (
-                <div className="flex flex-col animate-in fade-in duration-200">
-                  <span className="font-bold text-sm tracking-tight text-foreground flex items-center gap-1.5">
-                    BrandMuse
-                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-foreground/10 text-foreground font-semibold">
-                      AI
-                    </span>
+              <div className="w-11 h-11 shrink-0 flex items-center justify-center">
+                <BrandMuseOrb size={28} glow />
+              </div>
+              <div
+                className={`flex flex-col transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
+                  isExpanded
+                    ? "opacity-100 max-w-[150px] translate-x-0"
+                    : "opacity-0 max-w-0 -translate-x-2 pointer-events-none"
+                }`}
+              >
+                <span className="font-bold text-sm tracking-tight text-foreground flex items-center gap-1.5">
+                  BrandMuse
+                  <span className="text-[9px] font-mono px-1.5 py-0.5 rounded-full bg-foreground/10 text-foreground font-semibold">
+                    AI
                   </span>
-                  <span
-                    className="text-[10px] text-muted-foreground truncate max-w-[140px]"
-                    title={effectiveDocumentName}
-                  >
-                    {effectiveDocumentName}
-                  </span>
-                </div>
-              )}
+                </span>
+                <span
+                  className="text-[10px] text-muted-foreground truncate max-w-[140px]"
+                  title={effectiveDocumentName}
+                >
+                  {effectiveDocumentName}
+                </span>
+              </div>
             </Link>
           </div>
 
@@ -346,19 +352,21 @@ export const AppShell: React.FC<AppShellProps> = ({
             }}
             title="New Chat"
             aria-label="Start new chat session"
-            className={`
-              rounded-2xl flex items-center transition-all shadow-xs group
-              bg-foreground/5 hover:bg-foreground/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.12]
-              border border-border dark:border-white/10 text-foreground
-              hover:scale-[1.02] active:scale-[0.98]
-              ${isExpanded ? "w-full py-2.5 px-3" : "w-11 h-11 justify-center mx-auto"}
-            `}
+            className="w-full h-11 rounded-2xl flex items-center overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-xs group bg-foreground/5 hover:bg-foreground/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.12] border border-border dark:border-white/10 text-foreground hover:scale-[1.02] active:scale-[0.98]"
           >
-            <span className="flex items-center gap-2.5">
+            <div className="w-11 h-11 shrink-0 flex items-center justify-center">
               <span className="p-1 rounded-lg bg-foreground/10 text-foreground group-hover:scale-105 transition-transform">
                 <Plus className="w-3.5 h-3.5" />
               </span>
-              {isExpanded && <span className="text-xs font-semibold tracking-tight">New Chat</span>}
+            </div>
+            <span
+              className={`text-xs font-semibold tracking-tight transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
+                isExpanded
+                  ? "opacity-100 max-w-[120px] translate-x-0"
+                  : "opacity-0 max-w-0 -translate-x-2 pointer-events-none"
+              }`}
+            >
+              New Chat
             </span>
           </Link>
 
@@ -376,12 +384,7 @@ export const AppShell: React.FC<AppShellProps> = ({
                   title={item.label}
                   aria-label={item.label}
                   className={`
-                    relative rounded-2xl flex items-center transition-all duration-200 group
-                    ${
-                      isExpanded
-                        ? "w-full px-3.5 py-2.5 justify-start gap-3"
-                        : "w-11 h-11 justify-center mx-auto"
-                    }
+                    relative rounded-2xl flex items-center overflow-hidden h-11 w-full transition-all duration-200 group
                     ${
                       active
                         ? "bg-foreground/10 text-foreground font-semibold border border-foreground/20 dark:bg-white/[0.14] dark:text-white dark:border-white/20 dark:shadow-[0_0_20px_rgba(255,255,255,0.08)]"
@@ -390,23 +393,29 @@ export const AppShell: React.FC<AppShellProps> = ({
                   `}
                   aria-current={active ? "page" : undefined}
                 >
-                  <Icon
-                    className={`w-4 h-4 shrink-0 transition-transform ${
-                      active
-                        ? "text-foreground dark:text-white scale-105"
-                        : "text-muted-foreground group-hover:text-foreground"
+                  <div className="w-11 h-11 shrink-0 flex items-center justify-center">
+                    <Icon
+                      className={`w-4 h-4 transition-transform ${
+                        active
+                          ? "text-foreground dark:text-white scale-105"
+                          : "text-muted-foreground group-hover:text-foreground"
+                      }`}
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <span
+                    className={`text-xs font-medium tracking-tight truncate transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
+                      isExpanded
+                        ? "opacity-100 max-w-[140px] translate-x-0"
+                        : "opacity-0 max-w-0 -translate-x-2 pointer-events-none"
                     }`}
-                    aria-hidden="true"
-                  />
-                  {isExpanded && (
-                    <span className="text-xs font-medium tracking-tight truncate">
-                      {item.label}
-                    </span>
-                  )}
+                  >
+                    {item.label}
+                  </span>
 
                   {/* Active indicator dot/pill */}
                   {active && !isExpanded && (
-                    <span className="absolute -left-1 w-1 h-3 rounded-full bg-foreground dark:bg-white shadow-[0_0_8px_currentColor]" />
+                    <span className="absolute left-1 w-1 h-3 rounded-full bg-foreground dark:bg-white shadow-[0_0_8px_currentColor]" />
                   )}
                 </Link>
               );
@@ -422,20 +431,23 @@ export const AppShell: React.FC<AppShellProps> = ({
             onClick={() => handleUseSample?.()}
             title="Load demo brand guideline (Aura Living)"
             aria-label="Load demo brand guideline"
-            className={`
-              rounded-2xl flex items-center text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] border border-transparent hover:border-border dark:hover:border-white/10 transition-all group
-              ${isExpanded ? "w-full justify-between px-3 py-2 text-xs" : "w-11 h-11 justify-center mx-auto"}
-            `}
+            className="w-full h-11 rounded-2xl flex items-center overflow-hidden text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] border border-transparent hover:border-border dark:hover:border-white/10 transition-all group"
           >
-            <span className="flex items-center gap-2.5">
+            <div className="w-11 h-11 shrink-0 flex items-center justify-center">
               <Bookmark className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
-              {isExpanded && <span className="font-medium text-xs">Sample Brand</span>}
-            </span>
-            {isExpanded && (
+            </div>
+            <div
+              className={`flex-1 flex items-center justify-between pr-2.5 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
+                isExpanded
+                  ? "opacity-100 max-w-[160px] translate-x-0"
+                  : "opacity-0 max-w-0 -translate-x-2 pointer-events-none"
+              }`}
+            >
+              <span className="font-medium text-xs">Sample Brand</span>
               <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-foreground/5 text-muted-foreground">
                 Demo
               </span>
-            )}
+            </div>
           </button>
 
           {/* Theme Toggle (Light / Dark / System) */}
@@ -444,38 +456,47 @@ export const AppShell: React.FC<AppShellProps> = ({
             onClick={cycleTheme}
             title={`Toggle theme (current: ${theme}). Click to change.`}
             aria-label={`Toggle theme, current is ${theme}`}
-            className={`
-              rounded-2xl flex items-center text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] border border-transparent hover:border-border dark:hover:border-white/10 transition-all group
-              ${isExpanded ? "w-full justify-between px-3 py-2 text-xs" : "w-11 h-11 justify-center mx-auto"}
-            `}
+            className="w-full h-11 rounded-2xl flex items-center overflow-hidden text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] border border-transparent hover:border-border dark:hover:border-white/10 transition-all group"
           >
-            <span className="flex items-center gap-2.5">
+            <div className="w-11 h-11 shrink-0 flex items-center justify-center">
               <ThemeIcon className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
-              {isExpanded && <span className="capitalize font-medium text-xs">{theme} Mode</span>}
-            </span>
-            {isExpanded && (
+            </div>
+            <div
+              className={`flex-1 flex items-center justify-between pr-2.5 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
+                isExpanded
+                  ? "opacity-100 max-w-[160px] translate-x-0"
+                  : "opacity-0 max-w-0 -translate-x-2 pointer-events-none"
+              }`}
+            >
+              <span className="capitalize font-medium text-xs">{theme} Mode</span>
               <span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-foreground/5 text-muted-foreground">
                 Switch
               </span>
-            )}
+            </div>
           </button>
 
           {/* Active Brand Workspace Status Indicator */}
-          <div
-            className={`flex items-center gap-2.5 pt-1 w-full ${
-              isExpanded
-                ? "px-2 py-1.5 rounded-xl bg-foreground/[0.03] border border-border/60 dark:border-white/5"
-                : "justify-center"
-            }`}
-          >
+          <div className="w-full flex items-center overflow-hidden pt-1">
             <div
-              className="w-8 h-8 rounded-xl bg-foreground/10 border border-border dark:border-white/20 flex items-center justify-center text-foreground shrink-0 shadow-xs"
-              title={`Active Guideline • ${effectiveDocumentName}`}
+              className={`w-full flex items-center rounded-xl transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+                isExpanded
+                  ? "p-1.5 bg-foreground/[0.03] border border-border/60 dark:border-white/5"
+                  : "justify-center bg-transparent border-transparent"
+              }`}
             >
-              <FileText className="w-4 h-4 text-muted-foreground" />
-            </div>
-            {isExpanded && (
-              <div className="flex flex-col min-w-0">
+              <div
+                className="w-8 h-8 rounded-xl bg-foreground/10 border border-border dark:border-white/20 flex items-center justify-center text-foreground shrink-0 shadow-xs"
+                title={`Active Guideline • ${effectiveDocumentName}`}
+              >
+                <FileText className="w-4 h-4 text-muted-foreground" />
+              </div>
+              <div
+                className={`flex flex-col min-w-0 pl-2 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
+                  isExpanded
+                    ? "opacity-100 max-w-[140px] translate-x-0"
+                    : "opacity-0 max-w-0 -translate-x-2 pointer-events-none"
+                }`}
+              >
                 <span className="text-xs font-semibold text-foreground truncate">Active Brand</span>
                 <span
                   className="text-[10px] text-muted-foreground truncate max-w-[130px]"
@@ -484,29 +505,33 @@ export const AppShell: React.FC<AppShellProps> = ({
                   {effectiveDocumentName}
                 </span>
               </div>
-            )}
+            </div>
           </div>
 
           {/* Bottom Expand / Collapse Sidebar Toggle */}
           <button
             type="button"
             onClick={toggleSidebar}
-            title={isExpanded ? "Collapse sidebar (⌘B)" : "Expand sidebar (⌘B)"}
+            title={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
             aria-label={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
-            className={`
-              mt-1 flex items-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all
-              ${isExpanded ? "w-full justify-between px-2.5 py-2 text-xs min-h-[38px]" : "w-11 min-h-[38px] justify-center mx-auto"}
-            `}
+            className="w-full h-10 rounded-xl flex items-center overflow-hidden text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all"
           >
-            <span className="flex items-center gap-2">
+            <div className="w-11 h-10 shrink-0 flex items-center justify-center">
               {isExpanded ? (
-                <PanelLeftClose className="w-3.5 h-3.5" />
+                <PanelLeftClose className="w-3.5 h-3.5 transition-transform duration-300" />
               ) : (
-                <PanelLeft className="w-3.5 h-3.5" />
+                <PanelLeft className="w-3.5 h-3.5 transition-transform duration-300" />
               )}
-              {isExpanded && <span className="text-[11px] font-medium">Collapse sidebar</span>}
+            </div>
+            <span
+              className={`text-[11px] font-medium transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
+                isExpanded
+                  ? "opacity-100 max-w-[130px] translate-x-0"
+                  : "opacity-0 max-w-0 -translate-x-2 pointer-events-none"
+              }`}
+            >
+              Collapse sidebar
             </span>
-            {isExpanded && <span className="text-[9px] font-mono text-muted-foreground">⌘B</span>}
           </button>
         </div>
       </aside>
@@ -516,7 +541,55 @@ export const AppShell: React.FC<AppShellProps> = ({
         id="main-content"
         className="flex-1 flex flex-col items-center px-4 md:px-8 py-6 md:py-10 overflow-y-auto min-h-screen relative"
       >
-        <div className="w-full max-w-5xl flex flex-col gap-6 relative z-10">{children}</div>
+        <div className="w-full max-w-5xl flex flex-col gap-6 relative z-10">
+          {/* Server Spin-Up Notification for Hugging Face Spaces cold start */}
+          {brand.isServerWarmingUp && (
+            <aside
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              className="w-full py-2 px-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200 text-xs flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-1 duration-200 shrink-0"
+            >
+              <div className="flex items-center gap-2.5">
+                <span className="relative flex h-2 w-2 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
+                </span>
+                <span>
+                  Menghubungkan ke server cloud (kontainer Hugging Face sedang <em>spin-up</em>)...
+                </span>
+              </div>
+              <span className="text-[11px] font-mono text-muted-foreground shrink-0">
+                Estimasi 10–15 detik
+              </span>
+            </aside>
+          )}
+
+          {/* Server Offline / Unreachable Notice */}
+          {brand.isServerOffline && (
+            <aside
+              role="alert"
+              className="w-full py-2 px-3.5 rounded-xl border border-red-500/30 bg-red-500/10 text-red-800 dark:text-red-200 text-xs flex items-center justify-between gap-3 animate-in fade-in duration-200 shrink-0"
+            >
+              <div className="flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
+                <span>
+                  Tidak dapat menghubungi server backend. Kontainer mungkin sedang tidur atau belum
+                  aktif.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => brand.refetchDocuments()}
+                className="underline hover:no-underline font-medium cursor-pointer"
+              >
+                Coba lagi
+              </button>
+            </aside>
+          )}
+
+          {children}
+        </div>
       </main>
     </div>
   );

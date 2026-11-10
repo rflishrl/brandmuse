@@ -27,7 +27,7 @@ export interface ImageGenerateRequest {
   /** Full concept metadata object for gallery persistence */
   concept_json?: ImageGenerateRequestConceptJson;
   /**
-   * Aspect ratio for image generation (1:1 for Feed, 9:16 for Stories/Reels, 16:9 for Banner)
+   * Aspect ratio (1:1 Feed, 9:16 Stories/Reels, 16:9 Banner)
    * @pattern ^(1:1|9:16|16:9)$
    */
   aspect_ratio?: string;

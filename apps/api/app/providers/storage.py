@@ -4,7 +4,6 @@ import uuid
 from typing import Any
 
 import boto3
-import httpx
 from botocore.config import Config
 
 from app.core.config import get_settings
@@ -47,7 +46,7 @@ async def upload_image_to_storage(
     filename: str | None = None,
     content_type: str = "image/png",
 ) -> str:
-    """Upload generated image bytes to Cloudflare R2 or Supabase Storage and return public URL."""
+    """Upload generated image bytes to Cloudflare R2 or return fallback local data URI."""
     file_id = filename or f"{uuid.uuid4()}.png"
 
     # 1. Cloudflare R2 check
@@ -72,39 +71,7 @@ async def upload_image_to_storage(
                 status_code=502,
             ) from exc
 
-    # 2. Supabase Storage check
-    is_supabase = settings.STORAGE_PROVIDER == "supabase" or (
-        settings.STORAGE_PROVIDER == "auto"
-        and bool(settings.SUPABASE_URL)
-        and bool(settings.SUPABASE_SERVICE_ROLE_KEY)
-    )
-    if is_supabase:
-        supabase_url = settings.SUPABASE_URL.rstrip("/")
-        bucket = settings.SUPABASE_STORAGE_BUCKET
-        upload_url = f"{supabase_url}/storage/v1/object/{bucket}/{file_id}"
-
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
-                upload_url,
-                headers={
-                    "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
-                    "Content-Type": content_type,
-                    "x-upsert": "true",
-                },
-                content=image_bytes,
-            )
-
-            if response.status_code not in (200, 201):
-                raise APIError(
-                    code="STORAGE_UPLOAD_FAILED",
-                    message=f"Failed to upload image to Supabase Storage: {response.text}",
-                    status_code=502,
-                )
-
-        permanent_public_url = f"{supabase_url}/storage/v1/object/public/{bucket}/{file_id}"
-        return permanent_public_url
-
-    # 3. Fallback to inline Base64 data URI
+    # 2. Fallback to inline Base64 data URI
     logger.warning("No remote storage credentials configured. Returning local data URI.")
     b64 = base64.b64encode(image_bytes).decode("utf-8")
     return f"data:{content_type};base64,{b64}"

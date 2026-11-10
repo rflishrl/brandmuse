@@ -8,7 +8,7 @@ from app.chains.campaign import generate_campaign_concepts, refine_campaign_conc
 from app.core.errors import APIError
 from app.db.models import Document
 from app.rag.rrf import FusedResult
-from app.schemas.campaign import CampaignBrief, CampaignOutput, Concept, ComplianceCheck
+from app.schemas.campaign import CampaignBrief, CampaignOutput, ComplianceCheck, Concept
 
 
 @pytest.mark.asyncio

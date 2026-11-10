@@ -1,4 +1,4 @@
-{
+﻿{
   "openapi": "3.1.0",
   "info": {
     "title": "BrandMuse API",
@@ -383,7 +383,7 @@
           "images"
         ],
         "summary": "Generate Stable Diffusion visual asset for a campaign concept",
-        "description": "Generate image with safety moderation, rate limits, and Supabase Storage persistence.",
+        "description": "Generate image with safety moderation, rate limits, and Cloudflare R2 persistence.",
         "operationId": "generateImage",
         "parameters": [
           {
@@ -1381,7 +1381,7 @@
             },
             "type": "array",
             "title": "Compliance Checks",
-            "description": "Structured verification checklist against guideline rules (tone, colors, restrictions)",
+            "description": "Verification checklist against brand rules (tone, colors, restrictions)",
             "default": []
           }
         },
@@ -1619,7 +1619,7 @@
             "type": "string",
             "pattern": "^(1:1|9:16|16:9)$",
             "title": "Aspect Ratio",
-            "description": "Aspect ratio for image generation (1:1 for Feed, 9:16 for Stories/Reels, 16:9 for Banner)",
+            "description": "Aspect ratio (1:1 Feed, 9:16 Stories/Reels, 16:9 Banner)",
             "default": "1:1"
           },
           "negative_prompt": {
@@ -1664,7 +1664,7 @@
           "url"
         ],
         "title": "ImageGenerateResponse",
-        "description": "Result of image generation including permanent public Supabase Storage URL."
+        "description": "Result of image generation including permanent public storage URL."
       },
       "RefineConceptRequest": {
         "properties": {
@@ -1683,7 +1683,7 @@
             "maxLength": 500,
             "minLength": 2,
             "title": "Instruction",
-            "description": "Creative direction or feedback to apply (e.g. 'Make headline shorter', 'Adapt for LinkedIn')"
+            "description": "Creative direction to apply (e.g. 'Shorter headline', 'Adapt for LinkedIn')"
           }
         },
         "type": "object",

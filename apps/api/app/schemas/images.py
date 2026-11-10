@@ -26,7 +26,7 @@ class ImageGenerateRequest(BaseModel):
     )
     aspect_ratio: str = Field(
         default="1:1",
-        description="Aspect ratio for image generation (1:1 for Feed, 9:16 for Stories/Reels, 16:9 for Banner)",
+        description="Aspect ratio (1:1 Feed, 9:16 Stories/Reels, 16:9 Banner)",
         pattern="^(1:1|9:16|16:9)$",
     )
     negative_prompt: str | None = Field(
@@ -37,7 +37,7 @@ class ImageGenerateRequest(BaseModel):
 
 
 class ImageGenerateResponse(BaseModel):
-    """Result of image generation including permanent public Supabase Storage URL."""
+    """Result of image generation including permanent public storage URL."""
 
     id: uuid.UUID = Field(..., description="Unique generation record identifier")
     url: str = Field(..., description="Permanent public HTTPS URL of the generated asset")

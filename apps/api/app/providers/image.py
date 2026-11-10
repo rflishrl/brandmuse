@@ -1,14 +1,15 @@
 import asyncio
 import base64
 import io
+import re
 from abc import ABC, abstractmethod
 from typing import Any
 
-import httpx
 from PIL import Image, ImageDraw
 
 from app.core.config import get_settings
 from app.core.errors import APIError
+from app.core.http import get_http_client
 
 settings = get_settings()
 
@@ -50,10 +51,10 @@ PROMPT_BLOCKLIST = [
 
 
 def moderate_prompt(prompt: str) -> None:
-    """Enforce basic safety moderation on image prompt."""
-    prompt_lower = prompt.lower()
+    """Enforce basic safety moderation on image prompt using word boundaries."""
     for bad_word in PROMPT_BLOCKLIST:
-        if bad_word in prompt_lower:
+        pattern = rf"\b{re.escape(bad_word)}\b"
+        if re.search(pattern, prompt, re.IGNORECASE):
             raise APIError(
                 code="PROMPT_MODERATION_FAILED",
                 message=f"Image prompt contains forbidden or unsafe term: '{bad_word}'.",
@@ -113,35 +114,36 @@ class StabilityImageProvider(BaseImageProvider):
             "steps": 30,
         }
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.post(
-                api_url,
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Accept": "application/json",
-                    "Content-Type": "application/json",
-                },
-                json=payload,
+        client = get_http_client()
+        response = await client.post(
+            api_url,
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=60.0,
+        )
+
+        if response.status_code != 200:
+            raise APIError(
+                code="IMAGE_GENERATION_FAILED",
+                message=f"Stability AI image generation failed: {response.text}",
+                status_code=502,
             )
 
-            if response.status_code != 200:
-                raise APIError(
-                    code="IMAGE_GENERATION_FAILED",
-                    message=f"Stability AI image generation failed: {response.text}",
-                    status_code=502,
-                )
+        data: dict[str, Any] = response.json()
+        artifacts = data.get("artifacts", [])
+        if not artifacts:
+            raise APIError(
+                code="NO_IMAGE_RETURNED",
+                message="Stability AI did not return an image artifact.",
+                status_code=502,
+            )
 
-            data: dict[str, Any] = response.json()
-            artifacts = data.get("artifacts", [])
-            if not artifacts:
-                raise APIError(
-                    code="NO_IMAGE_RETURNED",
-                    message="Stability AI did not return an image artifact.",
-                    status_code=502,
-                )
-
-            b64_image = artifacts[0]["base64"]
-            return base64.b64decode(b64_image)
+        b64_image = artifacts[0]["base64"]
+        return base64.b64decode(b64_image)
 
 
 class ReplicateImageProvider(BaseImageProvider):
@@ -185,51 +187,51 @@ class ReplicateImageProvider(BaseImageProvider):
             }
         }
 
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            res = await client.post(create_url, headers=headers, json=payload)
-            if res.status_code not in (200, 201):
+        client = get_http_client()
+        res = await client.post(create_url, headers=headers, json=payload, timeout=90.0)
+        if res.status_code not in (200, 201):
+            raise APIError(
+                code="IMAGE_GENERATION_FAILED",
+                message=f"Replicate API error: {res.text}",
+                status_code=502,
+            )
+
+        prediction = res.json()
+        poll_url = prediction["urls"]["get"]
+
+        # Poll for completion with bounded attempts
+        attempts = 0
+        max_attempts = 45  # 90 seconds max polling
+        while prediction.get("status") not in ("succeeded", "failed", "canceled"):
+            attempts += 1
+            if attempts > max_attempts:
                 raise APIError(
-                    code="IMAGE_GENERATION_FAILED",
-                    message=f"Replicate API error: {res.text}",
-                    status_code=502,
+                    code="IMAGE_GENERATION_TIMEOUT",
+                    message="Replicate generation timed out waiting for completion.",
+                    status_code=504,
                 )
+            await asyncio.sleep(2)
+            poll_res = await client.get(poll_url, headers=headers, timeout=30.0)
+            prediction = poll_res.json()
 
-            prediction = res.json()
-            poll_url = prediction["urls"]["get"]
+        if prediction.get("status") != "succeeded":
+            raise APIError(
+                code="IMAGE_GENERATION_FAILED",
+                message=f"Replicate generation failed: {prediction.get('error')}",
+                status_code=502,
+            )
 
-            # Poll for completion with bounded attempts
-            attempts = 0
-            max_attempts = 45  # 90 seconds max polling
-            while prediction.get("status") not in ("succeeded", "failed", "canceled"):
-                attempts += 1
-                if attempts > max_attempts:
-                    raise APIError(
-                        code="IMAGE_GENERATION_TIMEOUT",
-                        message="Replicate generation timed out waiting for completion.",
-                        status_code=504,
-                    )
-                await asyncio.sleep(2)
-                poll_res = await client.get(poll_url, headers=headers)
-                prediction = poll_res.json()
+        output_urls = prediction.get("output", [])
+        if not output_urls:
+            raise APIError(
+                code="NO_IMAGE_RETURNED",
+                message="Replicate returned no image output.",
+                status_code=502,
+            )
 
-            if prediction.get("status") != "succeeded":
-                raise APIError(
-                    code="IMAGE_GENERATION_FAILED",
-                    message=f"Replicate generation failed: {prediction.get('error')}",
-                    status_code=502,
-                )
-
-            output_urls = prediction.get("output", [])
-            if not output_urls:
-                raise APIError(
-                    code="NO_IMAGE_RETURNED",
-                    message="Replicate returned no image output.",
-                    status_code=502,
-                )
-
-            # Download output image bytes
-            image_res = await client.get(output_urls[0])
-            return image_res.content
+        # Download output image bytes
+        image_res = await client.get(output_urls[0], timeout=30.0)
+        return image_res.content
 
 
 class MockImageProvider(BaseImageProvider):
@@ -242,13 +244,15 @@ class MockImageProvider(BaseImageProvider):
         negative_prompt: str | None = None,
     ) -> bytes:
         moderate_prompt(prompt)
+        _ = negative_prompt
 
         w, h = ASPECT_RATIO_DIMENSIONS.get(aspect_ratio, (1024, 1024))
 
         # Generate a clean synthetic image matching requested aspect ratio
         img = Image.new("RGB", (w, h), color=(34, 43, 39))  # Deep Forest Slate
         draw = ImageDraw.Draw(img)
-        draw.rectangle([30, 30, w - 30, h - 30], outline=(192, 108, 71), width=4)  # Terracotta accent
+        # Terracotta accent border
+        draw.rectangle([30, 30, w - 30, h - 30], outline=(192, 108, 71), width=4)
         draw.text((w // 2 - 110, h // 2 - 10), f"BrandMuse ({aspect_ratio})", fill=(246, 244, 238))
 
         buf = io.BytesIO()

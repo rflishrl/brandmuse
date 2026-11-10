@@ -162,10 +162,9 @@ def print_markdown_comparison_table() -> None:
     print("=" * 80)
     print(
         """
-1. Why Production Uses gpt-4o-mini on Cloud Hosting (Render Starter):
-   - Render Starter provides 512 MB RAM. Running a 1B Q4 model requires ~850 MB to 1.9 GB,
-     triggering immediate Out-Of-Memory (OOM) eviction.
-   - gpt-4o-mini delivers sub-250ms TTFT, zero local memory overhead, and 100% strict adherence
+1. Why Production Uses gpt-4o-mini / Gemini on Cloud Hosting:
+   - Free tiers with minimal memory (< 1 GB) risk OOM when hosting local quantized models (requiring ~850 MB to 1.9 GB).
+   - Remote LLM APIs deliver sub-250ms TTFT, zero local GPU memory overhead, and 100% strict adherence
      to Pydantic structured output schemas (CampaignOutput).
 
 2. Why q8_0 is Recommended for Local Production/Edge Deployments:

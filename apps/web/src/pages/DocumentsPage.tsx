@@ -16,6 +16,7 @@ import { useUploadDocument } from "@/api/generated";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useBrand } from "@/context/BrandContext";
+import { inspectPdfPreflight, type PdfPreflightResult } from "@/lib/pdfPreflight";
 
 export const DocumentsPage: React.FC = () => {
   const {
@@ -30,26 +31,38 @@ export const DocumentsPage: React.FC = () => {
   const [dragActive, setDragActive] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [preflightInfo, setPreflightInfo] = useState<PdfPreflightResult | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const uploadMutation = useUploadDocument();
 
   const handleFileProcess = async (file: File) => {
     setErrorMessage(null);
+    setPreflightInfo(null);
 
-    // Client-side validations
+    // Initial filename check
     if (!file.name.toLowerCase().endsWith(".pdf")) {
       setErrorMessage("Please upload a valid PDF document.");
       return;
     }
 
-    if (file.size > 10 * 1024 * 1024) {
-      setErrorMessage("File exceeds 10 MB limit. Please upload a smaller guideline PDF.");
-      return;
-    }
-
     try {
-      setUploadStatus("Uploading PDF bytes...");
+      // 1. Client-Side Binary Pre-Flight Inspection (< 15ms)
+      setUploadStatus("Running client-side pre-flight check...");
+      const preflight = await inspectPdfPreflight(file);
+
+      if (!preflight.isValid) {
+        setUploadStatus(null);
+        setErrorMessage(preflight.errorReason || "Document failed pre-flight inspection.");
+        return;
+      }
+
+      setPreflightInfo(preflight);
+      setUploadStatus(
+        `Pre-flight verified (v${preflight.version}, ${preflight.pageCount} pages, ~${preflight.estimatedTokens.toLocaleString()} tokens). Uploading...`
+      );
+
+      // 2. Dispatch upload to backend
       const result = await uploadMutation.mutateAsync({
         data: { file: file as unknown as string },
       });
@@ -119,14 +132,15 @@ export const DocumentsPage: React.FC = () => {
       </div>
 
       {/* Upload Drop Zone Card */}
-      <div
+      <section
+        aria-label="PDF guideline dropzone"
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}
         onDrop={handleDrop}
         className={`
-          relative border-2 border-dashed rounded-card p-8 flex flex-col items-center justify-center text-center transition-all duration-200 bg-surface/90 dark:bg-[#141418]/80 backdrop-blur-xl shadow-xs
-          ${dragActive ? "border-white/40 bg-white/5" : "border-border hover:border-white/20"}
+          relative border-2 border-dashed rounded-card p-8 flex flex-col items-center justify-center text-center transition-all duration-200 bg-surface shadow-xs
+          ${dragActive ? "border-foreground/40 bg-foreground/5" : "border-border hover:border-foreground/20"}
         `}
       >
         <input
@@ -150,9 +164,20 @@ export const DocumentsPage: React.FC = () => {
         </p>
 
         {uploadStatus ? (
-          <div className="mt-4 flex items-center gap-2 text-xs text-foreground font-medium animate-pulse">
-            <Layers className="w-4 h-4 animate-spin" />
-            <span>{uploadStatus}</span>
+          <div className="mt-4 flex flex-col items-center gap-2">
+            <div className="flex items-center gap-2 text-xs text-foreground font-medium animate-pulse">
+              <Layers className="w-4 h-4 animate-spin" />
+              <span>{uploadStatus}</span>
+            </div>
+            {preflightInfo && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs mt-1">
+                <CheckCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>
+                  Pre-flight: PDF {preflightInfo.version} • {preflightInfo.pageCount} pages • ~
+                  {preflightInfo.estimatedTokens.toLocaleString()} tokens
+                </span>
+              </div>
+            )}
           </div>
         ) : (
           <Button
@@ -175,7 +200,7 @@ export const DocumentsPage: React.FC = () => {
             <span>{errorMessage}</span>
           </div>
         )}
-      </div>
+      </section>
 
       {/* Document Library List */}
       <div className="flex flex-col gap-4">
@@ -199,8 +224,8 @@ export const DocumentsPage: React.FC = () => {
                 <div
                   key={doc.id}
                   className={`
-                    p-5 rounded-card bg-surface/90 dark:bg-[#141418]/80 backdrop-blur-xl border transition-all duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs
-                    ${isActive ? "border-white/30 ring-1 ring-white/20 bg-surface/90" : "border-border hover:border-border/80"}
+                    p-5 rounded-card bg-surface border transition-all duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs
+                    ${isActive ? "border-foreground/30 ring-1 ring-foreground/20" : "border-border hover:border-foreground/20"}
                   `}
                 >
                   <div className="flex items-start sm:items-center gap-3">

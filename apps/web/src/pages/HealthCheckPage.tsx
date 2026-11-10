@@ -33,12 +33,7 @@ export const HealthCheckPage: React.FC = () => {
     <div className="flex flex-col gap-6 animate-in fade-in duration-300">
       {/* Title Header */}
       <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold uppercase tracking-wider text-foreground bg-white/10 px-2.5 py-1 rounded-full">
-            Phase 1 Foundation
-          </span>
-        </div>
-        <h2 className="text-2xl font-bold tracking-tight mt-1">System Health & API Contract</h2>
+        <h2 className="text-2xl font-bold tracking-tight">System Health & API Contract</h2>
         <p className="text-sm text-muted-foreground">
           Live verification of the FastAPI backend, PostgreSQL database, and typed Orval TanStack
           Query client.

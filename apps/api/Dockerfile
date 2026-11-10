@@ -16,8 +16,8 @@ RUN uv sync --frozen --no-dev --no-install-project
 # Final runtime stage
 FROM python:3.12-slim AS runtime
 
-# Create non-root user
-RUN groupadd -r brandmuse && useradd -r -g brandmuse -d /app brandmuse
+# Create non-root user with UID 1000 for Hugging Face Spaces compatibility
+RUN useradd -m -u 1000 appuser
 
 WORKDIR /app
 
@@ -25,25 +25,26 @@ WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH="/app" \
-    PORT=10000 \
+    HOME="/home/appuser" \
+    PORT=7860 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
 # Copy application source and alembic configuration
-COPY app/ ./app/
-COPY alembic/ ./alembic/
-COPY alembic.ini ./
+COPY --chown=appuser:appuser app/ ./app/
+COPY --chown=appuser:appuser alembic/ ./alembic/
+COPY --chown=appuser:appuser alembic.ini ./
 
-# Change ownership to non-root user
-RUN chown -R brandmuse:brandmuse /app
+# Ensure permissions
+RUN mkdir -p /app/data /tmp && chown -R appuser:appuser /app /tmp /home/appuser
 
-USER brandmuse
+USER appuser
 
-EXPOSE 10000
+EXPOSE 7860
 
-# Health check matching Render requirements
+# Health check
 HEALTHCHECK --interval=15s --timeout=5s --start-period=5s --retries=3 \
-  CMD python -c "import urllib.request, os; urllib.request.urlopen('http://localhost:' + os.environ.get('PORT', '10000') + '/api/health').read()" || exit 1
+  CMD python -c "import urllib.request, os; urllib.request.urlopen('http://localhost:' + os.environ.get('PORT', '7860') + '/api/health').read()" || exit 1
 
-# Start Uvicorn with proxy headers and binding to $PORT (Render provides dynamic $PORT)
-CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000} --proxy-headers"]
+# Start Uvicorn bound to dynamic PORT (defaults to 7860 for Hugging Face Spaces, allows override)
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860} --proxy-headers --forwarded-allow-ips='*'"]

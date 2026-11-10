@@ -1,9 +1,19 @@
+---
+title: BrandMuse API
+emoji: 🎨
+colorFrom: indigo
+colorTo: purple
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # BrandMuse: AI Brand Assistant for Creative Teams
 
 > Grounded brand guideline conversational assistant and automated campaign concept generator with audited hybrid retrieval, multimodal visual ingestion, deterministic image synthesis, and sub-second token streaming.
 
 [![Live Web](https://img.shields.io/badge/Demo-brandmuse.pages.dev-0051C3?logo=cloudflare-pages&logoColor=white)](https://brandmuse.pages.dev)
-[![API Status](https://img.shields.io/badge/API-Render%20Live-46E3B7?logo=render&logoColor=black)](https://brandmuse-13ck.onrender.com/api/health)
+[![API Status](https://img.shields.io/badge/API-Hugging%20Face%20Spaces-FFD21E?logo=huggingface&logoColor=black)](https://rflishrl-brandmuse-api.hf.space/api/health)
 [![CI](https://img.shields.io/badge/CI-passing-brightgreen?logo=github-actions&logoColor=white)](https://github.com/rflishrl/brandmuse/actions/workflows/ci.yml)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Bun](https://img.shields.io/badge/Runtime-Bun%201.2-fbf0df?logo=bun&logoColor=black)](https://bun.sh)
@@ -19,9 +29,10 @@
 ## Live Endpoints
 
 * **Web Application:** [https://brandmuse.pages.dev](https://brandmuse.pages.dev) (Cloudflare Pages SPA)
-* **Backend API Base:** [https://brandmuse-13ck.onrender.com](https://brandmuse-13ck.onrender.com) (Render container)
-* **Interactive OpenAPI Documentation:** [https://brandmuse-13ck.onrender.com/docs](https://brandmuse-13ck.onrender.com/docs)
-* **API Health Check:** [https://brandmuse-13ck.onrender.com/api/health](https://brandmuse-13ck.onrender.com/api/health)
+* **Backend API Base:** [https://rflishrl-brandmuse-api.hf.space](https://rflishrl-brandmuse-api.hf.space) (Hugging Face Spaces container)
+* **Interactive OpenAPI Documentation:** [https://rflishrl-brandmuse-api.hf.space/docs](https://rflishrl-brandmuse-api.hf.space/docs)
+* **API Health Check:** [https://rflishrl-brandmuse-api.hf.space/api/health](https://rflishrl-brandmuse-api.hf.space/api/health)
+* **Deployment Guides:** [Hugging Face Spaces Guide](DEPLOYMENT_HUGGINGFACE.md) | [Neon & Cloudflare R2 Guide](DEPLOYMENT_NEON_R2.md)
 
 ---
 
@@ -132,7 +143,7 @@ The frontend tooling has been migrated from ESLint and Prettier to **Biome** (`@
 | **AI Ecosystem & Tooling** | JS ports lag behind upstream releases; fragmented SDK interfaces. | Native ecosystem for LangChain, pgvector, ReportLab, and Hugging Face. | **FastAPI:** Direct access to production-grade AI primitives without wrappers. |
 | **Async Streaming (SSE)** | Requires manual stream pipes, backpressure management, and connection listeners. | Built-in `StreamingResponse` with native async generators and Starlette disconnect detection. | **FastAPI:** Reliable real-time token streaming with automatic client disconnect aborts. |
 | **Type Contracts & OpenAPI** | Manual Swagger/JSDoc comments that drift from runtime code. | Pydantic v2 schemas automatically produce strict OpenAPI 3.1 specifications. | **FastAPI:** Zero schema drift. Orval generates typed TypeScript clients directly. |
-| **Memory Baseline** | V8 engine uses 70–120 MB RSS baseline memory. | Astral uv with Python slim runs under 45 MB RSS. | **FastAPI:** Fits safely within the 512 MB Render free tier allocation. |
+| **Memory Baseline** | V8 engine uses 70–120 MB RSS baseline memory. | Astral uv with Python slim runs under 45 MB RSS. | **FastAPI:** Runs under 50 MB RSS, leaving massive headroom inside Hugging Face Spaces' 16 GB RAM allocation. |
 
 ---
 
@@ -200,7 +211,7 @@ BrandMuse enforces the [Anti-Slop Audit Specification](anti-slop/audit-001-2026-
 | **AI Providers** | Multi-Provider Engine | Google Gemini 1.5 Flash (free tier), OpenAI gpt-4o-mini, local Ollama Llama-3.2 |
 | **Image Synthesis** | Canvas Mock + Cloud Providers | Deterministic SVG/Canvas mock engine (offline/free), Stability AI SDXL, Replicate |
 | **Observability** | Langfuse SDK v5 | Optional latency, token usage, and retrieval scoring traces with user content redaction |
-| **Hosting (Free Tier)** | Cloud Infrastructure | Cloudflare Pages (Frontend SPA), Render (Backend Docker container), Neon (Serverless Postgres) |
+| **Hosting (Free Tier)** | Cloud Infrastructure | Cloudflare Pages (Frontend SPA), Hugging Face Spaces (Backend Docker container, 16 GB RAM / 2 vCPU), Neon (Serverless Postgres) |
 
 ---
 
@@ -270,7 +281,7 @@ bun run api:generate
 | Variable | Required | Default | Description |
 | :--- | :---: | :--- | :--- |
 | `ENVIRONMENT` | No | `development` | Deployment environment (`development` or `production`) |
-| `PORT` | No | `10000` | Port for FastAPI server |
+| `PORT` | No | `7860` | Port for FastAPI server (Hugging Face Spaces native port) |
 | `DATABASE_URL` | Yes | - | Asyncpg PostgreSQL URL (`postgresql+asyncpg://...`) |
 | `MIGRATION_DATABASE_URL` | Optional | - | Direct synchronous PostgreSQL URL for Alembic migrations |
 | `LLM_PROVIDER` | No | `gemini` | Primary LLM engine: `gemini`, `openai`, or `ollama` |
@@ -280,7 +291,7 @@ bun run api:generate
 | `GEMINI_API_KEY` | Optional | - | API key for Google Gemini models and embeddings |
 | `OPENAI_API_KEY` | Optional | - | API key for OpenAI models and embeddings |
 | `STABILITY_API_KEY` | Optional | - | API key for Stability AI SDXL |
-| `STORAGE_PROVIDER` | No | `auto` | Asset storage backend: `auto`, `r2`, `supabase`, or `local` |
+| `STORAGE_PROVIDER` | No | `auto` | Asset storage backend: `auto`, `r2`, or `local` |
 | `R2_ACCOUNT_ID` | Optional | - | Cloudflare Account ID for R2 storage |
 | `R2_ACCESS_KEY_ID` | Optional | - | Cloudflare R2 Access Key ID |
 | `R2_SECRET_ACCESS_KEY` | Optional | - | Cloudflare R2 Secret Access Key |

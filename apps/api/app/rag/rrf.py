@@ -1,7 +1,24 @@
+import logging
 from dataclasses import dataclass
 from typing import Any, TypeVar
 
+logger = logging.getLogger(__name__)
+
 T = TypeVar("T")
+
+# Attempt native Rust PyO3 acceleration
+_HAS_RUST_CORE = False
+try:
+    import brandmuse_core_rs  # type: ignore
+
+    _HAS_RUST_CORE = True
+except ImportError:
+    _HAS_RUST_CORE = False
+
+
+def is_rust_accelerated() -> bool:
+    """Returns True if the native Rust PyO3 core extension is active."""
+    return _HAS_RUST_CORE
 
 
 @dataclass
@@ -26,17 +43,12 @@ class FusedResult:
     metadata: dict[str, Any]
 
 
-def reciprocal_rank_fusion(
+def _python_reciprocal_rank_fusion(
     vector_results: list[RankedItem],
     keyword_results: list[RankedItem],
     k: int = 60,
 ) -> list[FusedResult]:
-    """Merge vector and full-text search results using Reciprocal Rank Fusion (RRF).
-
-    Formula:
-        score(d) = sum_{m in models} 1 / (k + rank_m(d))
-    where rank is 1-indexed.
-    """
+    """Pure Python reference implementation of Reciprocal Rank Fusion (RRF)."""
     scores: dict[str, float] = {}
     vector_ranks: dict[str, int] = {}
     vector_scores: dict[str, float] = {}
@@ -80,3 +92,35 @@ def reciprocal_rank_fusion(
         )
 
     return fused_results
+
+
+def reciprocal_rank_fusion(
+    vector_results: list[RankedItem],
+    keyword_results: list[RankedItem],
+    k: int = 60,
+) -> list[FusedResult]:
+    """Merge vector and full-text search results using Reciprocal Rank Fusion (RRF).
+
+    Uses the PyO3 native Rust extension when compiled, automatically falling back
+    to pure Python when native binaries are absent.
+    """
+    if _HAS_RUST_CORE:
+        try:
+            rust_res = brandmuse_core_rs.reciprocal_rank_fusion(vector_results, keyword_results, k)
+            return [
+                FusedResult(
+                    item_id=r.item_id,
+                    rrf_score=r.rrf_score,
+                    vector_score=r.vector_score,
+                    keyword_score=r.keyword_score,
+                    vector_rank=r.vector_rank,
+                    keyword_rank=r.keyword_rank,
+                    metadata=r.metadata or {},
+                )
+                for r in rust_res
+            ]
+        except Exception as e:
+            logger.warning("Rust RRF failed, falling back to Python: %s", e)
+            return _python_reciprocal_rank_fusion(vector_results, keyword_results, k)
+
+    return _python_reciprocal_rank_fusion(vector_results, keyword_results, k)

@@ -32,7 +32,7 @@ class Settings(BaseSettings):
     )
     DB_POOLER_MODE: bool = Field(
         default=False,
-        description="Set True when connecting via Supabase transaction pooler (port 6543)",
+        description="Set True when connecting via Neon / PgBouncer transaction pooler",
     )
     FTS_CONFIG: str = Field(
         default="english",
@@ -64,18 +64,10 @@ class Settings(BaseSettings):
     STABILITY_API_KEY: str = Field(default="", description="Stability AI API key")
     REPLICATE_API_TOKEN: str = Field(default="", description="Replicate API token")
 
-    # Storage Configuration (Cloudflare R2 or Supabase)
+    # Storage Configuration (Cloudflare R2 or Local)
     STORAGE_PROVIDER: str = Field(
         default="auto",
-        description="Active storage provider: auto | r2 | supabase | local",
-    )
-    # Supabase Storage (for permanent image URLs)
-    SUPABASE_URL: str = Field(default="", description="Supabase project URL")
-    SUPABASE_SERVICE_ROLE_KEY: str = Field(
-        default="", description="Supabase service role key (server-side only)"
-    )
-    SUPABASE_STORAGE_BUCKET: str = Field(
-        default="brandmuse-images", description="Storage bucket name for generated images"
+        description="Active storage provider: auto | r2 | local",
     )
 
     # Cloudflare R2 Storage (S3-compatible)

@@ -17,6 +17,11 @@ def test_moderate_prompt_allowed() -> None:
     moderate_prompt("Minimalist ceramic vase on wooden dining table in soft daylight")
 
 
+def test_moderate_prompt_word_boundary_avoids_false_positives() -> None:
+    """Verify terms like 'skillful' are allowed even if they contain 'kill' as a substring."""
+    moderate_prompt("A skillful ceramic artisan working with skilled precision")
+
+
 def test_moderate_prompt_blocked() -> None:
     """Verify unsafe prompts are rejected with 400 APIError."""
     with pytest.raises(APIError) as exc_info:
@@ -63,7 +68,7 @@ async def test_post_image_generation_endpoint(
 ) -> None:
     """Verify POST /api/images generates image, uploads, and persists record."""
     session_id = str(uuid.uuid4())
-    fake_url = "https://example-supabase.co/storage/v1/object/public/brandmuse-images/test.png"
+    fake_url = "https://pub-brandmuse.r2.dev/test.png"
 
     mock_db.execute.return_value = MagicMock()
     mock_db.commit = AsyncMock()
@@ -102,7 +107,7 @@ async def test_get_gallery_endpoint(
         id=uuid.uuid4(),
         session_id=session_id,
         concept_json={"title": "Natural Sanctuary"},
-        image_url="https://supabase.co/image1.png",
+        image_url="https://pub-brandmuse.r2.dev/image1.png",
         provider="mock",
         created_at=datetime.datetime.now(datetime.UTC),
     )
@@ -118,4 +123,4 @@ async def test_get_gallery_endpoint(
     assert "generations" in data
     assert len(data["generations"]) == 1
     assert data["generations"][0]["concept_title"] == "Natural Sanctuary"
-    assert data["generations"][0]["image_url"] == "https://supabase.co/image1.png"
+    assert data["generations"][0]["image_url"] == "https://pub-brandmuse.r2.dev/image1.png"

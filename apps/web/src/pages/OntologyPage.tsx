@@ -523,7 +523,7 @@ export const OntologyPage: React.FC = () => {
 
           {/* Brand Core Identity Card */}
           {identity && (
-            <div className="p-6 sm:p-7 rounded-card bg-surface/90 dark:bg-[#141418]/80 backdrop-blur-xl border border-border dark:border-white/10 shadow-card flex flex-col gap-5">
+            <div className="p-6 sm:p-7 rounded-card bg-surface border border-border shadow-xs flex flex-col gap-5">
               <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 border-b border-border pb-4">
                 <div>
                   <span className="text-[11px] font-bold text-foreground/80 tracking-wider uppercase">
@@ -584,7 +584,7 @@ export const OntologyPage: React.FC = () => {
                 type="button"
                 onClick={() => setActiveTab("overview")}
                 aria-pressed={activeTab === "overview"}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   activeTab === "overview"
                     ? "bg-foreground text-background shadow-xs"
                     : "text-muted-foreground hover:text-foreground hover:bg-surface-user"
@@ -597,7 +597,7 @@ export const OntologyPage: React.FC = () => {
                 type="button"
                 onClick={() => setActiveTab("colors")}
                 aria-pressed={activeTab === "colors"}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
                   activeTab === "colors"
                     ? "bg-foreground text-background shadow-xs"
                     : "text-muted-foreground hover:text-foreground hover:bg-surface-user"
@@ -611,7 +611,7 @@ export const OntologyPage: React.FC = () => {
                 type="button"
                 onClick={() => setActiveTab("typography")}
                 aria-pressed={activeTab === "typography"}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
                   activeTab === "typography"
                     ? "bg-foreground text-background shadow-xs"
                     : "text-muted-foreground hover:text-foreground hover:bg-surface-user"
@@ -625,7 +625,7 @@ export const OntologyPage: React.FC = () => {
                 type="button"
                 onClick={() => setActiveTab("rules")}
                 aria-pressed={activeTab === "rules"}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
                   activeTab === "rules"
                     ? "bg-foreground text-background shadow-xs"
                     : "text-muted-foreground hover:text-foreground hover:bg-surface-user"
@@ -639,7 +639,7 @@ export const OntologyPage: React.FC = () => {
                 type="button"
                 onClick={() => setActiveTab("channels")}
                 aria-pressed={activeTab === "channels"}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-medium flex items-center gap-1.5 transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
                   activeTab === "channels"
                     ? "bg-foreground text-background shadow-xs"
                     : "text-muted-foreground hover:text-foreground hover:bg-surface-user"

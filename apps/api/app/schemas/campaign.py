@@ -46,7 +46,7 @@ class Concept(BaseModel):
     )
     compliance_checks: list[ComplianceCheck] = Field(
         default=[],
-        description="Structured verification checklist against guideline rules (tone, colors, restrictions)",
+        description="Verification checklist against brand rules (tone, colors, restrictions)",
     )
 
 
@@ -123,7 +123,7 @@ class RefineConceptRequest(BaseModel):
     concept: Concept = Field(..., description="Current concept to refine")
     instruction: str = Field(
         ...,
-        description="Creative direction or feedback to apply (e.g. 'Make headline shorter', 'Adapt for LinkedIn')",
+        description="Creative direction to apply (e.g. 'Shorter headline', 'Adapt for LinkedIn')",
         min_length=2,
         max_length=500,
     )

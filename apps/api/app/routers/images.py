@@ -1,12 +1,11 @@
 import uuid
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.security import get_session_id
-from app.db.models import Generation
+from app.db.repositories import GenerationRepository
 from app.db.session import get_db
 from app.providers.image import get_image_provider, moderate_prompt
 from app.providers.storage import upload_image_to_storage
@@ -37,7 +36,7 @@ async def generate_image(
     session_id: uuid.UUID = Depends(get_session_id),
     db: AsyncSession = Depends(get_db),
 ) -> ImageGenerateResponse:
-    """Generate image with safety moderation, rate limits, and Supabase Storage persistence."""
+    """Generate image with safety moderation, rate limits, and Cloudflare R2 persistence."""
     # 1. Enforce safety checks
     moderate_prompt(payload.image_prompt)
 
@@ -53,7 +52,7 @@ async def generate_image(
         negative_prompt=payload.negative_prompt,
     )
 
-    # 4. Upload to persistent Supabase Storage
+    # 4. Upload to persistent storage (Cloudflare R2 or local)
     filename = f"{session_id}/{uuid.uuid4()}.png"
     image_url = await upload_image_to_storage(image_bytes, filename=filename)
 
@@ -63,16 +62,13 @@ async def generate_image(
         "aspect_ratio": payload.aspect_ratio,
         **payload.concept_json,
     }
-    generation = Generation(
-        id=uuid.uuid4(),
+    generation = await GenerationRepository.create(
+        db=db,
         session_id=session_id,
-        concept_json=concept_data,
+        concept_data=concept_data,
         image_url=image_url,
         provider=settings.IMAGE_PROVIDER,
     )
-    db.add(generation)
-    await db.commit()
-    await db.refresh(generation)
 
     return ImageGenerateResponse(id=generation.id, url=generation.image_url)
 
@@ -88,13 +84,7 @@ async def get_gallery(
     db: AsyncSession = Depends(get_db),
 ) -> GalleryResponse:
     """List all images generated within the current isolated session ordered newest first."""
-    stmt = (
-        select(Generation)
-        .where(Generation.session_id == session_id)
-        .order_by(Generation.created_at.desc())
-    )
-    result = await db.execute(stmt)
-    generations = result.scalars().all()
+    generations = await GenerationRepository.list_for_session(db, session_id)
 
     items = [
         GenerationItem(

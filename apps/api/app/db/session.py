@@ -7,7 +7,6 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
-from sqlalchemy.pool import NullPool
 
 from app.core.config import get_settings
 
@@ -15,15 +14,23 @@ settings = get_settings()
 
 engine_kwargs: dict[str, Any] = {
     "echo": settings.ENVIRONMENT == "development",
+    "pool_pre_ping": True,
+    "pool_recycle": 300,
 }
 
 if settings.DB_POOLER_MODE:
-    # Supabase Transaction Pooler (port 6543) configuration
-    engine_kwargs["poolclass"] = NullPool
+    # Serverless PgBouncer / Neon pooler mode:
+    # Disable prepared statement caching (incompatible with PgBouncer transaction mode)
+    # but maintain a small client-side connection pool to eliminate TCP handshake latency
+    engine_kwargs["pool_size"] = 5
+    engine_kwargs["max_overflow"] = 10
     engine_kwargs["connect_args"] = {
         "statement_cache_size": 0,
         "prepared_statement_cache_size": 0,
     }
+else:
+    engine_kwargs["pool_size"] = 10
+    engine_kwargs["max_overflow"] = 20
 
 engine: AsyncEngine = create_async_engine(settings.clean_database_url, **engine_kwargs)
 
@@ -46,3 +53,8 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
             raise
         finally:
             await session.close()
+
+
+async def close_db() -> None:
+    """Dispose of the persistent database connection pool on shutdown."""
+    await engine.dispose()

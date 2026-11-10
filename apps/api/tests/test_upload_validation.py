@@ -73,6 +73,7 @@ def test_rejects_too_many_pages() -> None:
 async def test_parse_pdf_pages_vision_enrichment_for_sparse_pages() -> None:
     """Verify parse_pdf_pages enriches sparse pages when vision transcription is available."""
     from unittest.mock import AsyncMock, patch
+
     from app.rag.parse import parse_pdf_pages
 
     fake_pdf = b"%PDF-1.4\n%fake"
@@ -83,7 +84,10 @@ async def test_parse_pdf_pages_vision_enrichment_for_sparse_pages() -> None:
         patch("app.rag.parse._sync_parse_pdf", return_value=mock_pages),
         patch("app.rag.parse._extract_sparse_page_images", return_value=mock_images),
         patch("app.rag.parse.settings") as mock_settings,
-        patch("app.rag.parse.extract_text_from_image_bytes", AsyncMock(return_value="Color Palette: Terracotta #D2691E")),
+        patch(
+            "app.rag.parse.extract_text_from_image_bytes",
+            AsyncMock(return_value="Color Palette: Terracotta #D2691E"),
+        ),
     ):
         mock_settings.GEMINI_API_KEY = "fake-key"
         mock_settings.OPENAI_API_KEY = None

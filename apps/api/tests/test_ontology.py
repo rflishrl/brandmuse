@@ -265,3 +265,39 @@ async def test_ontology_access_denied_other_session(
     assert response.status_code == 404
     data = response.json()
     assert data["error"]["code"] == "DOCUMENT_NOT_FOUND"
+
+
+@pytest.mark.asyncio
+async def test_sample_ontology_mutation_forbidden(
+    client: AsyncClient, mock_db: AsyncMock
+) -> None:
+    """Verify sample brand guidelines cannot be modified or certified by any session."""
+    doc_id = uuid.uuid4()
+    session_id = uuid.uuid4()
+
+    sample_doc = Document(
+        id=doc_id, session_id=uuid.uuid4(), filename="Aura Living.pdf", is_sample=True
+    )
+    doc_res = MagicMock()
+    doc_res.scalar_one_or_none.return_value = sample_doc
+    mock_db.execute.return_value = doc_res
+
+    updated_data = _sample_ontology_data()
+
+    # Try updating sample ontology
+    response = await client.put(
+        f"/api/documents/{doc_id}/ontology",
+        headers={"X-Session-Id": str(session_id)},
+        json={"ontology": updated_data.model_dump()},
+    )
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "SAMPLE_READ_ONLY"
+
+    # Try certifying sample ontology
+    response_cert = await client.post(
+        f"/api/documents/{doc_id}/ontology/certify",
+        headers={"X-Session-Id": str(session_id)},
+        json={"certified_by": "Attacker"},
+    )
+    assert response_cert.status_code == 403
+    assert response_cert.json()["error"]["code"] == "SAMPLE_READ_ONLY"

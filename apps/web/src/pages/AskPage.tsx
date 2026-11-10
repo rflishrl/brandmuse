@@ -457,7 +457,7 @@ export const AskPage: React.FC = () => {
             <BrandMuseOrb size={54} animate />
             <div className="max-w-xl">
               <h1 className="text-3xl sm:text-4xl md:text-5xl font-normal tracking-tight text-foreground">
-                How can I help you today?
+                Ask anything about your brand.
               </h1>
               <p className="text-xs sm:text-sm text-muted-foreground mt-2 max-w-md mx-auto">
                 {selectedDocument ? (
@@ -726,7 +726,7 @@ export const AskPage: React.FC = () => {
                     <span>BrandMuse</span>
                   </div>
 
-                  <div className="w-full p-5 sm:p-6 rounded-2xl bg-surface/85 dark:bg-[#141418]/80 backdrop-blur-md border border-border dark:border-white/10 shadow-card text-sm text-foreground relative">
+                  <div className="w-full p-5 sm:p-6 rounded-2xl bg-surface border border-border shadow-xs text-sm text-foreground relative">
                     {msg.content ? (
                       <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
                     ) : (
@@ -825,7 +825,7 @@ export const AskPage: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={handleStopStreaming}
-                className="shadow-sm rounded-full bg-surface/80 dark:bg-[#141418]/80 backdrop-blur-md"
+                className="shadow-xs rounded-full bg-surface border border-border"
               >
                 <Square className="w-3 h-3 mr-1.5 fill-current" />
                 Stop generating

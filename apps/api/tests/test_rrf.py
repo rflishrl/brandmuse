@@ -51,3 +51,23 @@ def test_rrf_empty_inputs() -> None:
     assert len(fused_vec) == 1
     assert fused_vec[0].item_id == "A"
     assert fused_vec[0].rrf_score == round(1.0 / 61, 6)
+
+
+def test_rrf_dual_engine_contract() -> None:
+    """Verify dual-engine fallback contract and introspection."""
+    from app.rag.rrf import _python_reciprocal_rank_fusion, is_rust_accelerated
+
+    vector_items = [RankedItem(item_id="1", score=0.8, metadata={"p": 1})]
+    keyword_items = [RankedItem(item_id="1", score=0.7, metadata={"p": 1})]
+
+    # Result from the active engine (Python fallback or Rust)
+    active_result = reciprocal_rank_fusion(vector_items, keyword_items, k=60)
+    # Result from reference Python implementation
+    python_result = _python_reciprocal_rank_fusion(vector_items, keyword_items, k=60)
+
+    assert len(active_result) == len(python_result)
+    assert active_result[0].item_id == python_result[0].item_id
+    assert active_result[0].rrf_score == python_result[0].rrf_score
+    # is_rust_accelerated() returns a boolean indicating active native acceleration
+    assert isinstance(is_rust_accelerated(), bool)
+

@@ -87,3 +87,31 @@ async def test_check_session_image_hourly_limit_exceeded_raises_429() -> None:
 
     assert exc_info.value.status_code == 429
     assert exc_info.value.code == "SESSION_HOURLY_LIMIT_EXCEEDED"
+
+
+@pytest.mark.asyncio
+async def test_check_and_increment_daily_usage_concurrency_race_handled() -> None:
+    """Verify IntegrityError from concurrent insert triggers rollback and lock increment."""
+    from sqlalchemy.exc import IntegrityError
+
+    mock_db = AsyncMock()
+    mock_db.add = MagicMock()
+
+    # First execute: returns None (both see empty row)
+    first_res = MagicMock()
+    first_res.scalar_one_or_none.return_value = None
+
+    # Second execute: returns the row inserted by the other worker
+    second_res = MagicMock()
+    winner_counter = UsageCounter(day=datetime.date.today(), kind="llm", count=1)
+    second_res.scalar_one_or_none.return_value = winner_counter
+
+    mock_db.execute.side_effect = [first_res, second_res]
+    # First commit fails with IntegrityError (duplicate key), second commit succeeds
+    mock_db.commit.side_effect = [IntegrityError("stmt", "params", "orig"), None]
+
+    count = await check_and_increment_daily_usage(mock_db, "llm", limit=50)
+
+    assert count == 2
+    assert winner_counter.count == 2
+    mock_db.rollback.assert_awaited_once()

@@ -1,0 +1,19 @@
+[package]
+name = "brandmuse-core-rs"
+version = "0.1.0"
+edition = "2021"
+description = "High-performance PyO3 native extension for BrandMuse (RRF Ranking and Text Chunking)"
+license = "MIT"
+
+[lib]
+name = "brandmuse_core_rs"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pyo3 = { version = "0.23", features = ["extension-module"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

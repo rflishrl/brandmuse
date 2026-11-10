@@ -7,7 +7,7 @@
  */
 
 /**
- * Result of image generation including permanent public Supabase Storage URL.
+ * Result of image generation including permanent public storage URL.
  */
 export interface ImageGenerateResponse {
   /** Unique generation record identifier */

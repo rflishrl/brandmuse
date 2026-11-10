@@ -7,17 +7,31 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.middleware.gzip import GZipMiddleware
 
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
+from app.core.http import close_http_client, get_http_client
 from app.core.logging import setup_logging
+from app.db.session import close_db
 from app.routers import campaign, chat, documents, health, images, ontology
 
 settings = get_settings()
 
-# Initialize IP-based rate limiter
+def get_client_ip(request: Request) -> str:
+    """Extract client IP respecting Cloudflare and reverse-proxy headers with fallback."""
+    cf_ip = request.headers.get("CF-Connecting-IP")
+    if cf_ip and cf_ip.strip():
+        return cf_ip.strip()
+    x_forwarded = request.headers.get("X-Forwarded-For")
+    if x_forwarded and x_forwarded.strip():
+        return x_forwarded.split(",")[0].strip()
+    return get_remote_address(request)
+
+
+# Initialize IP-based rate limiter with reverse-proxy support
 limiter = Limiter(
-    key_func=get_remote_address,
+    key_func=get_client_ip,
     default_limits=[f"{settings.RATE_LIMIT_PER_MINUTE}/minute"],
 )
 
@@ -31,6 +45,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+        if settings.ENVIRONMENT == "production":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         return response
 
 
@@ -38,7 +54,10 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """Lifespan context manager for startup and shutdown routines."""
     setup_logging()
+    get_http_client()
     yield
+    await close_http_client()
+    await close_db()
 
 
 def create_app() -> FastAPI:
@@ -61,6 +80,9 @@ def create_app() -> FastAPI:
 
     # Security headers
     app.add_middleware(SecurityHeadersMiddleware)
+
+    # GZip compression for JSON payloads > 1KB
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
 
     # CORS configuration
     app.add_middleware(

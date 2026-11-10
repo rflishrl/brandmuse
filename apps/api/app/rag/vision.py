@@ -10,8 +10,9 @@ settings = get_settings()
 
 VISUAL_OCR_SYSTEM_PROMPT = (
     "You are an expert brand identity analyst. Examine this visual brand guideline diagram. "
-    "Transcribe all visual rules, color names, hex codes, typography specs, logo clearspace requirements, "
-    "and DOs/DONTs visible in the image. Be direct, concise, and strictly factual. Do not add conversational filler."
+    "Transcribe all visual rules, color names, hex codes, typography specs, "
+    "logo clearspace requirements, and DOs/DONTs visible in the image. "
+    "Be direct, concise, and strictly factual. Do not add conversational filler."
 )
 
 

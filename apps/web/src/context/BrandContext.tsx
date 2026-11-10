@@ -1,7 +1,7 @@
 import type React from "react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
-import { useListDocuments, useLoadSampleBrand } from "@/api/generated";
+import { useGetHealth, useListDocuments, useLoadSampleBrand } from "@/api/generated";
 import type { DocumentResponse } from "@/api/model";
 
 const STORAGE_KEY = "brandmuse:selected_document_id";
@@ -15,6 +15,9 @@ interface BrandContextType {
   loadSampleBrand: () => Promise<DocumentResponse | undefined>;
   isLoadingSample: boolean;
   refetchDocuments: () => void;
+  isServerWarmingUp: boolean;
+  isServerHealthy: boolean;
+  isServerOffline: boolean;
 }
 
 const BrandContext = createContext<BrandContextType | undefined>(undefined);
@@ -30,6 +33,36 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       return null;
     }
   });
+
+  const [isServerWarmingUp, setIsServerWarmingUp] = useState(false);
+
+  // Background health ping to wake up sleeping container (Hugging Face Spaces cold start)
+  const {
+    data: healthData,
+    isLoading: isHealthLoading,
+    isFetching: isHealthFetching,
+    isError: isHealthError,
+  } = useGetHealth({
+    query: {
+      retry: 3,
+      retryDelay: 3000,
+      staleTime: 60_000,
+      refetchOnWindowFocus: false,
+    },
+  });
+
+  // Track if backend is taking longer than 2s to wake up
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    if (isHealthLoading || isHealthFetching) {
+      timer = setTimeout(() => {
+        setIsServerWarmingUp(true);
+      }, 2000);
+    } else {
+      setIsServerWarmingUp(false);
+    }
+    return () => clearTimeout(timer);
+  }, [isHealthLoading, isHealthFetching]);
 
   const {
     data: documentsData,
@@ -108,6 +141,9 @@ export const BrandProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         loadSampleBrand: handleLoadSampleBrand,
         isLoadingSample: sampleBrandMutation.isPending,
         refetchDocuments,
+        isServerWarmingUp,
+        isServerHealthy: healthData?.status === "healthy",
+        isServerOffline: isHealthError && !isHealthFetching,
       }}
     >
       {children}

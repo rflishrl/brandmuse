@@ -1,14 +1,13 @@
-import datetime
 import uuid
 
 from fastapi import APIRouter, Depends, Path
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.errors import APIError
 from app.core.security import get_session_id
-from app.db.models import BrandOntology, Document
+from app.db.models import Document
+from app.db.repositories import DocumentRepository, OntologyRepository
 from app.db.session import get_db
 from app.rag.ontology import extract_brand_ontology_from_doc
 from app.schemas.ontology import (
@@ -28,19 +27,12 @@ async def _get_document_or_404(
     db: AsyncSession,
     document_id: uuid.UUID,
     session_id: uuid.UUID,
+    for_mutation: bool = False,
 ) -> Document:
-    """Helper to fetch a document and verify session isolation."""
-    stmt = select(Document).where(Document.id == document_id)
-    res = await db.execute(stmt)
-    doc = res.scalar_one_or_none()
-
-    if not doc or (doc.session_id != session_id and not doc.is_sample):
-        raise APIError(
-            code="DOCUMENT_NOT_FOUND",
-            message="Brand guideline document not found or access denied.",
-            status_code=404,
-        )
-    return doc
+    """Helper delegating to DocumentRepository for document retrieval and access validation."""
+    return await DocumentRepository.get_by_id(
+        db, document_id, session_id=session_id, for_mutation=for_mutation
+    )
 
 
 @router.post(
@@ -58,7 +50,7 @@ async def extract_ontology(
     db: AsyncSession = Depends(get_db),
 ) -> BrandOntologyResponse:
     """Extract brand rules ontology from guideline chunks using structured LLM output."""
-    doc = await _get_document_or_404(db, document_id, session_id)
+    doc = await _get_document_or_404(db, document_id, session_id, for_mutation=True)
 
     # Check daily LLM usage limits
     await check_and_increment_daily_usage(db, "llm", settings.DAILY_LLM_LIMIT)
@@ -66,33 +58,12 @@ async def extract_ontology(
     # Extract structured ontology
     ontology_data = await extract_brand_ontology_from_doc(db, doc, session_id)
 
-    # Upsert BrandOntology row
-    stmt = select(BrandOntology).where(BrandOntology.document_id == document_id)
-    res = await db.execute(stmt)
-    existing_ontology = res.scalar_one_or_none()
-
-    now = datetime.datetime.now(datetime.UTC)
-
-    if existing_ontology:
-        existing_ontology.ontology_data = ontology_data.model_dump()
-        existing_ontology.is_certified = False
-        existing_ontology.certified_at = None
-        existing_ontology.certified_by = None
-        existing_ontology.updated_at = now
-        record = existing_ontology
-    else:
-        record = BrandOntology(
-            id=uuid.uuid4(),
-            document_id=document_id,
-            ontology_data=ontology_data.model_dump(),
-            is_certified=False,
-            created_at=now,
-            updated_at=now,
-        )
-        db.add(record)
-
-    await db.commit()
-    await db.refresh(record)
+    # Upsert BrandOntology record via repository
+    record = await OntologyRepository.upsert(
+        db=db,
+        document_id=document_id,
+        ontology_data=ontology_data.model_dump(),
+    )
 
     return BrandOntologyResponse(
         id=record.id,
@@ -118,11 +89,9 @@ async def get_ontology(
     db: AsyncSession = Depends(get_db),
 ) -> BrandOntologyResponse:
     """Get the current brand ontology for a document."""
-    await _get_document_or_404(db, document_id, session_id)
+    await _get_document_or_404(db, document_id, session_id, for_mutation=False)
 
-    stmt = select(BrandOntology).where(BrandOntology.document_id == document_id)
-    res = await db.execute(stmt)
-    record = res.scalar_one_or_none()
+    record = await OntologyRepository.get_by_document_id(db, document_id)
 
     if not record:
         raise APIError(
@@ -156,24 +125,13 @@ async def update_ontology(
     db: AsyncSession = Depends(get_db),
 ) -> BrandOntologyResponse:
     """Update extracted brand ontology data."""
-    await _get_document_or_404(db, document_id, session_id)
+    await _get_document_or_404(db, document_id, session_id, for_mutation=True)
 
-    stmt = select(BrandOntology).where(BrandOntology.document_id == document_id)
-    res = await db.execute(stmt)
-    record = res.scalar_one_or_none()
-
-    if not record:
-        raise APIError(
-            code="ONTOLOGY_NOT_FOUND",
-            message="Cannot update ontology: it has not been extracted yet.",
-            status_code=404,
-        )
-
-    record.ontology_data = payload.ontology.model_dump()
-    record.updated_at = datetime.datetime.now(datetime.UTC)
-
-    await db.commit()
-    await db.refresh(record)
+    record = await OntologyRepository.update_data(
+        db=db,
+        document_id=document_id,
+        ontology_data=payload.ontology.model_dump(),
+    )
 
     return BrandOntologyResponse(
         id=record.id,
@@ -200,27 +158,13 @@ async def certify_ontology(
     db: AsyncSession = Depends(get_db),
 ) -> BrandOntologyResponse:
     """Certify brand ontology for official grounding and production usage."""
-    await _get_document_or_404(db, document_id, session_id)
+    await _get_document_or_404(db, document_id, session_id, for_mutation=True)
 
-    stmt = select(BrandOntology).where(BrandOntology.document_id == document_id)
-    res = await db.execute(stmt)
-    record = res.scalar_one_or_none()
-
-    if not record:
-        raise APIError(
-            code="ONTOLOGY_NOT_FOUND",
-            message="Cannot certify ontology: it has not been extracted yet.",
-            status_code=404,
-        )
-
-    now = datetime.datetime.now(datetime.UTC)
-    record.is_certified = True
-    record.certified_at = now
-    record.certified_by = payload.certified_by
-    record.updated_at = now
-
-    await db.commit()
-    await db.refresh(record)
+    record = await OntologyRepository.certify(
+        db=db,
+        document_id=document_id,
+        certified_by=payload.certified_by,
+    )
 
     return BrandOntologyResponse(
         id=record.id,

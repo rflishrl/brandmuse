@@ -40,18 +40,25 @@ async def test_hybrid_retrieve_merges_vector_and_keyword() -> None:
 
     mock_db = AsyncMock()
 
-    # First execute call -> vector search results: (chunk, distance)
+    # First execute call -> SET LOCAL hnsw.ef_search = 60
+    mock_set_param_result = MagicMock()
+
+    # Second execute call -> vector search results: (chunk, distance)
     # distance = 0.1 -> similarity = 0.90
     vector_rows = [(chunk1, 0.1), (chunk2, 0.3)]
     mock_vector_result = MagicMock()
     mock_vector_result.all.return_value = vector_rows
 
-    # Second execute call -> keyword search results: (chunk, rank)
+    # Third execute call -> keyword search results: (chunk, rank)
     keyword_rows = [(chunk2, 0.8), (chunk1, 0.2)]
     mock_keyword_result = MagicMock()
     mock_keyword_result.all.return_value = keyword_rows
 
-    mock_db.execute.side_effect = [mock_vector_result, mock_keyword_result]
+    mock_db.execute.side_effect = [
+        mock_set_param_result,
+        mock_vector_result,
+        mock_keyword_result,
+    ]
 
     dummy_provider = DummyEmbeddingProvider()
     results = await hybrid_retrieve(

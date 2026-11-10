@@ -16,7 +16,7 @@ export interface RefineConceptRequest {
   /** Current concept to refine */
   concept: Concept;
   /**
-   * Creative direction or feedback to apply (e.g. 'Make headline shorter', 'Adapt for LinkedIn')
+   * Creative direction to apply (e.g. 'Shorter headline', 'Adapt for LinkedIn')
    * @minLength 2
    * @maxLength 500
    */

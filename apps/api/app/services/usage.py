@@ -2,6 +2,7 @@ import datetime
 import uuid
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import APIError
@@ -44,7 +45,33 @@ async def check_and_increment_daily_usage(
             )
         counter.count += 1
 
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        # Resolve concurrent insert race condition by rolling back and re-fetching with lock
+        await db.rollback()
+        stmt = (
+            select(UsageCounter)
+            .where(UsageCounter.day == today, UsageCounter.kind == kind)
+            .with_for_update()
+        )
+        result = await db.execute(stmt)
+        counter = result.scalar_one_or_none()
+        if not counter:
+            raise
+        if counter.count >= limit:
+            raise APIError(
+                code="DAILY_QUOTA_EXCEEDED",
+                message=(
+                    f"Global daily {kind.upper()} limit ({limit} calls) has been reached. "
+                    "The demo is currently operating in read-only mode to prevent overage. "
+                    "Counters reset daily at midnight."
+                ),
+                status_code=429,
+            ) from exc
+        counter.count += 1
+        await db.commit()
+
     return counter.count
 
 

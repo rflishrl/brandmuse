@@ -23,6 +23,6 @@ export interface Concept {
   image_prompt: string;
   /** Specific brand guideline rules and colors incorporated into this concept */
   brand_rules_used?: string[];
-  /** Structured verification checklist against guideline rules (tone, colors, restrictions) */
+  /** Verification checklist against brand rules (tone, colors, restrictions) */
   compliance_checks?: ComplianceCheck[];
 }

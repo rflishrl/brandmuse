@@ -4,13 +4,12 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.errors import APIError
 from app.core.logging import logger
-from app.db.models import BrandOntology, Document
+from app.db.cache import get_cached_brand_ontology, get_cached_document
 from app.observability.langfuse import get_langfuse_callback, get_trace_url
 from app.providers.llm import get_llm
 from app.rag.ontology import format_ontology_context
@@ -70,11 +69,9 @@ async def generate_campaign_concepts(
 ) -> CampaignResponse:
     """Execute targeted multi-query retrieval and synthesize 3 on-brand campaign concepts."""
     # 1. Verify document access
-    stmt = select(Document).where(Document.id == document_id)
-    res = await db.execute(stmt)
-    doc = res.scalar_one_or_none()
+    doc = await get_cached_document(db, document_id)
 
-    if not doc or (doc.session_id != session_id and not doc.is_sample):
+    if not doc or (doc["session_id"] != session_id and not doc["is_sample"]):
         raise APIError(
             code="DOCUMENT_NOT_FOUND",
             message="Brand guideline document not found or access denied.",
@@ -119,10 +116,7 @@ async def generate_campaign_concepts(
     context_text = format_context_block(raw_context_pieces)
 
     # Check for structured brand ontology grounding
-    ontology_stmt = select(BrandOntology).where(BrandOntology.document_id == document_id)
-    ontology_res = await db.execute(ontology_stmt)
-    ontology = ontology_res.scalar_one_or_none()
-    ontology_data = getattr(ontology, "ontology_data", None)
+    ontology_data = await get_cached_brand_ontology(db, document_id)
     ontology_context = f"\n\n{format_ontology_context(ontology_data)}" if ontology_data else ""
 
     system_prompt = f"{CAMPAIGN_SYSTEM_PROMPT}{ontology_context}\n\n{context_text}"
@@ -197,19 +191,19 @@ async def generate_campaign_concepts(
 
 
 REFINE_SYSTEM_PROMPT = """You are BrandMuse Creative Director, an AI branding strategist.
-Your task is to refine and revise a single campaign concept based on specific user feedback, strictly aligned \
-with the provided Brand Guideline Context.
+Your task is to refine and revise a single campaign concept based on specific user feedback,
+strictly aligned with the provided Brand Guideline Context.
 
 Requirements:
 1. Faithfully incorporate the user's creative feedback and direction into the revised concept.
-2. Maintain strict grounding in brand guidelines (colors, typography, tone of voice, prohibited elements).
+2. Maintain strict grounding in brand guidelines (colors, typography, tone, prohibited elements).
 3. Copywriting Restrictions (Anti-Slop Guardrail):
    - NEVER use em dashes (—). Use clean periods, colons, or commas.
-   - NEVER use empty AI marketing clichés (e.g. "elevate", "unlock", "delve", "seamless", "revolutionary").
+   - NEVER use empty AI marketing clichés (e.g. "elevate", "unlock", "seamless").
 4. Visual Art Direction & Image Prompt:
    - Pure visual tokens describing lighting, materials, subjects, and colors.
    - NEVER include rendered text, typography, watermarks, or celebrity names.
-5. Compliance Checks: Provide 2 to 3 structured rule checks evaluating Tone of Voice, Palette, and Restrictions."""
+5. Compliance Checks: Provide 2 to 3 structured rule checks (Tone, Palette, Restrictions)."""
 
 
 async def refine_campaign_concept(
@@ -221,11 +215,9 @@ async def refine_campaign_concept(
 ) -> Concept:
     """Refine a single campaign concept based on creative feedback while enforcing brand rules."""
     # 1. Verify document access
-    stmt = select(Document).where(Document.id == document_id)
-    res = await db.execute(stmt)
-    doc = res.scalar_one_or_none()
+    doc = await get_cached_document(db, document_id)
 
-    if not doc or (doc.session_id != session_id and not doc.is_sample):
+    if not doc or (doc["session_id"] != session_id and not doc["is_sample"]):
         raise APIError(
             code="DOCUMENT_NOT_FOUND",
             message="Brand guideline document not found or access denied.",
@@ -236,7 +228,8 @@ async def refine_campaign_concept(
     await check_and_increment_daily_usage(db, "llm", settings.DAILY_LLM_LIMIT)
 
     # 3. Targeted retrieval for feedback context
-    fused_chunks = await hybrid_retrieve(db, document_id, query_text=f"{instruction} {concept.title}", top_k=3)
+    query = f"{instruction} {concept.title}"
+    fused_chunks = await hybrid_retrieve(db, document_id, query_text=query, top_k=3)
     raw_context_pieces = [
         {
             "page": str(c.metadata.get("page", 1)),
@@ -246,10 +239,7 @@ async def refine_campaign_concept(
     ]
     context_text = format_context_block(raw_context_pieces)
 
-    ontology_stmt = select(BrandOntology).where(BrandOntology.document_id == document_id)
-    ontology_res = await db.execute(ontology_stmt)
-    ontology = ontology_res.scalar_one_or_none()
-    ontology_data = getattr(ontology, "ontology_data", None)
+    ontology_data = await get_cached_brand_ontology(db, document_id)
     ontology_context = f"\n\n{format_ontology_context(ontology_data)}" if ontology_data else ""
 
     system_prompt = f"{REFINE_SYSTEM_PROMPT}{ontology_context}\n\n{context_text}"

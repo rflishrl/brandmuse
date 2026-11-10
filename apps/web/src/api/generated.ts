@@ -569,7 +569,7 @@ export const useRefineConcept = <TError = HTTPValidationError,
     }
     
 /**
- * Generate image with safety moderation, rate limits, and Supabase Storage persistence.
+ * Generate image with safety moderation, rate limits, and Cloudflare R2 persistence.
  * @summary Generate Stable Diffusion visual asset for a campaign concept
  */
 export const generateImage = (

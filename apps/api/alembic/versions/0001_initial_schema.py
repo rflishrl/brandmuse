@@ -108,7 +108,7 @@ def upgrade() -> None:
     )
 
     # 6. Enable Row Level Security (RLS) on all tables (no policies)
-    # to lock down Supabase public access
+    # to lock down public table access
     op.execute("ALTER TABLE documents ENABLE ROW LEVEL SECURITY;")
     op.execute("ALTER TABLE chunks ENABLE ROW LEVEL SECURITY;")
     op.execute("ALTER TABLE generations ENABLE ROW LEVEL SECURITY;")

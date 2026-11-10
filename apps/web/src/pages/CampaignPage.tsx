@@ -16,7 +16,6 @@ import {
   RotateCcw,
   Send,
   Sliders,
-  Sparkles,
 } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
@@ -191,7 +190,7 @@ export const CampaignPage: React.FC = () => {
       <div>
         <h2 className="text-2xl font-bold tracking-tight text-foreground">Campaign Director</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Synthesize 3 distinct, on-brand creative concepts from your brief with Stable Diffusion
+          Synthesize 3 distinct, on-brand creative concepts from your brief with generated visual
           assets.
         </p>
       </div>
@@ -218,7 +217,7 @@ export const CampaignPage: React.FC = () => {
       )}
 
       {/* Campaign Brief Form Card */}
-      <div className="p-6 sm:p-7 rounded-card bg-surface/90 dark:bg-[#141418]/80 backdrop-blur-xl border border-border dark:border-white/10 shadow-card">
+      <div className="p-6 sm:p-7 rounded-card bg-surface border border-border shadow-xs">
         <form onSubmit={handleGenerateCampaign} className="flex flex-col gap-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Product / Service */}
@@ -284,7 +283,7 @@ export const CampaignPage: React.FC = () => {
                     type="button"
                     onClick={() => setMood(m)}
                     className={`
-                      px-2.5 py-1.5 rounded-full text-xs font-medium border transition-colors
+                      px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
                       ${mood === m ? "bg-foreground text-background font-semibold shadow-xs" : "bg-surface-user text-muted-foreground border-border hover:text-foreground"}
                     `}
                     aria-pressed={mood === m}
@@ -303,7 +302,7 @@ export const CampaignPage: React.FC = () => {
               onClick={() => setShowReferenceExamples(!showReferenceExamples)}
               className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
             >
-              <Sparkles className="w-3.5 h-3.5 text-foreground/80" />
+              <BookOpen className="w-3.5 h-3.5 text-foreground/80" />
               <span>Brand Voice References / Past Golden Copy (Optional)</span>
               {showReferenceExamples ? (
                 <ChevronUp className="w-3.5 h-3.5 ml-auto" />
@@ -373,7 +372,7 @@ export const CampaignPage: React.FC = () => {
               return (
                 <div
                   key={concept.title}
-                  className="p-6 rounded-card bg-surface/90 dark:bg-[#141418]/80 border border-border dark:border-white/10 shadow-card backdrop-blur-xl flex flex-col justify-between gap-5 transition-all hover:border-white/25 hover:shadow-glow"
+                  className="p-6 rounded-card bg-surface border border-border shadow-xs flex flex-col justify-between gap-5 transition-all hover:border-foreground/20 hover:shadow-sm"
                 >
                   <div className="flex flex-col gap-3">
                     <div className="flex items-start justify-between gap-2">

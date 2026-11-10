@@ -190,9 +190,7 @@ async def test_complete_end_to_end_brandmuse_flow(
         assert len(campaign_data["brand_rules_used"]) >= 2
 
     # Generate image asset (POST /api/images)
-    fake_storage_url = (
-        "https://example-supabase.co/storage/v1/object/public/brandmuse-images/e2e-asset.png"
-    )
+    fake_storage_url = "https://pub-brandmuse.r2.dev/e2e-asset.png"
 
     with (
         patch("app.routers.images.check_session_image_hourly_limit", AsyncMock()),

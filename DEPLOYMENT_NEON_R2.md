@@ -1,9 +1,9 @@
-# Production Deployment Guide: Neon + Cloudflare R2 + Render + Cloudflare Pages
+# Production Deployment Guide: Neon + Cloudflare R2 + Hugging Face Spaces + Cloudflare Pages
 
-Step-by-step guide to deploying the **BrandMuse** application without relying on Supabase project or quota limits:
+Step-by-step guide to deploying the **BrandMuse** application with serverless database and S3-compatible storage:
 - **Serverless Database:** Neon.tech (PostgreSQL 16 + native `pgvector`, 0.5 GiB free tier, automatic compute scale-to-zero without project inactivity pause)
 - **Object Storage:** Cloudflare R2 (S3-compatible, 10 GB free storage per month, 1 million write operations, 10 million read operations, zero egress bandwidth fees)
-- **Backend API:** Render (Docker Web Service, FastAPI Python 3.12, Uvicorn, Singapore region)
+- **Backend API:** Hugging Face Spaces (Docker Web Service, FastAPI Python 3.12, Uvicorn, Port 7860, 16 GB RAM, 2 vCPU, US East region)
 - **Frontend SPA:** Cloudflare Pages (React 18, Bun v1.4.4, Tailwind CSS, Cloudflare global edge network)
 
 ---
@@ -13,10 +13,10 @@ Step-by-step guide to deploying the **BrandMuse** application without relying on
 ```mermaid
 graph TD
     User["User Browser"] -->|HTTPS Global CDN| Pages["Cloudflare Pages (Frontend: React 18 / Bun)"]
-    Pages -->|REST / SSE Streaming + X-Session-Id| Render["Render API (FastAPI / Docker in Singapore)"]
-    Render -->|Pooled Connection / Port 5432 / ssl=require| Neon["Neon.tech (PostgreSQL 16 + pgvector)"]
-    Render -->|S3 API / boto3 put_object| R2["Cloudflare R2 Bucket (brandmuse-images)"]
-    Render -->|HTTPS API| AI["OpenAI (Embeddings) and Stability AI (SDXL)"]
+    Pages -->|REST / SSE Streaming + X-Session-Id| HF["Hugging Face Spaces (FastAPI / Docker Port 7860 in US East)"]
+    HF -->|Pooled Connection / Port 5432 / ssl=require| Neon["Neon.tech (PostgreSQL 16 + pgvector)"]
+    HF -->|S3 API / boto3 put_object| R2["Cloudflare R2 Bucket (brandmuse-images)"]
+    HF -->|Persistent HTTPS| AI["Google Gemini 1.5 Flash / OpenAI"]
     User -->|Download Public Assets| R2Public["Cloudflare R2 Public CDN (pub-xxx.r2.dev)"]
 ```
 
@@ -32,8 +32,11 @@ Neon is a serverless PostgreSQL database with native `pgvector` support. Neon sc
 3. Configure the project:
    - **Project Name:** `brandmuse-db`
    - **Postgres version:** `16` (default stable release)
-   - **Region:** Select **Asia Pacific (Singapore) - `aws-ap-southeast-1`** (maintains low network latency between the Render backend in Singapore and Neon).
-4. Click **Create Project**.
+   - **Region:** Pilih **US East (N. Virginia) - `aws-us-east-1`** agar berada di satu region dengan host server Hugging Face Spaces (latensi < 10ms vs ~250ms jika lintas benua).
+4. Atur **Auto-suspend timeout**:
+   - Buka menu **Settings** -> **Compute** di dashboard project Neon.
+   - Ubah `Auto-suspend delay` dari bawaan 5 menit menjadi **30 menit** atau **60 menit**. Hal ini mencegah database sering tidur (cold start) saat pengguna sedang aktif menggunakan BrandMuse.
+5. Klik **Create Project**.
 
 ### 2.2 Retrieve the Two Connection Strings
 When the project is ready, Neon displays the **Connection Details** modal:
@@ -49,13 +52,13 @@ When the project is ready, Neon displays the **Connection Details** modal:
      postgresql+asyncpg://neondb_owner:PASSWORD@ep-dry-lake-123456.ap-southeast-1.aws.neon.tech/neondb?ssl=require
      ```
 
-2. **Pooled Connection (Used by the production backend on Render):**
+2. **Pooled Connection (Used by the production backend on Hugging Face Spaces):**
    - Toggle **Connection pooling** to **ON**.
    - The host name now includes a `-pooler` suffix, for example:
-     `ep-dry-lake-123456-pooler.ap-southeast-1.aws.neon.tech`
-   - Connection format for Render:
+     `ep-dry-lake-123456-pooler.us-east-1.aws.neon.tech`
+   - Connection format for Hugging Face Spaces:
      ```text
-     postgresql+asyncpg://neondb_owner:PASSWORD@ep-dry-lake-123456-pooler.ap-southeast-1.aws.neon.tech/neondb?ssl=require
+     postgresql+asyncpg://neondb_owner:PASSWORD@ep-dry-lake-123456-pooler.us-east-1.aws.neon.tech/neondb?ssl=require
      ```
 
 ### 2.3 Run Database Schema Migrations from Local Machine
@@ -171,54 +174,58 @@ To allow client browsers to load images and canvas previews without cross-origin
 
 ---
 
-## 4. Step 3: Deploy FastAPI Backend to Render
+## 4. Step 3: Deploy FastAPI Backend to Hugging Face Spaces
 
-The FastAPI backend runs as a Docker container on Render in the Singapore region, matching the Neon database region.
+The FastAPI backend runs as a Docker container on **Hugging Face Spaces** (Port 7860, 16 GB RAM, 2 vCPU, US East region), matching the Neon database region (`aws-us-east-1`).
 
-### 4.1 Create Web Service on Render
-1. Open [dashboard.render.com](https://dashboard.render.com).
-2. Click **New +** in the upper right, then select **Web Service**.
-3. Select **Build and deploy from a Git repository**.
-4. Select your `brandmuse` repository.
-5. Enter configuration details:
-   - **Name:** `brandmuse-api`
-   - **Region:** **Singapore (Southeast Asia)**
-   - **Branch:** `main`
-   - **Runtime:** **Docker**
-   - **Dockerfile Path:** `./apps/api/Dockerfile`
-   - **Docker Context:** `./apps/api`
-   - **Instance Type:** **Starter** (512 MB RAM) or **Free tier**.
+For the comprehensive guide, see [DEPLOYMENT_HUGGINGFACE.md](DEPLOYMENT_HUGGINGFACE.md).
 
-### 4.2 Configure Environment Variables in Render
-In the **Environment Variables** panel, add the following key-value pairs:
+### 4.1 Create Space on Hugging Face
+1. Open [huggingface.co/new-space](https://huggingface.co/new-space).
+2. Configure the Space:
+   - **Space name:** `brandmuse-api`
+   - **Space SDK:** **Docker** (Blank template)
+   - **Space Hardware:** **CPU basic • 2 vCPU • 16 GB • Free**
+   - **Visibility:** **Public**
+3. Click **Create Space**.
 
-| Variable Key | Example Value | Notes |
+### 4.2 Configure Secrets & Variables in Hugging Face Spaces
+In Space **Settings** -> **Variables and secrets**:
+
+**Secrets (Sensitive Credentials):**
+| Secret Key | Example Value | Notes |
 | :--- | :--- | :--- |
-| `DATABASE_URL` | `postgresql+asyncpg://neondb_owner:PASSWORD@ep-xxx-pooler.ap-southeast-1.aws.neon.tech/neondb?ssl=require` | Pooled connection string from Neon |
-| `DB_POOLER_MODE` | `false` | Standard asyncpg connection pool mode |
-| `STORAGE_PROVIDER` | `r2` | Activates Cloudflare R2 storage provider |
+| `DATABASE_URL` | `postgresql+asyncpg://neondb_owner:PASSWORD@ep-xxx-pooler.us-east-1.aws.neon.tech/neondb?ssl=require` | Pooled connection string from Neon |
 | `R2_ACCOUNT_ID` | `abcdef1234567890abcdef1234567890` | Cloudflare Account ID |
 | `R2_ACCESS_KEY_ID` | `8f3a9b0c1d2e3f4a5b6c7d8e` | R2 Access Key ID from Step 3.4 |
 | `R2_SECRET_ACCESS_KEY` | `c7e2d1f0a9b8c7...` | R2 Secret Access Key from Step 3.4 |
 | `R2_BUCKET_NAME` | `brandmuse-images` | Name of the configured R2 bucket |
 | `R2_PUBLIC_URL` | `https://pub-a1b2c3d4e5f6.r2.dev` | Public URL from Step 3.3 |
-| `OPENAI_API_KEY` | `sk-proj-...` | OpenAI API key (Chat and Embeddings) |
-| `STABILITY_API_KEY` | `sk-...` | Stability AI API key (Image generation) |
+| `GEMINI_API_KEY` | `AIzaSy...` | Google Gemini API key (LLM and Embeddings) |
+| `OPENAI_API_KEY` | `sk-proj-...` | OpenAI API key (optional fallback) |
+| `STABILITY_API_KEY` | `sk-...` | Stability AI API key (optional if using mock) |
+
+**Variables (Runtime Config):**
+| Variable Key | Value | Notes |
+| :--- | :--- | :--- |
+| `PORT` | `7860` | Hugging Face Spaces native container port |
 | `ENVIRONMENT` | `production` | Production runtime flag |
+| `DB_POOLER_MODE` | `true` | Required for Neon serverless pooler |
+| `STORAGE_PROVIDER` | `r2` | Activates Cloudflare R2 storage provider |
 | `CORS_ORIGIN` | `https://brandmuse.pages.dev,http://localhost:5173` | Allowed frontend origins |
 | `RATE_LIMIT_PER_MINUTE` | `30` | Per-IP rate limiter |
 | `DAILY_LLM_LIMIT` | `200` | Global daily quota for LLM calls |
 | `DAILY_IMAGE_LIMIT` | `25` | Global daily limit for image generations |
 | `SESSION_IMAGE_HOURLY_LIMIT` | `5` | Per-session hourly generation cap |
 
-6. Click **Create Web Service**.
-7. Wait 2 to 3 minutes for deployment to report **Live**.
-8. Copy your backend service URL (example: `https://brandmuse-api.onrender.com`).
+4. Push repository code to the Hugging Face Space repository or sync via GitHub Action.
+5. Wait 2 minutes for build to complete. The Space reports **Running**.
+6. Copy your backend service URL (example: `https://rflishrl-brandmuse-api.hf.space`).
 
 ### 4.3 Verify Backend Health
 Test the health endpoint from terminal or browser:
 ```bash
-curl https://brandmuse-api.onrender.com/api/health
+curl https://rflishrl-brandmuse-api.hf.space/api/health
 ```
 Expected JSON response:
 ```json
@@ -249,7 +256,7 @@ Under **Environment variables (advanced)**, define:
 | Variable Name | Value | Purpose |
 | :--- | :--- | :--- |
 | `BUN_VERSION` | `1.4.4` | Enforces Bun runtime version 1.4.4 |
-| `VITE_API_URL` | `https://brandmuse-api.onrender.com` | Render backend URL from Step 4.2 |
+| `VITE_API_URL` | `https://rflishrl-brandmuse-api.hf.space` | Hugging Face Spaces backend URL from Step 4.2 |
 
 Click **Save and Deploy**. Cloudflare Pages completes TypeScript compilation and Vite build in approximately 30 seconds.
 
@@ -259,13 +266,13 @@ Click **Save and Deploy**. Cloudflare Pages completes TypeScript compilation and
 
 After Cloudflare Pages finishes deployment, obtain your assigned domain (for example, `https://brandmuse.pages.dev`):
 
-1. Open Render dashboard -> select service `brandmuse-api` -> **Environment**.
+1. Open Hugging Face Space -> select Space `brandmuse-api` -> **Settings** -> **Variables**.
 2. Update the `CORS_ORIGIN` variable to match the exact frontend domain:
    ```text
    CORS_ORIGIN=https://brandmuse.pages.dev,http://localhost:5173
    ```
    *(Security note: Never use a wildcard `*` in production; the custom `X-Session-Id` header requires explicit origin specification)*.
-3. Click **Save Changes**. Render restarts the application with the updated configuration.
+3. Hugging Face Space automatically restarts the container with the updated configuration.
 
 ---
 
@@ -274,7 +281,7 @@ After Cloudflare Pages finishes deployment, obtain your assigned domain (for exa
 Execute the following PowerShell script to verify all services end-to-end:
 
 ```powershell
-$API_URL = "https://brandmuse-api.onrender.com"
+$API_URL = "https://rflishrl-brandmuse-api.hf.space"
 $SESSION_ID = [guid]::NewGuid().ToString()
 
 Write-Host "=== 1. Health Check ===" -ForegroundColor Cyan
@@ -343,9 +350,9 @@ When Stage 8 returns an asset URL containing your `https://pub-xxx.r2.dev/...` d
 - **Fix:**
   1. Open Cloudflare Dashboard -> R2 -> bucket `brandmuse-images` -> **Settings**.
   2. Confirm that **R2.dev subdomain** status is **Allowed**.
-  3. Ensure `R2_PUBLIC_URL` in the Render environment matches the subdomain exactly (example: `https://pub-xxxx.r2.dev`).
+  3. Ensure `R2_PUBLIC_URL` in Hugging Face Space Secrets matches the subdomain exactly (example: `https://pub-xxxx.r2.dev`).
   4. Verify CORS configuration on the bucket as described in Step 3.5.
 
 ### Issue 4: Cross-Origin Resource Sharing (CORS) Blocks Frontend Requests
-- **Cause:** The `CORS_ORIGIN` variable in Render does not match your Cloudflare Pages domain.
-- **Fix:** In Render -> Environment, add your exact frontend origin (for example, `https://brandmuse.pages.dev`, without a trailing forward slash).
+- **Cause:** The `CORS_ORIGIN` variable in Hugging Face Space does not match your Cloudflare Pages domain.
+- **Fix:** In Hugging Face Space -> Settings -> Variables, add your exact frontend origin (for example, `https://brandmuse.pages.dev`, without a trailing forward slash).
