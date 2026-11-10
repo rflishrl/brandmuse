@@ -1,13 +1,3 @@
----
-title: BrandMuse API
-emoji: 🎨
-colorFrom: indigo
-colorTo: purple
-sdk: docker
-app_port: 7860
-pinned: false
----
-
 # BrandMuse: AI Brand Assistant for Creative Teams
 
 > Grounded brand guideline conversational assistant and automated campaign concept generator with audited hybrid retrieval, multimodal visual ingestion, deterministic image synthesis, and sub-second token streaming.

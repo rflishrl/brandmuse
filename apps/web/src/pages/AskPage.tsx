@@ -473,21 +473,24 @@ export const AskPage: React.FC = () => {
 
               {/* Integrated Brand Starter Pills */}
               {!selectedDocumentId && (
-                <div className="flex items-center justify-center gap-2.5 mt-4">
+                <div className="flex items-center justify-center gap-3 mt-4">
                   <button
                     type="button"
                     onClick={() => loadSampleBrand()}
                     disabled={isLoadingSample}
-                    className="glass-pill inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium text-foreground border border-border dark:border-white/15 dark:bg-white/[0.06] dark:hover:bg-white/[0.12] transition-all shadow-xs hover:shadow-sm hover:scale-105 active:scale-95 hover:border-foreground/30 dark:hover:border-white/30 cursor-pointer disabled:opacity-50"
+                    className="glass-pill inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium text-foreground transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50"
                   >
-                    <Bookmark className="w-3.5 h-3.5 text-foreground dark:text-white" />
+                    <Bookmark
+                      className="w-3.5 h-3.5 text-foreground dark:text-white"
+                      aria-hidden="true"
+                    />
                     <span>{isLoadingSample ? "Loading demo..." : "Load Aura Living (Demo)"}</span>
                   </button>
                   <Link
                     to="/documents"
-                    className="glass-pill inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium text-muted-foreground hover:text-foreground border border-border dark:border-white/15 dark:bg-white/[0.04] dark:hover:bg-white/[0.10] transition-all shadow-xs hover:shadow-sm hover:scale-105 active:scale-95 hover:border-foreground/30 dark:hover:border-white/30 cursor-pointer"
+                    className="glass-pill inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium text-foreground transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                   >
-                    <Upload className="w-3.5 h-3.5" />
+                    <Upload className="w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" />
                     <span>Upload PDF</span>
                   </Link>
                 </div>

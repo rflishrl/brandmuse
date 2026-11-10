@@ -412,11 +412,6 @@ export const AppShell: React.FC<AppShellProps> = ({
                   >
                     {item.label}
                   </span>
-
-                  {/* Active indicator dot/pill */}
-                  {active && !isExpanded && (
-                    <span className="absolute left-1 w-1 h-3 rounded-full bg-foreground dark:bg-white shadow-[0_0_8px_currentColor]" />
-                  )}
                 </Link>
               );
             })}
@@ -437,10 +432,10 @@ export const AppShell: React.FC<AppShellProps> = ({
               <Bookmark className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
             </div>
             <div
-              className={`flex-1 flex items-center justify-between pr-2.5 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
+              className={`flex-1 flex items-center justify-between transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
                 isExpanded
-                  ? "opacity-100 max-w-[160px] translate-x-0"
-                  : "opacity-0 max-w-0 -translate-x-2 pointer-events-none"
+                  ? "opacity-100 max-w-[160px] pr-2.5 translate-x-0"
+                  : "opacity-0 max-w-0 pr-0 -translate-x-2 pointer-events-none"
               }`}
             >
               <span className="font-medium text-xs">Sample Brand</span>
@@ -462,10 +457,10 @@ export const AppShell: React.FC<AppShellProps> = ({
               <ThemeIcon className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
             </div>
             <div
-              className={`flex-1 flex items-center justify-between pr-2.5 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
+              className={`flex-1 flex items-center justify-between transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
                 isExpanded
-                  ? "opacity-100 max-w-[160px] translate-x-0"
-                  : "opacity-0 max-w-0 -translate-x-2 pointer-events-none"
+                  ? "opacity-100 max-w-[160px] pr-2.5 translate-x-0"
+                  : "opacity-0 max-w-0 pr-0 -translate-x-2 pointer-events-none"
               }`}
             >
               <span className="capitalize font-medium text-xs">{theme} Mode</span>
@@ -481,7 +476,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               className={`w-full flex items-center rounded-xl transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                 isExpanded
                   ? "p-1.5 bg-foreground/[0.03] border border-border/60 dark:border-white/5"
-                  : "justify-center bg-transparent border-transparent"
+                  : "h-11 justify-center bg-transparent border-transparent"
               }`}
             >
               <div
@@ -491,10 +486,10 @@ export const AppShell: React.FC<AppShellProps> = ({
                 <FileText className="w-4 h-4 text-muted-foreground" />
               </div>
               <div
-                className={`flex flex-col min-w-0 pl-2 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
+                className={`flex flex-col min-w-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
                   isExpanded
-                    ? "opacity-100 max-w-[140px] translate-x-0"
-                    : "opacity-0 max-w-0 -translate-x-2 pointer-events-none"
+                    ? "opacity-100 max-w-[140px] pl-2 translate-x-0"
+                    : "opacity-0 max-w-0 pl-0 -translate-x-2 pointer-events-none"
                 }`}
               >
                 <span className="text-xs font-semibold text-foreground truncate">Active Brand</span>
