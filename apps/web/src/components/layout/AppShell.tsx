@@ -4,6 +4,7 @@ import {
   FileText,
   Image as ImageIcon,
   Laptop,
+  Loader2,
   Megaphone,
   Menu,
   MessageSquare,
@@ -11,6 +12,7 @@ import {
   PanelLeft,
   PanelLeftClose,
   Plus,
+  RefreshCw,
   ShieldCheck,
   Sun,
   X,
@@ -543,20 +545,36 @@ export const AppShell: React.FC<AppShellProps> = ({
               role="status"
               aria-live="polite"
               aria-atomic="true"
-              className="w-full py-2 px-3.5 rounded-xl border border-amber-500/30 bg-amber-500/10 text-amber-800 dark:text-amber-200 text-xs flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-1 duration-200 shrink-0"
+              className="w-full p-3 sm:px-4 sm:py-3 rounded-2xl bg-surface/90 dark:bg-[#121217]/90 backdrop-blur-xl border border-border dark:border-white/10 shadow-card flex items-center justify-between gap-3.5 transition-all duration-300 animate-in fade-in slide-in-from-top-2 shrink-0"
             >
-              <div className="flex items-center gap-2.5">
-                <span className="relative flex h-2 w-2 shrink-0">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500" />
-                </span>
-                <span>
-                  Menghubungkan ke server cloud (kontainer Hugging Face sedang <em>spin-up</em>)...
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-foreground/5 dark:bg-white/[0.08] border border-border/80 dark:border-white/10 shrink-0 shadow-xs">
+                  <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  </span>
+                  <Loader2 className="w-4 h-4 text-foreground animate-spin" aria-hidden="true" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-foreground tracking-tight">
+                      Menghubungkan ke Hugging Face Spaces
+                    </span>
+                    <span className="hidden sm:inline-flex text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-foreground/5 dark:bg-white/[0.06] text-muted-foreground border border-border/60 dark:border-white/10">
+                      Cloud Backend
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-muted-foreground leading-snug truncate">
+                    Kontainer backend sedang aktif kembali dari status cold start.
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-foreground/[0.04] dark:bg-white/[0.06] border border-border/60 dark:border-white/10 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[11px] font-mono text-muted-foreground whitespace-nowrap">
+                  ~10–15 dtk
                 </span>
               </div>
-              <span className="text-[11px] font-mono text-muted-foreground shrink-0">
-                Estimasi 10–15 detik
-              </span>
             </aside>
           )}
 
@@ -564,21 +582,28 @@ export const AppShell: React.FC<AppShellProps> = ({
           {brand.isServerOffline && (
             <aside
               role="alert"
-              className="w-full py-2 px-3.5 rounded-xl border border-red-500/30 bg-red-500/10 text-red-800 dark:text-red-200 text-xs flex items-center justify-between gap-3 animate-in fade-in duration-200 shrink-0"
+              className="w-full p-3 sm:px-4 sm:py-3 rounded-2xl bg-surface/90 dark:bg-[#121217]/90 backdrop-blur-xl border border-danger/30 shadow-card flex items-center justify-between gap-3.5 transition-all duration-300 animate-in fade-in slide-in-from-top-2 shrink-0"
             >
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0" />
-                <span>
-                  Tidak dapat menghubungi server backend. Kontainer mungkin sedang tidur atau belum
-                  aktif.
-                </span>
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-danger/10 border border-danger/20 flex items-center justify-center shrink-0">
+                  <AlertTriangle className="w-4 h-4 text-danger" aria-hidden="true" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-semibold text-foreground tracking-tight">
+                    Server Backend Belum Terhubung
+                  </span>
+                  <span className="text-[11px] text-muted-foreground leading-snug truncate">
+                    Kontainer Hugging Face tidak merespons. Pastikan Space dalam keadaan Running.
+                  </span>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => brand.refetchDocuments()}
-                className="underline hover:no-underline font-medium cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-foreground/5 hover:bg-foreground/10 dark:bg-white/[0.08] dark:hover:bg-white/[0.14] border border-border dark:border-white/10 text-xs font-medium text-foreground transition-all shrink-0 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
               >
-                Coba lagi
+                <RefreshCw className="w-3 h-3 text-muted-foreground" aria-hidden="true" />
+                <span>Hubungkan Ulang</span>
               </button>
             </aside>
           )}
