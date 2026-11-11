@@ -4,7 +4,6 @@
 
 [![Live Web](https://img.shields.io/badge/Demo-brandmuse.pages.dev-0051C3?logo=cloudflare-pages&logoColor=white)](https://brandmuse.pages.dev)
 [![API Status](https://img.shields.io/badge/API-Render%20Web%20Service-46E3B7?logo=render&logoColor=white)](https://brandmuse-13ck.onrender.com/api/health)
-[![CI](https://img.shields.io/badge/CI-passing-brightgreen?logo=github-actions&logoColor=white)](https://github.com/rflishrl/brandmuse/actions/workflows/ci.yml)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![Bun](https://img.shields.io/badge/Runtime-Bun%201.2-fbf0df?logo=bun&logoColor=black)](https://bun.sh)
 [![Biome](https://img.shields.io/badge/Linter%20%26%20Formatter-Biome%202.6-60a5fa?logo=biome&logoColor=white)](https://biomejs.dev)
