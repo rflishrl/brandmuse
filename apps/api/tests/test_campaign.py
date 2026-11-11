@@ -298,4 +298,3 @@ async def test_refine_campaign_endpoint_integration(client: AsyncClient) -> None
         data = resp.json()
         assert data["title"] == "Endpoint Refined Concept"
         assert data["caption"] == "Refined copy."
-

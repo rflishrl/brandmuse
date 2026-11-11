@@ -99,4 +99,3 @@ async def test_parse_pdf_pages_vision_enrichment_for_sparse_pages() -> None:
         assert "Sparse text" in text
         assert "Terracotta #D2691E" in text
         assert "[Visual Brand Elements / Diagram OCR]:" in text
-

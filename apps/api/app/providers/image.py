@@ -31,6 +31,7 @@ def build_negative_prompt(custom_negative: str | None = None) -> str:
         return DEFAULT_NEGATIVE_PROMPT
     return f"{DEFAULT_NEGATIVE_PROMPT}, {custom_negative.strip()}"
 
+
 # Basic safety blocklist for prompt moderation
 PROMPT_BLOCKLIST = [
     "nsfw",

@@ -268,9 +268,7 @@ async def test_ontology_access_denied_other_session(
 
 
 @pytest.mark.asyncio
-async def test_sample_ontology_mutation_forbidden(
-    client: AsyncClient, mock_db: AsyncMock
-) -> None:
+async def test_sample_ontology_mutation_forbidden(client: AsyncClient, mock_db: AsyncMock) -> None:
     """Verify sample brand guidelines cannot be modified or certified by any session."""
     doc_id = uuid.uuid4()
     session_id = uuid.uuid4()

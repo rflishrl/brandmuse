@@ -123,7 +123,7 @@ async def generate_campaign_concepts(
 
     ref_block = (
         f"\n- Golden Voice References (Past winning copy to emulate):\n"
-        f"\"\"\"\n{brief.reference_examples.strip()}\n\"\"\"\n"
+        f'"""\n{brief.reference_examples.strip()}\n"""\n'
         f"Match the sentence cadence and style of these golden references.\n"
         if brief.reference_examples and brief.reference_examples.strip()
         else ""
@@ -252,7 +252,7 @@ async def refine_campaign_concept(
         f"- Image Prompt: {concept.image_prompt}\n"
         f"- Hashtags: {', '.join(concept.hashtags or [])}\n\n"
         f"Creative Feedback / Revision Request:\n"
-        f"\"{instruction}\"\n\n"
+        f'"{instruction}"\n\n'
         f"Please return the revised on-brand concept applying this direction."
     )
 
@@ -288,6 +288,7 @@ async def refine_campaign_concept(
             ) from retry_exc
 
     if isinstance(updated_concept, dict):
-        updated_concept = Concept(**updated_concept)
-
-    return updated_concept
+        return Concept(**updated_concept)
+    if isinstance(updated_concept, Concept):
+        return updated_concept
+    return Concept.model_validate(updated_concept)

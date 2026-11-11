@@ -70,4 +70,3 @@ def test_rrf_dual_engine_contract() -> None:
     assert active_result[0].rrf_score == python_result[0].rrf_score
     # is_rust_accelerated() returns a boolean indicating active native acceleration
     assert isinstance(is_rust_accelerated(), bool)
-

@@ -105,4 +105,3 @@ def test_query_expansion_bilingual_and_colloquial() -> None:
     assert "logo" in en_expanded
     en_fts = build_fts_query_expression(en_query)
     assert "clearspace" in en_fts or "logo" in en_fts
-

@@ -115,4 +115,3 @@ async def test_get_cached_brand_ontology_and_invalidation() -> None:
     onto3 = await get_cached_brand_ontology(mock_db, doc_id)
     assert onto3 == {"brand_name": "Aura Living"}
     assert mock_db.execute.call_count == 2
-

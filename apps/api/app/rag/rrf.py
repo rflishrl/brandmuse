@@ -9,7 +9,7 @@ T = TypeVar("T")
 # Attempt native Rust PyO3 acceleration
 _HAS_RUST_CORE = False
 try:
-    import brandmuse_core_rs  # type: ignore
+    import brandmuse_core_rs
 
     _HAS_RUST_CORE = True
 except ImportError:

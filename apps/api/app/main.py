@@ -18,6 +18,7 @@ from app.routers import campaign, chat, documents, health, images, ontology
 
 settings = get_settings()
 
+
 def get_client_ip(request: Request) -> str:
     """Extract client IP respecting Cloudflare and reverse-proxy headers with fallback."""
     cf_ip = request.headers.get("CF-Connecting-IP")
