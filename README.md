@@ -29,52 +29,64 @@
 ```mermaid
 flowchart TD
     subgraph Client["Web Client (Cloudflare Pages SPA)"]
-        UI["React 18 + Vite + Tailwind CSS\nRadix UI Primitives"]
-        Router["React Router v7 Declarative\nSPA /_redirects Fallback"]
-        TQ["TanStack Query v5\nOrval OpenAPI Type-safe Client"]
-        Tooling["Biome 2.6 Formatter & Linter\nZero ESLint/Prettier Overhead"]
+        UI["React 18 + Vite + Tailwind CSS\nRadix UI Accessible Primitives"]
+        Router["React Router v7 Declarative\nSPA /_redirects Deep Linking"]
+        TQ["TanStack Query v5\nOrval OpenAPI Type-Safe Client"]
+        Preflight["Binary PDF Pre-flight Validator\nMagic-byte and Metadata Check"]
     end
 
-    subgraph API["Backend API (FastAPI / Python 3.12 / Astral uv)"]
+    subgraph API["Backend API (Render Web Service - FastAPI / Python 3.12)"]
         FastAPI["FastAPI 0.115 Async Engine\nServer-Sent Events (SSE) Streaming"]
-        Security["Session Isolation Middleware\nX-Session-Id UUID Header Validation"]
-        RateLimit["Usage Guards\nDaily Cap & Hourly Per-Session Throttling"]
-        Ingestion["Streaming PDF Parser & Vision Analyzer\nMagic-byte Verification & 10MB Limit"]
+        Security["Session Security Middleware\nX-Session-Id UUID Header Isolation"]
+        RateLimit["Usage Guards and Quotas\nDaily Budget Cap and Per-Session Limits"]
+        Ingestion["Streaming PDF Parser and Vision Analyzer\nMagic-Byte Verification and 10MB Limit"]
         LC["LangChain LCEL Orchestrator\nStructured Pydantic Validation & Retries"]
         QueryModule["Contextual Query Rewriter\nMulti-turn Expansion for RAG"]
     end
 
-    subgraph Storage["Database & Vector Index (Neon PostgreSQL)"]
+    subgraph Database["Database and Vector Index (Neon PostgreSQL 16)"]
+        NeonPooler["Neon PgBouncer Connection Pooler\nPort 5432 with ssl=require"]
         VecSearch["pgvector HNSW Cosine Search\n1536-dim (Gemini / OpenAI)"]
         FTSearch["PostgreSQL tsvector GIN Search\nEnglish ts_rank_cd Lexical"]
         RRF["Reciprocal Rank Fusion (k=60)\nDeterministic Rank Merging"]
     end
 
-    subgraph AI["AI Providers & Image Engine"]
-        Gemini["Google Gemini 1.5 Flash\ntext-embedding-004 (Free Tier)"]
-        OpenAI["OpenAI gpt-4o-mini\ntext-embedding-3-small"]
-        Ollama["Local Ollama Llama-3.2\nOffline Fallback"]
+    subgraph Storage["Object Storage (Cloudflare R2)"]
+        R2Bucket["Cloudflare R2 Bucket\nbrandmuse-images (Zero Egress)"]
+        R2CDN["Cloudflare R2 Public CDN\nAsset Distribution"]
+    end
+
+    subgraph AI["AI Engines and Multimodal Generation"]
+        Gemini["Google Gemini 1.5 Flash\ntext-embedding-004 (Primary)"]
+        OpenAI["OpenAI gpt-4o-mini\ntext-embedding-3-small (Fallback)"]
         MockImg["Deterministic SVG Canvas Provider\nFree, Offline, Instant"]
-        CloudImg["Stability AI SDXL / Replicate\nHigh-resolution Cloud Generation"]
+        CloudImg["Stability AI SDXL / Replicate\nCloud Image Synthesis"]
     end
 
     UI --> TQ
-    TQ -->|HTTPS / SSE| Security
+    Preflight --> TQ
+    TQ -->|HTTPS / SSE Streaming| Security
     Security --> FastAPI
     FastAPI --> RateLimit
     FastAPI --> Ingestion
     FastAPI --> LC
+
     LC --> QueryModule
-    QueryModule --> VecSearch
-    QueryModule --> FTSearch
+    QueryModule --> NeonPooler
+    NeonPooler --> VecSearch
+    NeonPooler --> FTSearch
     VecSearch --> RRF
     FTSearch --> RRF
     RRF --> LC
+
     LC --> Gemini
     LC -.-> OpenAI
-    LC -.-> Ollama
+
     FastAPI --> MockImg
     FastAPI -.-> CloudImg
+    FastAPI -->|S3 API put_object| R2Bucket
+    R2Bucket --> R2CDN
+    R2CDN -->|Direct Image Download| UI
 ```
 
 ---
