@@ -1,9 +1,9 @@
-# Production Deployment Guide: Neon + Cloudflare R2 + Hugging Face Spaces + Cloudflare Pages
+# Production Deployment Guide: Neon + Cloudflare R2 + Render + Cloudflare Pages
 
 Step-by-step guide to deploying the **BrandMuse** application with serverless database and S3-compatible storage:
 - **Serverless Database:** Neon.tech (PostgreSQL 16 + native `pgvector`, 0.5 GiB free tier, automatic compute scale-to-zero without project inactivity pause)
 - **Object Storage:** Cloudflare R2 (S3-compatible, 10 GB free storage per month, 1 million write operations, 10 million read operations, zero egress bandwidth fees)
-- **Backend API:** Hugging Face Spaces (Docker Web Service, FastAPI Python 3.12, Uvicorn, Port 7860, 16 GB RAM, 2 vCPU, US East region)
+- **Backend API:** Render (Web Service, FastAPI Python 3.12, Uvicorn, Free Tier)
 - **Frontend SPA:** Cloudflare Pages (React 18, Bun v1.4.4, Tailwind CSS, Cloudflare global edge network)
 
 ---
@@ -13,10 +13,10 @@ Step-by-step guide to deploying the **BrandMuse** application with serverless da
 ```mermaid
 graph TD
     User["User Browser"] -->|HTTPS Global CDN| Pages["Cloudflare Pages (Frontend: React 18 / Bun)"]
-    Pages -->|REST / SSE Streaming + X-Session-Id| HF["Hugging Face Spaces (FastAPI / Docker Port 7860 in US East)"]
-    HF -->|Pooled Connection / Port 5432 / ssl=require| Neon["Neon.tech (PostgreSQL 16 + pgvector)"]
-    HF -->|S3 API / boto3 put_object| R2["Cloudflare R2 Bucket (brandmuse-images)"]
-    HF -->|Persistent HTTPS| AI["Google Gemini 1.5 Flash / OpenAI"]
+    Pages -->|REST / SSE Streaming + X-Session-Id| Render["Render (FastAPI Web Service)"]
+    Render -->|Pooled Connection / Port 5432 / ssl=require| Neon["Neon.tech (PostgreSQL 16 + pgvector)"]
+    Render -->|S3 API / boto3 put_object| R2["Cloudflare R2 Bucket (brandmuse-images)"]
+    Render -->|Persistent HTTPS| AI["Google Gemini 1.5 Flash / OpenAI"]
     User -->|Download Public Assets| R2Public["Cloudflare R2 Public CDN (pub-xxx.r2.dev)"]
 ```
 
@@ -174,23 +174,23 @@ To allow client browsers to load images and canvas previews without cross-origin
 
 ---
 
-## 4. Step 3: Deploy FastAPI Backend to Hugging Face Spaces
+## 4. Step 3: Deploy FastAPI Backend to Render
 
-The FastAPI backend runs as a Docker container on **Hugging Face Spaces** (Port 7860, 16 GB RAM, 2 vCPU, US East region), matching the Neon database region (`aws-us-east-1`).
+The FastAPI backend runs as a Web Service on **Render** (Python 3 / Docker, Free Tier).
 
-For the comprehensive guide, see [DEPLOYMENT_HUGGINGFACE.md](DEPLOYMENT_HUGGINGFACE.md).
+### 4.1 Create Web Service on Render
+1. Open [dashboard.render.com](https://dashboard.render.com) and click **New +** -> **Web Service**.
+2. Connect your `brandmuse` GitHub repository.
+3. Configure the Web Service:
+   - **Name:** `brandmuse-api`
+   - **Root Directory:** `apps/api`
+   - **Runtime:** `Python 3`
+   - **Build Command:** `pip install -r requirements.txt`
+   - **Start Command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   - **Instance Type:** `Free` ($0/mo)
 
-### 4.1 Create Space on Hugging Face
-1. Open [huggingface.co/new-space](https://huggingface.co/new-space).
-2. Configure the Space:
-   - **Space name:** `brandmuse-api`
-   - **Space SDK:** **Docker** (Blank template)
-   - **Space Hardware:** **CPU basic • 2 vCPU • 16 GB • Free**
-   - **Visibility:** **Public**
-3. Click **Create Space**.
-
-### 4.2 Configure Secrets & Variables in Hugging Face Spaces
-In Space **Settings** -> **Variables and secrets**:
+### 4.2 Configure Environment Variables in Render
+In the service's **Environment** tab:
 
 **Secrets (Sensitive Credentials):**
 | Secret Key | Example Value | Notes |
@@ -208,7 +208,6 @@ In Space **Settings** -> **Variables and secrets**:
 **Variables (Runtime Config):**
 | Variable Key | Value | Notes |
 | :--- | :--- | :--- |
-| `PORT` | `7860` | Hugging Face Spaces native container port |
 | `ENVIRONMENT` | `production` | Production runtime flag |
 | `DB_POOLER_MODE` | `true` | Required for Neon serverless pooler |
 | `STORAGE_PROVIDER` | `r2` | Activates Cloudflare R2 storage provider |
@@ -218,14 +217,14 @@ In Space **Settings** -> **Variables and secrets**:
 | `DAILY_IMAGE_LIMIT` | `25` | Global daily limit for image generations |
 | `SESSION_IMAGE_HOURLY_LIMIT` | `5` | Per-session hourly generation cap |
 
-4. Push repository code to the Hugging Face Space repository or sync via GitHub Action.
-5. Wait 2 minutes for build to complete. The Space reports **Running**.
-6. Copy your backend service URL (example: `https://rflishrl-brandmuse-api.hf.space`).
+4. Click **Deploy Web Service**.
+5. Wait for the build to finish until status shows **Live**.
+6. Copy your backend service URL (example: `https://brandmuse-13ck.onrender.com`).
 
 ### 4.3 Verify Backend Health
 Test the health endpoint from terminal or browser:
 ```bash
-curl https://rflishrl-brandmuse-api.hf.space/api/health
+curl https://brandmuse-13ck.onrender.com/api/health
 ```
 Expected JSON response:
 ```json
@@ -256,7 +255,7 @@ Under **Environment variables (advanced)**, define:
 | Variable Name | Value | Purpose |
 | :--- | :--- | :--- |
 | `BUN_VERSION` | `1.4.4` | Enforces Bun runtime version 1.4.4 |
-| `VITE_API_URL` | `https://rflishrl-brandmuse-api.hf.space` | Hugging Face Spaces backend URL from Step 4.2 |
+| `VITE_API_URL` | `https://brandmuse-13ck.onrender.com` | Render Web Service backend URL |
 
 Click **Save and Deploy**. Cloudflare Pages completes TypeScript compilation and Vite build in approximately 30 seconds.
 
@@ -281,7 +280,7 @@ After Cloudflare Pages finishes deployment, obtain your assigned domain (for exa
 Execute the following PowerShell script to verify all services end-to-end:
 
 ```powershell
-$API_URL = "https://rflishrl-brandmuse-api.hf.space"
+$API_URL = "https://brandmuse-13ck.onrender.com"
 $SESSION_ID = [guid]::NewGuid().ToString()
 
 Write-Host "=== 1. Health Check ===" -ForegroundColor Cyan

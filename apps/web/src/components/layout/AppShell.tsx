@@ -539,7 +539,7 @@ export const AppShell: React.FC<AppShellProps> = ({
         className="flex-1 flex flex-col items-center px-4 md:px-8 py-6 md:py-10 overflow-y-auto min-h-screen relative"
       >
         <div className="w-full max-w-5xl flex flex-col gap-6 relative z-10">
-          {/* Server Spin-Up Notification for Hugging Face Spaces cold start */}
+          {/* Server Spin-Up Notification for Render cold start */}
           {brand.isServerWarmingUp && (
             <aside
               role="status"
@@ -558,21 +558,21 @@ export const AppShell: React.FC<AppShellProps> = ({
                 <div className="flex flex-col min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold text-foreground tracking-tight">
-                      Menghubungkan ke Hugging Face Spaces
+                      Menghubungkan ke Server Backend
                     </span>
                     <span className="hidden sm:inline-flex text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-foreground/5 dark:bg-white/[0.06] text-muted-foreground border border-border/60 dark:border-white/10">
                       Cloud Backend
                     </span>
                   </div>
                   <span className="text-[11px] text-muted-foreground leading-snug truncate">
-                    Kontainer backend sedang aktif kembali dari status cold start.
+                    Server backend sedang bangun dari standby (Render Free Tier).
                   </span>
                 </div>
               </div>
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-foreground/[0.04] dark:bg-white/[0.06] border border-border/60 dark:border-white/10 shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-[11px] font-mono text-muted-foreground whitespace-nowrap">
-                  ~10–15 dtk
+                  ~20–30 dtk
                 </span>
               </div>
             </aside>
@@ -593,7 +593,8 @@ export const AppShell: React.FC<AppShellProps> = ({
                     Server Backend Belum Terhubung
                   </span>
                   <span className="text-[11px] text-muted-foreground leading-snug truncate">
-                    Kontainer Hugging Face tidak merespons. Pastikan Space dalam keadaan Running.
+                    Server backend di Render belum merespons. Pastikan Web Service dalam keadaan
+                    Live.
                   </span>
                 </div>
               </div>

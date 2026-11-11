@@ -2,7 +2,7 @@
 
 Panduan lengkap migrasi dan deployment backend **BrandMuse** ke **Hugging Face Spaces** sebagai pengganti Render.
 
-- **Backend Container:** Hugging Face Spaces (**16 GB RAM**, **2 vCPU**, Docker SDK, Bebas Kartu Kredit)
+- **Backend Container:** Hugging Face Spaces (**16 GB RAM**, **2 vCPU**, Gradio SDK, Bebas Kartu Kredit)
 - **Database Serverless:** Neon.tech (PostgreSQL 16 + pgvector, US East `aws-us-east-1` matching HF Spaces)
 - **Object Storage:** Cloudflare R2 (S3-compatible, zero egress fees)
 - **Frontend SPA:** Cloudflare Pages (React 18 + Vite + Tailwind, Bun runtime)
@@ -16,8 +16,9 @@ Panduan lengkap migrasi dan deployment backend **BrandMuse** ke **Hugging Face S
 | **Alokasi RAM** | **512 MB** *(rawan OOM saat PDF parsing)* | **16 GB (16.384 MB)** *(32x lebih besar)* |
 | **Alokasi CPU** | 0.1 – 0.5 shared vCPU | **2 Dedicated vCPU** |
 | **Kartu Kredit** | Tidak wajib | **100% Gratis Tanpa Kartu Kredit** |
-| **Port Bawaan** | Dinamis (`$PORT`) | **`7860`** (Native Docker) |
-| **User Non-Root** | Root / User bebas | **UID 1000** (`appuser`) |
+| **Port Bawaan** | Dinamis (`$PORT`) | **`7860`** (Gradio / FastAPI) |
+| **SDK Pilihan** | - | **Gradio SDK** (100% Free, Secrets Aktif, Tanpa Kartu Kredit) |
+| **User Non-Root** | Root / User bebas | **UID 1000** (`user`) |
 | **Cold Start** | 30 – 50 detik | 10 – 20 detik (auto-warmed oleh frontend) |
 | **Batas Disk** | Ephemeral terbatas | **50 GB Disk** |
 
@@ -28,7 +29,7 @@ Panduan lengkap migrasi dan deployment backend **BrandMuse** ke **Hugging Face S
 ```mermaid
 flowchart TD
     User["Browser Pengguna"] -->|HTTPS CDN Edge| Pages["Cloudflare Pages (apps/web: React 18 / Bun)"]
-    Pages -->|REST / SSE Streaming + X-Session-Id| HF["Hugging Face Spaces (FastAPI Docker Port 7860, 16GB RAM)"]
+    Pages -->|REST / SSE Streaming + X-Session-Id| HF["Hugging Face Spaces (FastAPI on Gradio SDK Port 7860, 16GB RAM)"]
     HF -->|Pooled Connection / Port 5432 ssl=require| Neon["Neon.tech (PostgreSQL 16 + pgvector)"]
     HF -->|S3 API / boto3 put_object| R2["Cloudflare R2 Bucket (brandmuse-images)"]
     HF -->|Persistent HTTP Connection Pool| AI["Google Gemini 1.5 Flash / OpenAI"]
@@ -44,10 +45,15 @@ flowchart TD
 3. Isi parameter Space:
    - **Space name:** `brandmuse-api` (atau nama pilihan Anda).
    - **License:** `mit` (atau pilihan Anda).
-   - **Select the Space SDK:** Pilih **Docker** -> pilih template **Blank**.
-   - **Space Hardware:** Pilih **CPU basic • 2 vCPU • 16 GB • Free**.
+   - **Select the Space SDK:** Pilih **Gradio** *(bukan Docker yang meminta kartu kredit, dan bukan Static yang menonaktifkan Secrets)*.
+   - **Space Hardware:** Pilih **CPU basic • 2 vCPU • 16 GB • Free** (gratis tanpa kartu kredit!).
    - **Visibility:** Pilih **Public** (agar API dapat diakses oleh frontend Cloudflare Pages).
 4. Klik **Create Space**.
+
+> **Mengapa Memilih SDK Gradio?**
+> - **100% Gratis Tanpa Kartu Kredit:** Berbeda dengan Docker SDK yang mewajibkan verifikasi pembayaran/kartu kredit, Gradio SDK sepenuhnya gratis.
+> - **Secrets Aktif:** Berbeda dengan Static Spaces yang menonaktifkan Secrets (`Secrets are not available for static Spaces`), Gradio SDK mendukung Secrets dan Environment Variables secara penuh.
+> - **FastAPI Natively Supported:** Gradio berjalan di atas Starlette & FastAPI. File [`app.py`](file:///c:/Projects/brandmuse/app.py) di root me-mount backend FastAPI BrandMuse, sehingga semua rute (`/api/health`, `/api/ask`, `/docs`) berjalan normal di port bawaan `7860`.
 
 ---
 
