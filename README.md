@@ -11,8 +11,6 @@
 [![React](https://img.shields.io/badge/Frontend-React%2018%20%2B%20Vite-61DAFB?logo=react&logoColor=black)](https://react.dev)
 [![PostgreSQL](https://img.shields.io/badge/Database-Neon%20%2B%20pgvector-336791?logo=postgresql&logoColor=white)](https://neon.tech)
 [![AI Engine](https://img.shields.io/badge/AI%20Engine-Gemini%20%7C%20OpenAI%20%7C%20Ollama-8E75B2?logo=google-gemini&logoColor=white)](https://ai.google.dev)
-[![WCAG AA](https://img.shields.io/badge/Accessibility-WCAG%202.2%20AA%20(98%2F100)-green)](#web-quality--accessibility-audit)
-[![Anti-Slop](https://img.shields.io/badge/Anti--Slop-26%2F26%20Passing-brightgreen)](#anti-slop-audit-compliance)
 
 ---
 
@@ -112,20 +110,6 @@ flowchart TD
 
 ---
 
-## Tooling & Performance: Biome Migration
-
-The frontend tooling has been migrated from ESLint and Prettier to **Biome** (`@biomejs/biome` v2.6.6), yielding measurable performance gains:
-
-| Tooling Metric | ESLint + Prettier (Previous) | Biome 2.6 (Current) | Difference |
-| :--- | :--- | :--- | :--- |
-| **Lint + Format Execution** | ~4,200 ms | **34 ms** | **123x faster** |
-| **Package Dependencies** | 12+ plugins & configs | 1 standalone binary | Reduced supply-chain surface |
-| **Code Formatting** | Prettier CLI process | Built-in AST formatter | Unified check in single pass |
-| **CSS Compatibility** | Requires separate Stylelint | Native Tailwind CSS parsing | Direct `@apply` validation |
-| **CI Overhead** | High Node.js memory footprint | Instant check in Bun step | Faster build pipeline |
-
----
-
 ## Architectural Decisions: FastAPI Over Express.js
 
 | Architectural Vector | Express.js (Node.js) | FastAPI (Python 3.12 / uv) | BrandMuse Decision |
@@ -156,37 +140,6 @@ Evaluated using [`eval/quantization.py`](file:///C:/Projects/brandmuse/eval/quan
 | **Llama 3.2 3B Instruct** (`q4_K_M`) | **64.8 tok/s** | 178.5 ms | 1,980 MB | 90% | High throughput, low memory footprint; occasional paraphrasing in strict citations. |
 | **Llama 3.2 3B Instruct** (`q8_0`) | **41.2 tok/s** | 262.0 ms | 3,420 MB | **100%** | Zero degradation from FP16 baseline; exact reproduction of hex codes and page numbers. |
 | **Llama 3.2 1B Instruct** (`q4_K_M`) | **112.4 tok/s** | 92.0 ms | 850 MB | 80% | Ultra-low latency; struggles with multi-rule negative constraints. |
-
----
-
-## Web Quality & Accessibility Audit
-
-Audited against WCAG 2.2 AA and modern web standards:
-
-- **Lighthouse Accessibility Score:** **98 / 100**
-- **Color Contrast:** All body text meets or exceeds 4.5:1 against surfaces in both dark and light modes; UI icons meet 3:1.
-- **Keyboard Navigation:** Modal focus traps with `Escape` key dismissal; visible focus indicators (`focus-visible:ring-2 focus-visible:ring-ring`).
-- **Screen Reader Support:** Semantic landmarks (`<header>`, `<nav>`, `<main>`, `<aside>`), skip-to-content links, and `aria-live="polite"` regions for streaming tokens.
-- **Layout Stability:** Zero Cumulative Layout Shift (CLS < 0.05) through explicit container dimensions and skeleton placeholders.
-
----
-
-## Anti-Slop Audit Compliance
-
-BrandMuse enforces the Anti-Slop Audit Specification (26/26 audit checks resolved):
-
-1. **Direct Answering & Negative Prompt Constraints:**
-   - Prompts prohibit conversational filler (*"Certainly!"*, *"I'd be happy to assist"*, *"I hope this helps"*). Responses begin immediately with the cited finding.
-   - Campaign synthesis forbids generic marketing clichés (*"elevate"*, *"unlock"*, *"delve"*, *"seamless"*, *"revolutionary"*, *"tapestry"*).
-2. **Deterministic Grounding:**
-   - Missing information triggers an explicit out-of-scope notice rather than speculative completion.
-3. **Purpose-Driven UI:**
-   - Eliminates dead controls (no non-functional voice buttons or mock toggles).
-   - Removes artificial status beacons (no fake "online" user status on an anonymous app).
-   - Replaces generic sparkle icons (`<Sparkles>`) with context-appropriate symbols (`<Bookmark>`, `<SlidersHorizontal>`).
-4. **Codebase Hygiene:**
-   - Strict bounded polling on external tasks (45 attempts max, 90-second ceiling).
-   - Zero decorative banner comments or narrative noise in test suites.
 
 ---
 
