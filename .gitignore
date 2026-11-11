@@ -52,3 +52,6 @@ scratch/
 # Agent skills & workflows
 .agents/
 .agent/
+AGENTS.md
+anti-slop/
+

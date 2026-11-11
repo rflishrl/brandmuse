@@ -12,7 +12,7 @@
 [![PostgreSQL](https://img.shields.io/badge/Database-Neon%20%2B%20pgvector-336791?logo=postgresql&logoColor=white)](https://neon.tech)
 [![AI Engine](https://img.shields.io/badge/AI%20Engine-Gemini%20%7C%20OpenAI%20%7C%20Ollama-8E75B2?logo=google-gemini&logoColor=white)](https://ai.google.dev)
 [![WCAG AA](https://img.shields.io/badge/Accessibility-WCAG%202.2%20AA%20(98%2F100)-green)](#web-quality--accessibility-audit)
-[![Anti-Slop](https://img.shields.io/badge/Anti--Slop-26%2F26%20Passing-brightgreen)](anti-slop/audit-001-2026-11-08.md)
+[![Anti-Slop](https://img.shields.io/badge/Anti--Slop-26%2F26%20Passing-brightgreen)](#anti-slop-audit-compliance)
 
 ---
 
@@ -22,7 +22,7 @@
 * **Backend API Base:** [https://brandmuse-13ck.onrender.com](https://brandmuse-13ck.onrender.com) (Render Web Service)
 * **Interactive OpenAPI Documentation:** [https://brandmuse-13ck.onrender.com/docs](https://brandmuse-13ck.onrender.com/docs)
 * **API Health Check:** [https://brandmuse-13ck.onrender.com/api/health](https://brandmuse-13ck.onrender.com/api/health)
-* **Deployment Guides:** [Neon & Cloudflare R2 Guide](DEPLOYMENT_NEON_R2.md)
+* **Deployment Guides:** [Render Deployment Guide](DEPLOYMENT_RENDER.md) | [Neon & Cloudflare R2 Guide](DEPLOYMENT_NEON_R2.md)
 
 ---
 
@@ -173,7 +173,7 @@ Audited against WCAG 2.2 AA and modern web standards:
 
 ## Anti-Slop Audit Compliance
 
-BrandMuse enforces the [Anti-Slop Audit Specification](anti-slop/audit-001-2026-11-08.md) (26/26 audit checks resolved):
+BrandMuse enforces the Anti-Slop Audit Specification (26/26 audit checks resolved):
 
 1. **Direct Answering & Negative Prompt Constraints:**
    - Prompts prohibit conversational filler (*"Certainly!"*, *"I'd be happy to assist"*, *"I hope this helps"*). Responses begin immediately with the cited finding.
