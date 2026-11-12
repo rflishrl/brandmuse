@@ -32,7 +32,7 @@ Neon is a serverless PostgreSQL database with native `pgvector` support. Neon sc
 3. Configure the project:
    - **Project Name:** `brandmuse-db`
    - **Postgres version:** `16` (default stable release)
-   - **Region:** Pilih **US East (N. Virginia) - `aws-us-east-1`** agar berada di satu region dengan host server Hugging Face Spaces (latensi < 10ms vs ~250ms jika lintas benua).
+   - **Region:** Pilih **Asia Pacific (Singapore) - `aws-ap-southeast-1`** (atau sesuaikan dengan region Render Web Service Anda, misalnya Singapore, agar latensi database < 10ms vs ~250ms jika lintas benua).
 4. Atur **Auto-suspend timeout**:
    - Buka menu **Settings** -> **Compute** di dashboard project Neon.
    - Ubah `Auto-suspend delay` dari bawaan 5 menit menjadi **30 menit** atau **60 menit**. Hal ini mencegah database sering tidur (cold start) saat pengguna sedang aktif menggunakan BrandMuse.
@@ -52,13 +52,13 @@ When the project is ready, Neon displays the **Connection Details** modal:
      postgresql+asyncpg://neondb_owner:PASSWORD@ep-dry-lake-123456.ap-southeast-1.aws.neon.tech/neondb?ssl=require
      ```
 
-2. **Pooled Connection (Used by the production backend on Hugging Face Spaces):**
+2. **Pooled Connection (Used by the production backend on Render):**
    - Toggle **Connection pooling** to **ON**.
    - The host name now includes a `-pooler` suffix, for example:
-     `ep-dry-lake-123456-pooler.us-east-1.aws.neon.tech`
-   - Connection format for Hugging Face Spaces:
+     `ep-dry-lake-123456-pooler.ap-southeast-1.aws.neon.tech`
+   - Connection format for Render Web Service:
      ```text
-     postgresql+asyncpg://neondb_owner:PASSWORD@ep-dry-lake-123456-pooler.us-east-1.aws.neon.tech/neondb?ssl=require
+     postgresql+asyncpg://neondb_owner:PASSWORD@ep-dry-lake-123456-pooler.ap-southeast-1.aws.neon.tech/neondb?ssl=require
      ```
 
 ### 2.3 Run Database Schema Migrations from Local Machine
@@ -182,11 +182,24 @@ The FastAPI backend runs as a Web Service on **Render** (Python 3 / Docker, Free
 1. Open [dashboard.render.com](https://dashboard.render.com) and click **New +** -> **Web Service**.
 2. Connect your `brandmuse` GitHub repository.
 3. Configure the Web Service:
+
+   **Option A: Docker Runtime (Recommended, matches repository Dockerfile):**
    - **Name:** `brandmuse-api`
+   - **Region:** `Singapore` (matches Neon `ap-southeast-1` for lowest latency)
+   - **Branch:** `main`
+   - **Runtime:** `Docker`
+   - **Dockerfile Path:** `./Dockerfile`
+   - **Docker Context:** `.` (repository root)
+   - **Instance Type:** `Free` ($0/mo)
+
+   **Option B: Native Python 3 Runtime (Alternative with Astral `uv`):**
+   - **Name:** `brandmuse-api`
+   - **Region:** `Singapore`
+   - **Branch:** `main`
    - **Root Directory:** `apps/api`
    - **Runtime:** `Python 3`
-   - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   - **Build Command:** `pip install uv && uv sync --frozen --no-dev --no-install-project`
+   - **Start Command:** `uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
    - **Instance Type:** `Free` ($0/mo)
 
 ### 4.2 Configure Environment Variables in Render
@@ -195,7 +208,7 @@ In the service's **Environment** tab:
 **Secrets (Sensitive Credentials):**
 | Secret Key | Example Value | Notes |
 | :--- | :--- | :--- |
-| `DATABASE_URL` | `postgresql+asyncpg://neondb_owner:PASSWORD@ep-xxx-pooler.us-east-1.aws.neon.tech/neondb?ssl=require` | Pooled connection string from Neon |
+| `DATABASE_URL` | `postgresql+asyncpg://neondb_owner:PASSWORD@ep-dry-lake-123456-pooler.ap-southeast-1.aws.neon.tech/neondb?ssl=require` | Pooled connection string from Neon |
 | `R2_ACCOUNT_ID` | `abcdef1234567890abcdef1234567890` | Cloudflare Account ID |
 | `R2_ACCESS_KEY_ID` | `8f3a9b0c1d2e3f4a5b6c7d8e` | R2 Access Key ID from Step 3.4 |
 | `R2_SECRET_ACCESS_KEY` | `c7e2d1f0a9b8c7...` | R2 Secret Access Key from Step 3.4 |
@@ -265,13 +278,13 @@ Click **Save and Deploy**. Cloudflare Pages completes TypeScript compilation and
 
 After Cloudflare Pages finishes deployment, obtain your assigned domain (for example, `https://brandmuse.pages.dev`):
 
-1. Open Hugging Face Space -> select Space `brandmuse-api` -> **Settings** -> **Variables**.
+1. Open [dashboard.render.com](https://dashboard.render.com) -> select Web Service `brandmuse-api` -> **Environment**.
 2. Update the `CORS_ORIGIN` variable to match the exact frontend domain:
    ```text
    CORS_ORIGIN=https://brandmuse.pages.dev,http://localhost:5173
    ```
    *(Security note: Never use a wildcard `*` in production; the custom `X-Session-Id` header requires explicit origin specification)*.
-3. Hugging Face Space automatically restarts the container with the updated configuration.
+3. Render automatically redeploys the service with the updated configuration.
 
 ---
 
@@ -349,9 +362,9 @@ When Stage 8 returns an asset URL containing your `https://pub-xxx.r2.dev/...` d
 - **Fix:**
   1. Open Cloudflare Dashboard -> R2 -> bucket `brandmuse-images` -> **Settings**.
   2. Confirm that **R2.dev subdomain** status is **Allowed**.
-  3. Ensure `R2_PUBLIC_URL` in Hugging Face Space Secrets matches the subdomain exactly (example: `https://pub-xxxx.r2.dev`).
+  3. Ensure `R2_PUBLIC_URL` in Render Environment variables matches the subdomain exactly (example: `https://pub-xxxx.r2.dev`).
   4. Verify CORS configuration on the bucket as described in Step 3.5.
 
 ### Issue 4: Cross-Origin Resource Sharing (CORS) Blocks Frontend Requests
-- **Cause:** The `CORS_ORIGIN` variable in Hugging Face Space does not match your Cloudflare Pages domain.
-- **Fix:** In Hugging Face Space -> Settings -> Variables, add your exact frontend origin (for example, `https://brandmuse.pages.dev`, without a trailing forward slash).
+- **Cause:** The `CORS_ORIGIN` variable in Render Web Service does not match your Cloudflare Pages domain.
+- **Fix:** In Render Dashboard -> Web Service `brandmuse-api` -> **Environment**, add your exact frontend origin (for example, `https://brandmuse.pages.dev`, without a trailing forward slash).

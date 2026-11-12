@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
   AlertTriangle,
@@ -22,10 +23,12 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { useGenerateCampaign, useGenerateImage, useRefineConcept } from "@/api/generated";
 import type { Concept } from "@/api/model";
+import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useBrand } from "@/context/BrandContext";
+import { toast } from "@/components/ui/sonner";
+import { useBrandStore } from "@/store/useBrandStore";
 
 const CHANNELS = ["Instagram", "LinkedIn", "Outdoor / Billboard", "Pinterest", "Email Newsletter"];
 
@@ -45,7 +48,10 @@ interface GeneratedImageState {
 }
 
 export const CampaignPage: React.FC = () => {
-  const { selectedDocumentId, loadSampleBrand, isLoadingSample } = useBrand();
+  const queryClient = useQueryClient();
+  const selectedDocumentId = useBrandStore((s) => s.selectedDocumentId);
+  const loadSampleBrand = useBrandStore((s) => s.loadSampleBrand);
+  const isLoadingSample = useBrandStore((s) => s.isLoadingSample);
 
   const [product, setProduct] = useState("");
   const [audience, setAudience] = useState("");
@@ -66,6 +72,7 @@ export const CampaignPage: React.FC = () => {
   const [activeRefineIndex, setActiveRefineIndex] = useState<number | null>(null);
   const [refineInstruction, setRefineInstruction] = useState("");
   const [refiningIndex, setRefiningIndex] = useState<number | null>(null);
+  const [refineError, setRefineError] = useState<{ index: number; message: string } | null>(null);
   const [aspectRatios, setAspectRatios] = useState<Record<number, string>>({});
 
   const campaignMutation = useGenerateCampaign();
@@ -76,6 +83,7 @@ export const CampaignPage: React.FC = () => {
     if (!selectedDocumentId || !refineInstruction.trim()) return;
 
     setRefiningIndex(index);
+    setRefineError(null);
     try {
       const updatedConcept = await refineMutation.mutateAsync({
         data: {
@@ -101,7 +109,8 @@ export const CampaignPage: React.FC = () => {
       setActiveRefineIndex(null);
       setRefineInstruction("");
     } catch (err) {
-      console.error("Failed to refine concept:", err);
+      const msg = err instanceof Error ? err.message : "Failed to refine concept.";
+      setRefineError({ index, message: msg });
     } finally {
       setRefiningIndex(null);
     }
@@ -129,8 +138,8 @@ export const CampaignPage: React.FC = () => {
       setBrandRulesUsed(res.brand_rules_used || []);
       setTraceUrl(res.trace_url || null);
       setImageStates({});
-    } catch (err) {
-      console.error("Failed to generate campaign:", err);
+    } catch {
+      // Error handled via campaignMutation.isError and campaignMutation.error
     }
   };
 
@@ -167,20 +176,22 @@ export const CampaignPage: React.FC = () => {
         ...prev,
         [index]: { loading: false, url: res.url },
       }));
+      queryClient.invalidateQueries({ queryKey: queryKeys.gallery.all });
+      toast.success(`Gambar untuk konsep "${concept.title}" berhasil di-generate!`);
     } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error
-          ?.message || "Failed to generate image asset.";
+      const msg = err instanceof Error ? err.message : "Failed to generate image asset.";
       setImageStates((prev) => ({
         ...prev,
         [index]: { loading: false, error: msg },
       }));
+      toast.error(msg);
     }
   };
 
   const handleCopyPrompt = (promptText: string, index: number) => {
     navigator.clipboard.writeText(promptText);
     setCopiedPromptIndex(index);
+    toast.success("Prompt kampanye berhasil disalin!");
     setTimeout(() => setCopiedPromptIndex(null), 2000);
   };
 
@@ -207,7 +218,13 @@ export const CampaignPage: React.FC = () => {
           <Button
             variant="default"
             size="sm"
-            onClick={() => loadSampleBrand()}
+            onClick={() => {
+              toast.promise(loadSampleBrand(), {
+                loading: "Memuat sample brand...",
+                success: "Sample brand berhasil dimuat!",
+                error: "Gagal memuat sample brand",
+              });
+            }}
             disabled={isLoadingSample}
           >
             <Bookmark className="w-3.5 h-3.5 mr-1.5" />
@@ -347,10 +364,18 @@ export const CampaignPage: React.FC = () => {
           {campaignMutation.isError && (
             <div
               role="alert"
-              className="p-3 rounded-md bg-danger/10 border border-danger/20 text-xs text-danger flex items-center gap-2"
+              aria-live="assertive"
+              className="p-3.5 rounded-xl bg-danger/10 border border-danger/30 text-xs text-danger flex items-start gap-2.5"
             >
-              <AlertTriangle className="w-4 h-4 shrink-0" />
-              <span>Failed to generate campaign concepts. Daily quota may have been reached.</span>
+              <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+              <div className="flex-1 flex flex-col gap-0.5">
+                <span className="font-semibold text-danger">Campaign Generation Failed</span>
+                <span className="text-danger/90 leading-relaxed">
+                  {campaignMutation.error instanceof Error
+                    ? campaignMutation.error.message
+                    : "Failed to generate campaign concepts. Please try again."}
+                </span>
+              </div>
             </div>
           )}
         </form>
@@ -438,6 +463,16 @@ export const CampaignPage: React.FC = () => {
                             )}
                           </Button>
                         </div>
+                        {refineError?.index === index && (
+                          <div
+                            role="alert"
+                            aria-live="assertive"
+                            className="p-2 rounded-lg bg-danger/10 border border-danger/20 text-[11px] text-danger flex items-center gap-1.5"
+                          >
+                            <AlertTriangle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                            <span>{refineError.message}</span>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -731,3 +766,5 @@ export const CampaignPage: React.FC = () => {
     </div>
   );
 };
+
+export default CampaignPage;

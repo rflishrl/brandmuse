@@ -1,20 +1,32 @@
+import { lazy, Suspense } from "react";
 import { createBrowserRouter, Navigate, Outlet } from "react-router";
+import { BrandSync } from "@/components/BrandSync";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppShell } from "@/components/layout/AppShell";
-import { BrandProvider } from "@/context/BrandContext";
-import { AskPage } from "@/pages/AskPage";
-import { CampaignPage } from "@/pages/CampaignPage";
-import { DocumentsPage } from "@/pages/DocumentsPage";
-import { GalleryPage } from "@/pages/GalleryPage";
-import { HealthCheckPage } from "@/pages/HealthCheckPage";
-import { NotFoundPage } from "@/pages/NotFoundPage";
-import { OntologyPage } from "@/pages/OntologyPage";
+import { PageLoadingFallback } from "@/components/layout/PageLoadingFallback";
+import { Toaster } from "@/components/ui/sonner";
+
+// Code-split route components via React.lazy
+const AskPage = lazy(() => import("@/pages/AskPage"));
+const OntologyPage = lazy(() => import("@/pages/OntologyPage"));
+const CampaignPage = lazy(() => import("@/pages/CampaignPage"));
+const GalleryPage = lazy(() => import("@/pages/GalleryPage"));
+const DocumentsPage = lazy(() => import("@/pages/DocumentsPage"));
+const HealthCheckPage = lazy(() => import("@/pages/HealthCheckPage"));
+const NotFoundPage = lazy(() => import("@/pages/NotFoundPage"));
 
 const RootLayout = () => (
-  <BrandProvider>
+  <ErrorBoundary>
+    <BrandSync />
     <AppShell>
-      <Outlet />
+      <ErrorBoundary>
+        <Suspense fallback={<PageLoadingFallback />}>
+          <Outlet />
+        </Suspense>
+      </ErrorBoundary>
     </AppShell>
-  </BrandProvider>
+    <Toaster />
+  </ErrorBoundary>
 );
 
 export const router = createBrowserRouter([

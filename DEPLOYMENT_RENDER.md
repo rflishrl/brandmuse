@@ -30,13 +30,24 @@ flowchart TD
 2. Klik tombol **New +** -> pilih **Web Service**.
 3. Hubungkan repositori **`brandmuse`**.
 4. Isi parameter service:
-   - **Name:** `brandmuse-api` (atau nama unik pilihan Anda, menghasilkan domain `https://brandmuse-13ck.onrender.com`).
-   - **Region:** Singapore (`ap-southeast-1`) atau Oregon / Ohio.
+
+   **Pilihan A: Docker Runtime (Direkomendasikan, sesuai Dockerfile repositori):**
+   - **Name:** `brandmuse-api` (menghasilkan domain `https://brandmuse-13ck.onrender.com`).
+   - **Region:** Singapore (`ap-southeast-1`, selaras dengan region Neon).
+   - **Branch:** `main`
+   - **Runtime:** **Docker**
+   - **Dockerfile Path:** `./Dockerfile`
+   - **Docker Context:** `.` (root repositori)
+   - **Instance Type:** Pilih **Free** ($0/month, Tanpa Kartu Kredit).
+
+   **Pilihan B: Native Python 3 Runtime (Alternatif menggunakan Astral `uv`):**
+   - **Name:** `brandmuse-api`
+   - **Region:** Singapore (`ap-southeast-1`).
    - **Branch:** `main`
    - **Root Directory:** `apps/api`
    - **Runtime:** **Python 3**
-   - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   - **Build Command:** `pip install uv && uv sync --frozen --no-dev --no-install-project`
+   - **Start Command:** `uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
    - **Instance Type:** Pilih **Free** ($0/month, Tanpa Kartu Kredit).
 
 ---
@@ -49,7 +60,7 @@ Masuk ke menu service Anda di Render -> tab **Environment**, masukkan variabel b
 
 | Key | Contoh Nilai | Keterangan |
 | :--- | :--- | :--- |
-| `DATABASE_URL` | `postgresql+asyncpg://neondb_owner:***@ep-dry-lake-123456-pooler.us-east-1.aws.neon.tech/neondb?ssl=require` | URL Neon pooled connection |
+| `DATABASE_URL` | `postgresql+asyncpg://neondb_owner:***@ep-dry-lake-123456-pooler.ap-southeast-1.aws.neon.tech/neondb?ssl=require` | URL Neon pooled connection |
 | `GEMINI_API_KEY` | `AIzaSy...` | API Key Google Gemini (LLM & Embeddings) |
 | `OPENAI_API_KEY` | `sk-...` | API Key OpenAI (opsional jika menggunakan Gemini) |
 | `STABILITY_API_KEY` | `sk-...` | API Key Stability AI (opsional jika menggunakan mock) |

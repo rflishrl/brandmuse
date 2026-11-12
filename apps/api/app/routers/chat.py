@@ -40,6 +40,7 @@ async def chat_endpoint(
         document_id=chat_req.document_id,
         message=chat_req.message,
         history=chat_req.history,
+        mode=chat_req.mode,
         request=request,
     )
 

@@ -15,18 +15,17 @@ import { Link } from "react-router";
 import { useUploadDocument } from "@/api/generated";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useBrand } from "@/context/BrandContext";
+import { toast } from "@/components/ui/sonner";
 import { inspectPdfPreflight, type PdfPreflightResult } from "@/lib/pdfPreflight";
+import { useBrandStore } from "@/store/useBrandStore";
 
 export const DocumentsPage: React.FC = () => {
-  const {
-    documents,
-    selectedDocumentId,
-    setSelectedDocumentId,
-    loadSampleBrand,
-    isLoadingSample,
-    refetchDocuments,
-  } = useBrand();
+  const documents = useBrandStore((s) => s.documents);
+  const selectedDocumentId = useBrandStore((s) => s.selectedDocumentId);
+  const setSelectedDocumentId = useBrandStore((s) => s.setSelectedDocumentId);
+  const loadSampleBrand = useBrandStore((s) => s.loadSampleBrand);
+  const isLoadingSample = useBrandStore((s) => s.isLoadingSample);
+  const refetchDocuments = useBrandStore((s) => s.refetchDocuments);
 
   const [dragActive, setDragActive] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
@@ -42,7 +41,9 @@ export const DocumentsPage: React.FC = () => {
 
     // Initial filename check
     if (!file.name.toLowerCase().endsWith(".pdf")) {
-      setErrorMessage("Please upload a valid PDF document.");
+      const msg = "Please upload a valid PDF document.";
+      setErrorMessage(msg);
+      toast.error(msg);
       return;
     }
 
@@ -53,7 +54,9 @@ export const DocumentsPage: React.FC = () => {
 
       if (!preflight.isValid) {
         setUploadStatus(null);
-        setErrorMessage(preflight.errorReason || "Document failed pre-flight inspection.");
+        const err = preflight.errorReason || "Document failed pre-flight inspection.";
+        setErrorMessage(err);
+        toast.error(err);
         return;
       }
 
@@ -73,14 +76,24 @@ export const DocumentsPage: React.FC = () => {
         setSelectedDocumentId(result.document.id);
       }
       setUploadStatus(null);
+      toast.success(`Dokumen "${file.name}" berhasil diunggah dan diekstrak!`);
     } catch (err: unknown) {
       setUploadStatus(null);
-      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response
-        ?.data?.error?.message;
-      setErrorMessage(
-        msg || "Failed to process and index PDF. Please verify it is a valid PDF under 40 pages."
-      );
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "Failed to process and index PDF. Please verify it is a valid PDF under 40 pages.";
+      setErrorMessage(msg);
+      toast.error(msg);
     }
+  };
+
+  const handleLoadSample = async () => {
+    toast.promise(loadSampleBrand(), {
+      loading: "Memuat sample brand...",
+      success: "Sample brand berhasil dimuat!",
+      error: "Gagal memuat sample brand",
+    });
   };
 
   const handleDrag = (e: React.DragEvent) => {
@@ -122,7 +135,7 @@ export const DocumentsPage: React.FC = () => {
 
         <Button
           variant="outline"
-          onClick={() => loadSampleBrand()}
+          onClick={handleLoadSample}
           disabled={isLoadingSample}
           className="shrink-0"
         >
@@ -194,10 +207,22 @@ export const DocumentsPage: React.FC = () => {
         {errorMessage && (
           <div
             role="alert"
-            className="mt-4 p-3 rounded-md bg-danger/10 border border-danger/20 flex items-center gap-2 text-xs text-danger"
+            aria-live="assertive"
+            className="mt-4 p-3.5 rounded-xl bg-danger/10 border border-danger/30 flex items-start gap-3 text-xs text-danger max-w-md text-left"
           >
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            <span>{errorMessage}</span>
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+            <div className="flex-1 flex flex-col gap-0.5">
+              <span className="font-semibold text-danger">Upload Failed</span>
+              <span className="text-danger/90 leading-relaxed">{errorMessage}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setErrorMessage(null)}
+              className="p-1 rounded-md text-danger/70 hover:text-danger hover:bg-danger/10 transition-colors"
+              aria-label="Dismiss error notice"
+            >
+              ✕
+            </button>
           </div>
         )}
       </section>
@@ -298,3 +323,5 @@ export const DocumentsPage: React.FC = () => {
     </div>
   );
 };
+
+export default DocumentsPage;

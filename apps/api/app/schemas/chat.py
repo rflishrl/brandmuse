@@ -26,6 +26,10 @@ class ChatRequest(BaseModel):
         description="Recent conversation turns (max 10)",
         max_length=10,
     )
+    mode: Literal["auto", "strict", "creative"] = Field(
+        default="auto",
+        description="Execution mode: auto (balanced), strict (rules only), creative (exploratory)",
+    )
 
 
 class CitationItem(BaseModel):

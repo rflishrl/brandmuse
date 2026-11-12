@@ -73,10 +73,21 @@
     opacity: 0.6;
   }
 
-  /* Accessible focus indicators per Antislop R-32 */
-  :focus-visible {
+  /* Accessible focus indicators per Antislop R-32 & modern-web-guidance natural-interactions */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
+  }
+
+  /* Natural press micro-interaction */
+  button:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button:active:not(:disabled) {
+    transform: none;
   }
 }
 

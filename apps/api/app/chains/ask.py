@@ -37,6 +37,7 @@ async def stream_ask_chain(
     message: str,
     history: list[ChatMessage],
     request: Request,
+    mode: str = "auto",
 ) -> AsyncGenerator[str, None]:
     """Execute hybrid RAG retrieval and stream grounded answers via Server-Sent Events."""
     # 1. Verify document access (using in-memory read-through cache)
@@ -85,7 +86,23 @@ async def stream_ask_chain(
     ontology_data = await get_cached_brand_ontology(db, document_id)
     ontology_context = f"\n\n{format_ontology_context(ontology_data)}" if ontology_data else ""
 
-    system_prompt = f"{SYSTEM_INSTRUCTION}{ontology_context}\n\n{context_text}"
+    # Adjust instructions and temperature according to execution mode
+    temperature = 0.2
+    mode_directive = ""
+    if mode == "strict":
+        temperature = 0.0
+        mode_directive = (
+            "\n\nExecution Mode STRICT: Cite page numbers for every single statement. "
+            "Do not infer, generalize, or brainstorm beyond the exact guideline text."
+        )
+    elif mode == "creative":
+        temperature = 0.5
+        mode_directive = (
+            "\n\nExecution Mode CREATIVE: Provide inspiring brand applications and brainstorms "
+            "while remaining strictly truthful to tone and color boundaries."
+        )
+
+    system_prompt = f"{SYSTEM_INSTRUCTION}{mode_directive}{ontology_context}\n\n{context_text}"
 
     messages: list[SystemMessage | HumanMessage | AIMessage] = [
         SystemMessage(content=system_prompt)
@@ -109,7 +126,7 @@ async def stream_ask_chain(
     config: RunnableConfig = {"callbacks": [handler]} if handler else {}
 
     # 5. Stream LLM tokens with SSE events
-    llm = get_llm(streaming=True)
+    llm = get_llm(streaming=True, temperature=temperature)
 
     try:
         async for chunk in llm.astream(messages, config=config):

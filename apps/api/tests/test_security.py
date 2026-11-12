@@ -3,12 +3,21 @@ import uuid
 import pytest
 from fastapi import Depends, FastAPI
 from httpx import ASGITransport, AsyncClient
+from slowapi.errors import RateLimitExceeded
 
 from app.core.errors import register_exception_handlers
 from app.core.security import get_session_id
 
 _test_app = FastAPI()
 register_exception_handlers(_test_app)
+
+
+@_test_app.get("/test-rate-limited")
+def rate_limited_endpoint() -> dict[str, str]:
+    exc = RateLimitExceeded.__new__(RateLimitExceeded)
+    exc.status_code = 429
+    exc.detail = "10 per minute"
+    raise exc
 
 
 @_test_app.get("/test-protected")
@@ -44,3 +53,15 @@ async def test_session_id_valid_passes() -> None:
         response = await client.get("/test-protected", headers={"X-Session-Id": valid_id})
         assert response.status_code == 200
         assert response.json()["session_id"] == valid_id
+
+
+@pytest.mark.asyncio
+async def test_rate_limit_exceeded_returns_uniform_error_envelope() -> None:
+    transport = ASGITransport(app=_test_app)
+    async with AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get("/test-rate-limited")
+        assert response.status_code == 429
+        data = response.json()
+        assert "error" in data
+        assert data["error"]["code"] == "RATE_LIMITED"
+        assert "Rate limit exceeded" in data["error"]["message"]

@@ -3,6 +3,7 @@ from typing import Any
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 
@@ -37,13 +38,29 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def validation_error_handler(
         _request: Request, exc: RequestValidationError
     ) -> JSONResponse:
-        # Simplify validation error to the first error message
         errors = exc.errors()
         message = errors[0]["msg"] if errors else "Invalid request parameters"
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             content={"error": {"code": "VALIDATION_ERROR", "message": message}},
         )
+
+    @app.exception_handler(RateLimitExceeded)
+    async def rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+        response = JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content={
+                "error": {
+                    "code": "RATE_LIMITED",
+                    "message": f"Rate limit exceeded: {exc.detail}",
+                }
+            },
+        )
+        if hasattr(request.app.state, "limiter"):
+            response = request.app.state.limiter._inject_headers(
+                response, getattr(request.state, "view_rate_limit", None)
+            )
+        return response
 
     @app.exception_handler(StarletteHTTPException)
     async def http_exception_handler(

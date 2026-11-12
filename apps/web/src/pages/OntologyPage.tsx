@@ -1,6 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
 import {
-  AlertCircle,
   Bookmark,
   Check,
   CheckCircle2,
@@ -23,7 +22,6 @@ import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import {
-  getGetOntologyApiDocumentsDocumentIdOntologyGetQueryKey,
   useCertifyOntologyApiDocumentsDocumentIdOntologyCertifyPost,
   useExtractOntologyApiDocumentsDocumentIdOntologyExtractPost,
   useGetOntologyApiDocumentsDocumentIdOntologyGet,
@@ -32,10 +30,12 @@ import type { BrandRuleItem } from "@/api/model/brandRuleItem";
 import type { ChannelRule } from "@/api/model/channelRule";
 import type { ColorToken } from "@/api/model/colorToken";
 import type { TypographyToken } from "@/api/model/typographyToken";
+import { queryKeys } from "@/api/queryKeys";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useBrand } from "@/context/BrandContext";
+import { toast } from "@/components/ui/sonner";
+import { useBrandStore } from "@/store/useBrandStore";
 
 type ActiveTab = "overview" | "colors" | "typography" | "rules" | "channels";
 type RuleTypeFilter = "all" | "do" | "dont" | "guideline";
@@ -49,14 +49,12 @@ type RuleCategoryFilter =
   | "channel_restriction";
 
 export const OntologyPage: React.FC = () => {
-  const {
-    selectedDocumentId,
-    selectedDocument,
-    documents,
-    setSelectedDocumentId,
-    loadSampleBrand,
-    isLoadingSample,
-  } = useBrand();
+  const selectedDocumentId = useBrandStore((s) => s.selectedDocumentId);
+  const selectedDocument = useBrandStore((s) => s.selectedDocument);
+  const documents = useBrandStore((s) => s.documents);
+  const setSelectedDocumentId = useBrandStore((s) => s.setSelectedDocumentId);
+  const loadSampleBrand = useBrandStore((s) => s.loadSampleBrand);
+  const isLoadingSample = useBrandStore((s) => s.isLoadingSample);
 
   const queryClient = useQueryClient();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -67,10 +65,6 @@ export const OntologyPage: React.FC = () => {
   const [copiedHex, setCopiedHex] = useState<string | null>(null);
   const [certifierName, setCertifierName] = useState("Brand Director");
   const [certifyAcknowledged, setCertifyAcknowledged] = useState(true);
-  const [statusNotification, setStatusNotification] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
 
   // Fetch ontology for selected document
   const {
@@ -102,31 +96,26 @@ export const OntologyPage: React.FC = () => {
     try {
       await navigator.clipboard.writeText(hex);
       setCopiedHex(hex);
+      toast.success(`Hex code ${hex} disalin ke clipboard`);
     } catch {
       // Fallback
       setCopiedHex(hex);
+      toast.success(`Hex code ${hex} disalin ke clipboard`);
     }
   };
 
   // Trigger AI Ontology Extraction
   const handleExtract = async () => {
     if (!selectedDocumentId) return;
-    setStatusNotification(null);
     try {
       await extractMutation.mutateAsync({ documentId: selectedDocumentId });
       await queryClient.invalidateQueries({
-        queryKey: getGetOntologyApiDocumentsDocumentIdOntologyGetQueryKey(selectedDocumentId),
+        queryKey: queryKeys.documents.ontology(selectedDocumentId),
       });
-      setStatusNotification({
-        type: "success",
-        message: "Brand ontology extracted successfully from guideline document!",
-      });
+      toast.success("Brand ontology extracted successfully from guideline document!");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to extract ontology.";
-      setStatusNotification({
-        type: "error",
-        message: msg,
-      });
+      toast.error(msg);
     }
   };
 
@@ -156,20 +145,15 @@ export const OntologyPage: React.FC = () => {
         },
       });
       await queryClient.invalidateQueries({
-        queryKey: getGetOntologyApiDocumentsDocumentIdOntologyGetQueryKey(selectedDocumentId),
+        queryKey: queryKeys.documents.ontology(selectedDocumentId),
       });
       closeCertifyModal();
-      setStatusNotification({
-        type: "success",
-        message:
-          "Brand rules certified successfully! Rules are now strictly enforced in Ask & Campaign generation.",
-      });
+      toast.success(
+        "Brand rules certified successfully! Rules are now strictly enforced in Ask & Campaign generation."
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to certify ontology.";
-      setStatusNotification({
-        type: "error",
-        message: msg,
-      });
+      toast.error(msg);
     }
   };
 
@@ -264,10 +248,7 @@ export const OntologyPage: React.FC = () => {
     anchor.click();
     URL.revokeObjectURL(url);
 
-    setStatusNotification({
-      type: "success",
-      message: `Exported W3C Design Tokens JSON (${filename}) for Figma and Style Dictionary.`,
-    });
+    toast.success(`Exported W3C Design Tokens JSON (${filename}) for Figma and Style Dictionary.`);
   };
 
   return (
@@ -275,7 +256,6 @@ export const OntologyPage: React.FC = () => {
       {/* Hidden Live Region for Screen Readers */}
       <div role="status" aria-live="polite" className="sr-only">
         {copiedHex ? `Hex code ${copiedHex} copied to clipboard` : ""}
-        {statusNotification ? statusNotification.message : ""}
       </div>
 
       {/* Page Header */}
@@ -316,36 +296,6 @@ export const OntologyPage: React.FC = () => {
           </select>
         </div>
       </div>
-
-      {/* Global Status Notification Banner */}
-      {statusNotification && (
-        <div
-          role="status"
-          aria-atomic="true"
-          className={`p-4 rounded-xl border flex items-start justify-between gap-3 animate-in fade-in duration-150 ${
-            statusNotification.type === "success"
-              ? "bg-emerald-50 border-emerald-200 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-800 dark:text-emerald-200"
-              : "bg-rose-50 border-rose-200 text-rose-900 dark:bg-rose-950/40 dark:border-rose-800 dark:text-rose-200"
-          }`}
-        >
-          <div className="flex items-center gap-2.5">
-            {statusNotification.type === "success" ? (
-              <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            ) : (
-              <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
-            )}
-            <p className="text-xs sm:text-sm font-medium">{statusNotification.message}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setStatusNotification(null)}
-            className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10"
-            aria-label="Dismiss notification"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-      )}
 
       {/* Case 1: No Document Selected */}
       {!selectedDocumentId && (
@@ -1202,3 +1152,5 @@ export const OntologyPage: React.FC = () => {
     </div>
   );
 };
+
+export default OntologyPage;

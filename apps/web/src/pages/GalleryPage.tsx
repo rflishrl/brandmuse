@@ -1,6 +1,8 @@
 import {
   AlertTriangle,
   Calendar,
+  Check,
+  Copy,
   Download,
   ExternalLink,
   Image as ImageIcon,
@@ -9,28 +11,130 @@ import {
   X,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useGetGallery } from "@/api/generated";
 import type { GenerationItem } from "@/api/model";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/components/ui/sonner";
+
+interface GalleryCardProps {
+  gen: GenerationItem;
+  idx: number;
+  onSelect: (gen: GenerationItem) => void;
+}
+
+const GalleryCard: React.FC<GalleryCardProps> = ({ gen, idx, onSelect }) => {
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  const formattedDate = new Date(gen.created_at).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onSelect(gen)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onSelect(gen);
+        }
+      }}
+      className="group relative rounded-card overflow-hidden bg-surface border border-border shadow-xs hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground transition-all cursor-pointer flex flex-col"
+    >
+      <div className="aspect-square w-full relative overflow-hidden bg-surface-user">
+        {!imageLoaded && !imageError && (
+          <Skeleton className="absolute inset-0 w-full h-full rounded-none" />
+        )}
+
+        {imageError ? (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-surface-user text-muted-foreground gap-2">
+            <ImageIcon className="w-8 h-8 opacity-40" aria-hidden="true" />
+            <span className="text-xs">Gambar tidak dapat dimuat</span>
+          </div>
+        ) : (
+          <img
+            src={gen.image_url}
+            alt={gen.concept_title}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageError(true)}
+            className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-300 ${
+              imageLoaded ? "opacity-100" : "opacity-0"
+            }`}
+            loading={idx === 0 ? undefined : "lazy"}
+            fetchPriority={idx === 0 ? "high" : undefined}
+            decoding="async"
+          />
+        )}
+      </div>
+
+      <div className="p-4 flex flex-col gap-1">
+        <h4 className="font-semibold text-sm text-foreground truncate group-hover:text-foreground/90 transition-colors">
+          {gen.concept_title}
+        </h4>
+        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1">
+            <Calendar className="w-3 h-3" />
+            {formattedDate}
+          </span>
+          <span className="capitalize font-mono text-[10px] px-1.5 py-0.5 rounded bg-surface-user border border-border/60">
+            {gen.provider}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const GalleryPage: React.FC = () => {
   const { data, isLoading, isError, error, refetch } = useGetGallery();
   const generations = data?.generations || [];
 
   const [activeLightboxItem, setActiveLightboxItem] = useState<GenerationItem | null>(null);
+  const [copiedUrl, setCopiedUrl] = useState(false);
+  const dialogRef = useRef<HTMLDialogElement>(null);
 
-  // Close lightbox on Escape
+  const handleCopyUrl = (url: string) => {
+    navigator.clipboard.writeText(url);
+    setCopiedUrl(true);
+    toast.success("URL gambar berhasil disalin ke clipboard!");
+    setTimeout(() => setCopiedUrl(false), 2000);
+  };
+
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && activeLightboxItem) {
-        setActiveLightboxItem(null);
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    if (activeLightboxItem) {
+      if (!dialog.open) {
+        dialog.showModal();
       }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    } else {
+      if (dialog.open) {
+        dialog.close();
+      }
+    }
   }, [activeLightboxItem]);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+
+    const handleCancel = (e: Event) => {
+      e.preventDefault();
+      setActiveLightboxItem(null);
+    };
+
+    dialog.addEventListener("cancel", handleCancel);
+    return () => dialog.removeEventListener("cancel", handleCancel);
+  }, []);
 
   return (
     <div className="w-full flex flex-col gap-8 animate-in fade-in duration-200">
@@ -96,73 +200,30 @@ export const GalleryPage: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {generations.map((gen, idx) => {
-            const formattedDate = new Date(gen.created_at).toLocaleDateString(undefined, {
-              month: "short",
-              day: "numeric",
-              hour: "2-digit",
-              minute: "2-digit",
-            });
-
-            return (
-              <div
-                key={gen.id}
-                role="button"
-                tabIndex={0}
-                onClick={() => setActiveLightboxItem(gen)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    setActiveLightboxItem(gen);
-                  }
-                }}
-                className="group relative rounded-card overflow-hidden bg-surface border border-border shadow-xs hover:border-foreground/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground transition-all cursor-pointer flex flex-col"
-              >
-                <div className="aspect-square w-full overflow-hidden bg-surface-user">
-                  <img
-                    src={gen.image_url}
-                    alt={gen.concept_title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    loading={idx === 0 ? undefined : "lazy"}
-                    fetchPriority={idx === 0 ? "high" : undefined}
-                    decoding="async"
-                  />
-                </div>
-
-                <div className="p-4 flex flex-col gap-1">
-                  <h4 className="font-semibold text-sm text-foreground truncate group-hover:text-white transition-colors">
-                    {gen.concept_title}
-                  </h4>
-                  <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {formattedDate}
-                    </span>
-                    <span className="capitalize">{gen.provider}</span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {generations.map((gen, idx) => (
+            <GalleryCard
+              key={gen.id}
+              gen={gen}
+              idx={idx}
+              onSelect={(item) => setActiveLightboxItem(item)}
+            />
+          ))}
         </div>
       )}
 
-      {/* Accessible Lightbox Modal */}
+      {/* Accessible Native Lightbox Modal Dialog */}
       {activeLightboxItem && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-8"
-          role="dialog"
-          aria-modal="true"
+        <dialog
+          ref={dialogRef}
           aria-labelledby="lightbox-title"
+          className="p-0 rounded-2xl bg-surface/95 dark:bg-[#141418]/95 backdrop-blur-2xl text-foreground border border-border dark:border-white/15 shadow-2xl max-w-4xl w-[calc(100vw-2rem)] max-h-[90vh] mx-auto my-auto backdrop:bg-black/80 backdrop:backdrop-blur-sm overflow-hidden animate-in zoom-in-95 duration-200"
+          onClick={(e) => {
+            if (e.target === dialogRef.current) {
+              setActiveLightboxItem(null);
+            }
+          }}
         >
-          {/* Backdrop with overscroll containment */}
-          <div
-            className="fixed inset-0 bg-black/75 backdrop-blur-sm transition-opacity overflow-hidden [overscroll-behavior:contain]"
-            onClick={() => setActiveLightboxItem(null)}
-            aria-hidden="true"
-          />
-
-          <div className="relative z-10 w-full max-w-4xl max-h-[90vh] bg-surface/95 dark:bg-[#141418]/95 backdrop-blur-2xl rounded-card border border-border dark:border-white/15 shadow-2xl flex flex-col md:flex-row overflow-hidden [overscroll-behavior:contain] animate-in zoom-in-95 duration-200">
+          <div className="flex flex-col md:flex-row h-full max-h-[90vh]">
             {/* Image container */}
             <div className="flex-1 bg-black flex items-center justify-center min-h-[300px] max-h-[60vh] md:max-h-full">
               <img
@@ -187,7 +248,7 @@ export const GalleryPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => setActiveLightboxItem(null)}
-                    className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-user transition-colors"
+                    className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-user transition-colors cursor-pointer"
                     aria-label="Close image lightbox"
                   >
                     <X className="w-5 h-5" />
@@ -219,6 +280,26 @@ export const GalleryPage: React.FC = () => {
                     Download PNG
                   </a>
                 </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleCopyUrl(activeLightboxItem.image_url)}
+                  className="w-full gap-2 text-xs"
+                >
+                  {copiedUrl ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-success-icon" />
+                      <span>URL Disalin!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Salin URL Gambar (R2)</span>
+                    </>
+                  )}
+                </Button>
+
                 <a
                   href={activeLightboxItem.image_url}
                   target="_blank"
@@ -226,13 +307,15 @@ export const GalleryPage: React.FC = () => {
                   className="text-center text-xs text-foreground hover:underline flex items-center justify-center gap-1 py-1"
                 >
                   <span>Open raw image URL</span>
-                  <ExternalLink className="w-3 h-3" />
+                  <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               </div>
             </div>
           </div>
-        </div>
+        </dialog>
       )}
     </div>
   );
 };
+
+export default GalleryPage;

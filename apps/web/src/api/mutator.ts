@@ -10,10 +10,13 @@ export interface MutatorConfig {
 }
 
 export interface ApiErrorPayload {
-  error: {
-    code: string;
-    message: string;
-  };
+  error?:
+    | {
+        code?: string;
+        message?: string;
+      }
+    | string;
+  detail?: string;
 }
 
 export class CustomApiError extends Error {
@@ -95,9 +98,17 @@ export const customInstance = async <T>(
 
     try {
       const errJson = (await response.json()) as ApiErrorPayload;
+
       if (errJson?.error) {
-        errorCode = errJson.error.code;
-        errorMessage = errJson.error.message;
+        if (typeof errJson.error === "object" && errJson.error.message) {
+          errorCode = errJson.error.code || errorCode;
+          errorMessage = errJson.error.message;
+        } else if (typeof errJson.error === "string") {
+          errorMessage = errJson.error;
+          errorCode = response.status === 429 ? "RATE_LIMITED" : errorCode;
+        }
+      } else if (typeof errJson?.detail === "string") {
+        errorMessage = errJson.detail;
       }
     } catch {
       // Non-JSON error fallback

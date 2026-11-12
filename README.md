@@ -5,7 +5,7 @@
 [![Live Web](https://img.shields.io/badge/Demo-brandmuse.pages.dev-0051C3?logo=cloudflare-pages&logoColor=white)](https://brandmuse.pages.dev)
 [![API Status](https://img.shields.io/badge/API-Render%20Web%20Service-46E3B7?logo=render&logoColor=white)](https://brandmuse-13ck.onrender.com/api/health)
 [![FastAPI](https://img.shields.io/badge/Backend-FastAPI%200.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![Bun](https://img.shields.io/badge/Runtime-Bun%201.2-fbf0df?logo=bun&logoColor=black)](https://bun.sh)
+[![Bun](https://img.shields.io/badge/Runtime-Bun%201.4-fbf0df?logo=bun&logoColor=black)](https://bun.sh)
 [![Biome](https://img.shields.io/badge/Linter%20%26%20Formatter-Biome%202.6-60a5fa?logo=biome&logoColor=white)](https://biomejs.dev)
 [![React](https://img.shields.io/badge/Frontend-React%2018%20%2B%20Vite-61DAFB?logo=react&logoColor=black)](https://react.dev)
 [![PostgreSQL](https://img.shields.io/badge/Database-Neon%20%2B%20pgvector-336791?logo=postgresql&logoColor=white)](https://neon.tech)
@@ -161,7 +161,7 @@ Evaluated using [`eval/quantization.py`](file:///C:/Projects/brandmuse/eval/quan
 | **Backend API** | FastAPI 0.115, Python 3.12 | Managed with Astral `uv`, Pydantic v2 schemas, SQLAlchemy 2.0 async, Alembic migrations |
 | **Database & Search** | PostgreSQL 16 (Neon Serverless) | `pgvector` HNSW index (cosine distance), GIN full-text index (`tsvector`), Reciprocal Rank Fusion ($k=60$) |
 | **Frontend Web** | React 18, TypeScript, Vite | Tailwind CSS, Radix UI primitives, TanStack Query v5, Orval OpenAPI generator |
-| **Frontend Tooling** | Biome 2.6, Bun 1.2 | Fast linter, formatter, and import organizer; zero ESLint/Prettier configuration drift |
+| **Frontend Tooling** | Biome 2.6, Bun 1.4 | Fast linter, formatter, and import organizer; zero ESLint/Prettier configuration drift |
 | **AI Providers** | Multi-Provider Engine | Google Gemini 1.5 Flash (free tier), OpenAI gpt-4o-mini, local Ollama Llama-3.2 |
 | **Image Synthesis** | Canvas Mock + Cloud Providers | Deterministic SVG/Canvas mock engine (offline/free), Stability AI SDXL, Replicate |
 | **Observability** | Langfuse SDK v5 | Optional latency, token usage, and retrieval scoring traces with user content redaction |
@@ -173,7 +173,7 @@ Evaluated using [`eval/quantization.py`](file:///C:/Projects/brandmuse/eval/quan
 
 ### Prerequisites
 - [Astral uv](https://github.com/astral-sh/uv) (v0.5+)
-- [Bun](https://bun.sh) (v1.2+)
+- [Bun](https://bun.sh) (v1.4+)
 - Google Gemini API Key (or OpenAI API Key)
 
 ### 1. Backend Setup

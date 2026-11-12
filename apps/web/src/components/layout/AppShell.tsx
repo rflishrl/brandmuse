@@ -3,6 +3,7 @@ import {
   Bookmark,
   FileText,
   Image as ImageIcon,
+  Keyboard,
   Laptop,
   Loader2,
   Megaphone,
@@ -19,10 +20,12 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
-import { Link, useLocation } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { BrandMuseOrb } from "@/components/BrandMuseOrb";
+import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 import { Button } from "@/components/ui/button";
-import { useBrand } from "@/context/BrandContext";
+import { toast } from "@/components/ui/sonner";
+import { useBrandStore } from "@/store/useBrandStore";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -37,13 +40,30 @@ export const AppShell: React.FC<AppShellProps> = ({
   currentDocumentName,
   onUseSampleBrand,
 }) => {
-  const brand = useBrand();
+  const selectedDocumentFilename = useBrandStore((s) => s.selectedDocument?.filename);
+  const loadSampleBrand = useBrandStore((s) => s.loadSampleBrand);
+  const isServerWarmingUp = useBrandStore((s) => s.isServerWarmingUp);
+  const isServerOffline = useBrandStore((s) => s.isServerOffline);
+  const refetchDocuments = useBrandStore((s) => s.refetchDocuments);
+
   const effectiveDocumentName =
-    currentDocumentName || brand.selectedDocument?.filename || "No brand loaded";
-  const handleUseSample = onUseSampleBrand || brand.loadSampleBrand;
+    currentDocumentName || selectedDocumentFilename || "No brand loaded";
+  const handleUseSample = () => {
+    if (onUseSampleBrand) {
+      onUseSampleBrand();
+      return;
+    }
+    toast.promise(loadSampleBrand(), {
+      loading: "Memuat sample brand...",
+      success: "Sample brand berhasil dimuat!",
+      error: "Gagal memuat sample brand",
+    });
+  };
 
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showShortcutsDialog, setShowShortcutsDialog] = useState(false);
 
   // Desktop sidebar expand / collapse state
   const [isExpanded, setIsExpanded] = useState<boolean>(() => {
@@ -77,17 +97,70 @@ export const AppShell: React.FC<AppShellProps> = ({
     });
   }, []);
 
-  // Keyboard shortcut: Cmd+B / Ctrl+B to toggle sidebar
+  // Keyboard shortcuts: Cmd+B (Sidebar), Cmd+K (Focus Prompt), Cmd+/ (Shortcuts Help), Cmd+1..5 (Tabs)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
+      const isCmdOrCtrl = e.metaKey || e.ctrlKey;
+
+      // Cmd/Ctrl + B: Toggle sidebar
+      if (isCmdOrCtrl && e.key.toLowerCase() === "b") {
         e.preventDefault();
         toggleSidebar();
+        return;
+      }
+
+      // Cmd/Ctrl + /: Toggle shortcuts dialog
+      if (isCmdOrCtrl && e.key === "/") {
+        e.preventDefault();
+        setShowShortcutsDialog((prev) => !prev);
+        return;
+      }
+
+      // Cmd/Ctrl + K: Quick jump to Ask and focus prompt
+      if (isCmdOrCtrl && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        if (location.pathname !== "/ask") {
+          navigate("/ask");
+        }
+        setTimeout(() => {
+          const textarea = document.querySelector<HTMLTextAreaElement>("textarea");
+          textarea?.focus();
+        }, 120);
+        return;
+      }
+
+      // Cmd/Ctrl + 1..5: Quick tab navigation
+      if (isCmdOrCtrl && !e.shiftKey && !e.altKey) {
+        if (e.key === "1") {
+          e.preventDefault();
+          navigate("/ask");
+        } else if (e.key === "2") {
+          e.preventDefault();
+          navigate("/rules");
+        } else if (e.key === "3") {
+          e.preventDefault();
+          navigate("/campaign");
+        } else if (e.key === "4") {
+          e.preventDefault();
+          navigate("/gallery");
+        } else if (e.key === "5") {
+          e.preventDefault();
+          navigate("/documents");
+        }
+      }
+
+      // Escape: Close mobile drawer or shortcuts modal
+      if (e.key === "Escape") {
+        if (showShortcutsDialog) {
+          setShowShortcutsDialog(false);
+        } else if (mobileOpen) {
+          setMobileOpen(false);
+        }
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [toggleSidebar]);
+  }, [toggleSidebar, location.pathname, navigate, showShortcutsDialog, mobileOpen]);
 
   // Apply theme class to document element
   useEffect(() => {
@@ -447,6 +520,31 @@ export const AppShell: React.FC<AppShellProps> = ({
             </div>
           </button>
 
+          {/* Keyboard Shortcuts Trigger Button */}
+          <button
+            type="button"
+            onClick={() => setShowShortcutsDialog(true)}
+            title="Pintasan keyboard (⌘ / Ctrl + /)"
+            aria-label="Pintasan keyboard"
+            className="w-full h-11 rounded-2xl flex items-center overflow-hidden text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] border border-transparent hover:border-border dark:hover:border-white/10 transition-all group"
+          >
+            <div className="w-11 h-11 shrink-0 flex items-center justify-center">
+              <Keyboard className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
+            </div>
+            <div
+              className={`flex-1 flex items-center justify-between transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
+                isExpanded
+                  ? "opacity-100 max-w-[160px] pr-2.5 translate-x-0"
+                  : "opacity-0 max-w-0 pr-0 -translate-x-2 pointer-events-none"
+              }`}
+            >
+              <span className="font-medium text-xs">Shortcuts</span>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-foreground/5 text-muted-foreground">
+                ⌘/
+              </span>
+            </div>
+          </button>
+
           {/* Theme Toggle (Light / Dark / System) */}
           <button
             type="button"
@@ -540,7 +638,7 @@ export const AppShell: React.FC<AppShellProps> = ({
       >
         <div className="w-full max-w-5xl flex flex-col gap-6 relative z-10">
           {/* Server Spin-Up Notification for Render cold start */}
-          {brand.isServerWarmingUp && (
+          {isServerWarmingUp && (
             <aside
               role="status"
               aria-live="polite"
@@ -579,7 +677,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           )}
 
           {/* Server Offline / Unreachable Notice */}
-          {brand.isServerOffline && (
+          {isServerOffline && (
             <aside
               role="alert"
               className="w-full p-3 sm:px-4 sm:py-3 rounded-2xl bg-surface/90 dark:bg-[#121217]/90 backdrop-blur-xl border border-danger/30 shadow-card flex items-center justify-between gap-3.5 transition-all duration-300 animate-in fade-in slide-in-from-top-2 shrink-0"
@@ -600,7 +698,10 @@ export const AppShell: React.FC<AppShellProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => brand.refetchDocuments()}
+                onClick={() => {
+                  refetchDocuments();
+                  toast.info("Mencoba menghubungkan ulang ke server...");
+                }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-foreground/5 hover:bg-foreground/10 dark:bg-white/[0.08] dark:hover:bg-white/[0.14] border border-border dark:border-white/10 text-xs font-medium text-foreground transition-all shrink-0 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
               >
                 <RefreshCw className="w-3 h-3 text-muted-foreground" aria-hidden="true" />
@@ -612,6 +713,12 @@ export const AppShell: React.FC<AppShellProps> = ({
           {children}
         </div>
       </main>
+
+      {/* Global Keyboard Shortcuts Help Dialog */}
+      <KeyboardShortcutsDialog
+        isOpen={showShortcutsDialog}
+        onClose={() => setShowShortcutsDialog(false)}
+      />
     </div>
   );
 };

@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,7 +33,9 @@ async def check_health(db: AsyncSession = Depends(get_db)) -> HealthResponse:
         "image": settings.IMAGE_PROVIDER,
     }
 
-    overall_status = "ok" if db_status == "connected" else "degraded"
+    overall_status: Literal["ok", "degraded", "error"] = (
+        "ok" if db_status == "connected" else "degraded"
+    )
 
     return HealthResponse(
         status=overall_status,

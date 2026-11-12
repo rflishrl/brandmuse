@@ -1,10 +1,12 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
 class HealthResponse(BaseModel):
     """Health check response schema."""
 
-    status: str = Field(
+    status: Literal["ok", "degraded", "error"] = Field(
         ...,
         description="Overall service status ('ok', 'degraded', 'error')",
         examples=["ok"],
@@ -17,5 +19,5 @@ class HealthResponse(BaseModel):
     providers: dict[str, str] = Field(
         ...,
         description="Active AI and storage providers",
-        examples=[{"llm": "openai", "embeddings": "openai", "image": "stability"}],
+        examples=[{"llm": "gemini", "embeddings": "gemini", "image": "mock"}],
     )

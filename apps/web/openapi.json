@@ -1238,6 +1238,17 @@
             "title": "History",
             "description": "Recent conversation turns (max 10)",
             "default": []
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "strict",
+              "creative"
+            ],
+            "title": "Mode",
+            "description": "Execution mode: auto (balanced), strict (rules only), creative (exploratory)",
+            "default": "auto"
           }
         },
         "type": "object",
@@ -1554,6 +1565,11 @@
         "properties": {
           "status": {
             "type": "string",
+            "enum": [
+              "ok",
+              "degraded",
+              "error"
+            ],
             "title": "Status",
             "description": "Overall service status ('ok', 'degraded', 'error')",
             "examples": [
@@ -1577,9 +1593,9 @@
             "description": "Active AI and storage providers",
             "examples": [
               {
-                "embeddings": "openai",
-                "image": "stability",
-                "llm": "openai"
+                "embeddings": "gemini",
+                "image": "mock",
+                "llm": "gemini"
               }
             ]
           }

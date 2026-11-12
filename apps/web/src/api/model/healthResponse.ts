@@ -5,6 +5,7 @@
  * FastAPI Backend for BrandMuse - AI Brand Assistant for Creative Teams
  * OpenAPI spec version: 0.1.0
  */
+import type { HealthResponseStatus } from './healthResponseStatus';
 import type { HealthResponseProviders } from './healthResponseProviders';
 
 /**
@@ -12,7 +13,7 @@ import type { HealthResponseProviders } from './healthResponseProviders';
  */
 export interface HealthResponse {
   /** Overall service status ('ok', 'degraded', 'error') */
-  status: string;
+  status: HealthResponseStatus;
   /** Database connectivity status */
   database: string;
   /** Active AI and storage providers */

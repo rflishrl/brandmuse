@@ -16,7 +16,7 @@ RUN uv sync --frozen --no-dev --no-install-project
 # Final runtime stage
 FROM python:3.12-slim AS runtime
 
-# Create non-root user with UID 1000 for Hugging Face Spaces compatibility
+# Create non-root user with UID 1000 for secure container execution
 RUN useradd -m -u 1000 appuser
 
 WORKDIR /app
@@ -26,7 +26,7 @@ COPY --from=builder /app/.venv /app/.venv
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH="/app" \
     HOME="/home/appuser" \
-    PORT=7860 \
+    PORT=10000 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
@@ -40,11 +40,12 @@ RUN mkdir -p /app/data /tmp && chown -R appuser:appuser /app /tmp /home/appuser
 
 USER appuser
 
-EXPOSE 7860
+# Expose container port (Render default is 10000)
+EXPOSE 10000
 
 # Health check
 HEALTHCHECK --interval=15s --timeout=5s --start-period=5s --retries=3 \
-  CMD python -c "import urllib.request, os; urllib.request.urlopen('http://localhost:' + os.environ.get('PORT', '7860') + '/api/health').read()" || exit 1
+  CMD python -c "import urllib.request, os; urllib.request.urlopen('http://localhost:' + os.environ.get('PORT', '10000') + '/api/health').read()" || exit 1
 
-# Start Uvicorn bound to dynamic PORT (defaults to 7860 for Hugging Face Spaces, allows override)
-CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860} --proxy-headers --forwarded-allow-ips='*'"]
+# Start Uvicorn bound to dynamic PORT (defaults to 10000 for Render, allows override)
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000} --proxy-headers --forwarded-allow-ips='*'"]

@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { ChatMessage } from './chatMessage';
+import type { ChatRequestMode } from './chatRequestMode';
 
 /**
  * Incoming user chat query for guideline grounded Q&A.
@@ -24,4 +25,6 @@ export interface ChatRequest {
    * @maxItems 10
    */
   history?: ChatMessage[];
+  /** Execution mode: auto (balanced), strict (rules only), creative (exploratory) */
+  mode?: ChatRequestMode;
 }

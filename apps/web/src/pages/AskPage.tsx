@@ -23,10 +23,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { BrandMuseOrb } from "@/components/BrandMuseOrb";
 import { DemoLimitsBanner } from "@/components/DemoLimitsBanner";
+import { MarkdownViewer } from "@/components/MarkdownViewer";
 import { SourcesDrawer } from "@/components/SourcesDrawer";
 import { Button } from "@/components/ui/button";
-import { useBrand } from "@/context/BrandContext";
+import { toast } from "@/components/ui/sonner";
 import { getSessionId } from "@/lib/session";
+import { useBrandStore } from "@/store/useBrandStore";
 import type { CitationItem } from "@/types/chat";
 
 interface Message {
@@ -77,9 +79,20 @@ const SUGGESTED_PROMPTS = [
 type ExecutionMode = "auto" | "strict" | "creative";
 
 export const AskPage: React.FC = () => {
-  const { selectedDocumentId, selectedDocument, loadSampleBrand, isLoadingSample } = useBrand();
+  const selectedDocumentId = useBrandStore((s) => s.selectedDocumentId);
+  const selectedDocument = useBrandStore((s) => s.selectedDocument);
+  const loadSampleBrand = useBrandStore((s) => s.loadSampleBrand);
+  const isLoadingSample = useBrandStore((s) => s.isLoadingSample);
 
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    if (!selectedDocumentId) return [];
+    try {
+      const saved = sessionStorage.getItem(`brandmuse:chat:${selectedDocumentId}`);
+      return saved ? (JSON.parse(saved) as Message[]) : [];
+    } catch {
+      return [];
+    }
+  });
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [executionMode, setExecutionMode] = useState<ExecutionMode>("auto");
@@ -94,6 +107,34 @@ export const AskPage: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const modeDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Synchronize active chat messages to sessionStorage per document ID
+  useEffect(() => {
+    if (!selectedDocumentId) return;
+    try {
+      if (messages.length > 0) {
+        sessionStorage.setItem(`brandmuse:chat:${selectedDocumentId}`, JSON.stringify(messages));
+      } else {
+        sessionStorage.removeItem(`brandmuse:chat:${selectedDocumentId}`);
+      }
+    } catch {
+      // Ignore storage quota error
+    }
+  }, [messages, selectedDocumentId]);
+
+  // When selectedDocumentId changes, restore messages for that specific brand
+  useEffect(() => {
+    if (!selectedDocumentId) {
+      setMessages([]);
+      return;
+    }
+    try {
+      const saved = sessionStorage.getItem(`brandmuse:chat:${selectedDocumentId}`);
+      setMessages(saved ? (JSON.parse(saved) as Message[]) : []);
+    } catch {
+      setMessages([]);
+    }
+  }, [selectedDocumentId]);
 
   // Close mode selector dropdown on click outside or Escape key
   useEffect(() => {
@@ -125,10 +166,17 @@ export const AskPage: React.FC = () => {
       setMessages([]);
       setInput("");
       setIsStreaming(false);
+      if (selectedDocumentId) {
+        try {
+          sessionStorage.removeItem(`brandmuse:chat:${selectedDocumentId}`);
+        } catch {
+          // Ignore storage error
+        }
+      }
     };
     window.addEventListener("brandmuse:new-chat", handleNewChat);
     return () => window.removeEventListener("brandmuse:new-chat", handleNewChat);
-  }, []);
+  }, [selectedDocumentId]);
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -177,6 +225,14 @@ export const AskPage: React.FC = () => {
     setMessages([]);
     setInput("");
     setIsStreaming(false);
+    if (selectedDocumentId) {
+      try {
+        sessionStorage.removeItem(`brandmuse:chat:${selectedDocumentId}`);
+      } catch {
+        // Ignore storage error
+      }
+    }
+    toast.info("Riwayat percakapan telah dibersihkan.");
   };
 
   useEffect(() => {
@@ -201,6 +257,7 @@ export const AskPage: React.FC = () => {
   const handleCopy = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
+    toast.success("Jawaban berhasil disalin ke clipboard!");
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -269,6 +326,7 @@ export const AskPage: React.FC = () => {
           document_id: selectedDocumentId,
           message: text,
           history: historyPayload,
+          mode: executionMode,
         }),
         signal: controller.signal,
       });
@@ -476,7 +534,13 @@ export const AskPage: React.FC = () => {
                 <div className="flex items-center justify-center gap-3 mt-4">
                   <button
                     type="button"
-                    onClick={() => loadSampleBrand()}
+                    onClick={() => {
+                      toast.promise(loadSampleBrand(), {
+                        loading: "Memuat sample brand...",
+                        success: "Sample brand berhasil dimuat!",
+                        error: "Gagal memuat sample brand",
+                      });
+                    }}
                     disabled={isLoadingSample}
                     className="glass-pill inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium text-foreground transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50"
                   >
@@ -731,7 +795,7 @@ export const AskPage: React.FC = () => {
 
                   <div className="w-full p-5 sm:p-6 rounded-2xl bg-surface border border-border shadow-xs text-sm text-foreground relative">
                     {msg.content ? (
-                      <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                      <MarkdownViewer content={msg.content} />
                     ) : (
                       <div className="flex items-center gap-2 text-muted-foreground text-xs py-2">
                         <span className="inline-block w-2 h-4 bg-foreground animate-pulse" />

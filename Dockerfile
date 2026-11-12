@@ -13,7 +13,7 @@ WORKDIR /app
 COPY apps/api/pyproject.toml apps/api/uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
-# Final runtime stage (Hugging Face Spaces runs as user ID 1000)
+# Final runtime stage (runs as non-root appuser)
 FROM python:3.12-slim AS runtime
 
 RUN useradd -m -u 1000 appuser
@@ -21,7 +21,7 @@ RUN useradd -m -u 1000 appuser
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONPATH="/app" \
     HOME="/home/appuser" \
-    PORT=7860 \
+    PORT=10000 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
@@ -38,8 +38,8 @@ RUN mkdir -p /app/data /tmp && chown -R appuser:appuser /app /tmp /home/appuser
 
 USER appuser
 
-# Hugging Face Spaces listens on port 7860 by default
-EXPOSE 7860
+# Expose container port (Render default is 10000)
+EXPOSE 10000
 
-# Start Uvicorn bound to dynamic PORT (defaults to 7860 for Hugging Face Spaces, allows override)
-CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860} --proxy-headers --forwarded-allow-ips='*'"]
+# Start Uvicorn bound to dynamic PORT (defaults to 10000 for Render, allows override)
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000} --proxy-headers --forwarded-allow-ips='*'"]

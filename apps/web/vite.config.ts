@@ -21,5 +21,19 @@ export default defineConfig({
   },
   build: {
     sourcemap: "hidden", // Generates .map files without exposing sourceMappingURL comment in production
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom", "react-router"],
+          "vendor-query": ["@tanstack/react-query"],
+          "vendor-icons": ["lucide-react"],
+          "vendor-radix": [
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-slot",
+          ],
+        },
+      },
+    },
   },
 });
