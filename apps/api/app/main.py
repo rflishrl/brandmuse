@@ -13,7 +13,7 @@ from app.core.errors import register_exception_handlers
 from app.core.http import close_http_client, get_http_client
 from app.core.logging import setup_logging
 from app.db.session import close_db
-from app.routers import campaign, chat, documents, health, images, ontology
+from app.routers import admin, campaign, chat, documents, health, images, ontology
 
 settings = get_settings()
 
@@ -54,6 +54,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
     """Lifespan context manager for startup and shutdown routines."""
     setup_logging()
+    settings.validate_storage_environment()
     get_http_client()
     yield
     await close_http_client()
@@ -99,6 +100,7 @@ def create_app() -> FastAPI:
     app.include_router(campaign.router)
     app.include_router(images.router)
     app.include_router(ontology.router)
+    app.include_router(admin.router)
 
     return app
 

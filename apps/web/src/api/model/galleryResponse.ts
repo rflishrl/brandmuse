@@ -8,9 +8,15 @@
 import type { GenerationItem } from './generationItem';
 
 /**
- * List of all generated assets created within the active session.
+ * Paginated list of generated assets created within the active session.
  */
 export interface GalleryResponse {
-  /** All image generations belonging to this session */
+  /** Image generations belonging to this session */
   generations?: GenerationItem[];
+  /** Page size applied to this response */
+  limit?: number;
+  /** Pagination offset applied to this response */
+  offset?: number;
+  /** Whether additional records exist */
+  has_more?: boolean;
 }

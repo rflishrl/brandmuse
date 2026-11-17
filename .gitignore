@@ -48,6 +48,7 @@ Thumbs.db
 # Storage / Temp
 tmp/
 scratch/
+migration_map.json
 
 # Agent skills & workflows
 .agents/

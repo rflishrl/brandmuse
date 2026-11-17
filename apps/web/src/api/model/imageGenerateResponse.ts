@@ -5,6 +5,7 @@
  * FastAPI Backend for BrandMuse - AI Brand Assistant for Creative Teams
  * OpenAPI spec version: 0.1.0
  */
+import type { ImageGenerateResponseThumbnailUrl } from './imageGenerateResponseThumbnailUrl';
 
 /**
  * Result of image generation including permanent public storage URL.
@@ -14,4 +15,6 @@ export interface ImageGenerateResponse {
   id: string;
   /** Permanent public HTTPS URL of the generated asset */
   url: string;
+  /** Static thumbnail WebP URL for compact previews */
+  thumbnail_url?: ImageGenerateResponseThumbnailUrl;
 }

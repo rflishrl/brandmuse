@@ -1,5 +1,7 @@
 import { getSessionId } from "@/lib/session";
 
+const DEFAULT_REQUEST_TIMEOUT_MS = 90_000;
+
 export interface MutatorConfig {
   url: string;
   method: string;
@@ -44,7 +46,7 @@ function getBaseUrl(): string {
 
 /**
  * Custom fetch mutator for Orval generated client.
- * Injects X-Session-Id header and connects to VITE_API_URL.
+ * Injects X-Session-Id header, applies a 90s request timeout, and connects to VITE_API_URL.
  */
 export const customInstance = async <T>(
   config: MutatorConfig,
@@ -53,7 +55,6 @@ export const customInstance = async <T>(
   const baseUrl = getBaseUrl();
   let fullUrl = `${baseUrl}${config.url}`;
 
-  // Handle query parameters
   if (config.params) {
     const searchParams = new URLSearchParams();
     Object.entries(config.params).forEach(([key, val]) => {
@@ -76,7 +77,6 @@ export const customInstance = async <T>(
   if (!body && config.data !== undefined) {
     if (config.data instanceof FormData) {
       body = config.data;
-      // Modern Web standard: delete explicit Content-Type so browser generates multipart boundary automatically
       headers.delete("Content-Type");
     } else {
       headers.set("Content-Type", "application/json");
@@ -84,17 +84,62 @@ export const customInstance = async <T>(
     }
   }
 
-  const response = await fetch(fullUrl, {
-    ...options,
-    method: config.method,
-    headers,
-    body,
-    signal: config.signal || options?.signal,
-  });
+  const callerSignal = config.signal || options?.signal;
+  const controller = new AbortController();
+  let timedOut = false;
+
+  const onCallerAbort = () => controller.abort();
+  if (callerSignal) {
+    if (callerSignal.aborted) {
+      controller.abort();
+    } else {
+      callerSignal.addEventListener("abort", onCallerAbort, { once: true });
+    }
+  }
+
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, DEFAULT_REQUEST_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(fullUrl, {
+      ...options,
+      method: config.method,
+      headers,
+      body,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (timedOut) {
+      throw new CustomApiError(
+        504,
+        "SERVER_WARMING_UP",
+        "Server demo sedang bangun (Render Free Tier). Silakan coba lagi beberapa detik lagi."
+      );
+    }
+    if (callerSignal?.aborted) {
+      throw err;
+    }
+    throw new CustomApiError(
+      503,
+      "SERVER_UNREACHABLE",
+      "Server demo sedang bangun atau tidak terjangkau. Silakan coba lagi sebentar."
+    );
+  } finally {
+    clearTimeout(timeoutId);
+    callerSignal?.removeEventListener("abort", onCallerAbort);
+  }
 
   if (!response.ok) {
     let errorCode = `HTTP_${response.status}`;
     let errorMessage = response.statusText || "Request failed";
+
+    if (response.status === 502 || response.status === 503 || response.status === 504) {
+      errorMessage =
+        "Server demo sedang bangun (Render Free Tier). Silakan coba lagi beberapa detik lagi.";
+    }
 
     try {
       const errJson = (await response.json()) as ApiErrorPayload;

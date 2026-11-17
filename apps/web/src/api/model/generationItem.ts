@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { GenerationItemConceptJson } from './generationItemConceptJson';
+import type { GenerationItemThumbnailUrl } from './generationItemThumbnailUrl';
+import type { GenerationItemSizeBytes } from './generationItemSizeBytes';
 
 /**
  * Persisted generation record item for gallery views.
@@ -19,8 +21,12 @@ export interface GenerationItem {
   concept_json?: GenerationItemConceptJson;
   /** Permanent public image URL */
   image_url: string;
+  /** Static thumbnail WebP URL for gallery grid cards */
+  thumbnail_url?: GenerationItemThumbnailUrl;
   /** Image provider used, e.g. stability or replicate */
   provider: string;
+  /** Total stored WebP size in bytes across full and thumbnail variants */
+  size_bytes?: GenerationItemSizeBytes;
   /** Timestamp of generation */
   created_at: string;
 }

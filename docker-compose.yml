@@ -42,8 +42,12 @@ services:
       R2_ACCOUNT_ID: "${R2_ACCOUNT_ID:-}"
       R2_ACCESS_KEY_ID: "${R2_ACCESS_KEY_ID:-}"
       R2_SECRET_ACCESS_KEY: "${R2_SECRET_ACCESS_KEY:-}"
-      R2_BUCKET_NAME: "${R2_BUCKET_NAME:-brandmuse-images}"
+      R2_BUCKET_NAME: "${R2_BUCKET_NAME:-brandmuse}"
+      R2_KEY_PREFIX: "${R2_KEY_PREFIX:-brandmuse-dev}"
       R2_PUBLIC_URL: "${R2_PUBLIC_URL:-}"
+      R2_APP_QUOTA_MB: "${R2_APP_QUOTA_MB:-2048}"
+      ADMIN_TOKEN: "${ADMIN_TOKEN:-}"
+      MEDIA_OWNER_SECRET: "${MEDIA_OWNER_SECRET:-}"
       LANGFUSE_PUBLIC_URL: "${LANGFUSE_PUBLIC_URL:-}"
     ports:
       - "8000:8000"

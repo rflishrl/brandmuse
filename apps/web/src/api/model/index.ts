@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './adminUsageResponse';
 export * from './bodyUploadDocument';
 export * from './brandIdentity';
 export * from './brandIdentityMissionOrPurpose';
@@ -44,6 +45,9 @@ export * from './documentUploadResponse';
 export * from './galleryResponse';
 export * from './generationItem';
 export * from './generationItemConceptJson';
+export * from './generationItemSizeBytes';
+export * from './generationItemThumbnailUrl';
+export * from './getGalleryParams';
 export * from './hTTPValidationError';
 export * from './healthResponse';
 export * from './healthResponseProviders';
@@ -52,6 +56,7 @@ export * from './imageGenerateRequest';
 export * from './imageGenerateRequestConceptJson';
 export * from './imageGenerateRequestNegativePrompt';
 export * from './imageGenerateResponse';
+export * from './imageGenerateResponseThumbnailUrl';
 export * from './refineConceptRequest';
 export * from './typographyToken';
 export * from './typographyTokenPage';

@@ -15,9 +15,9 @@ graph TD
     User["User Browser"] -->|HTTPS Global CDN| Pages["Cloudflare Pages (Frontend: React 18 / Bun)"]
     Pages -->|REST / SSE Streaming + X-Session-Id| Render["Render (FastAPI Web Service)"]
     Render -->|Pooled Connection / Port 5432 / ssl=require| Neon["Neon.tech (PostgreSQL 16 + pgvector)"]
-    Render -->|S3 API / boto3 put_object| R2["Cloudflare R2 Bucket (brandmuse-images)"]
-    Render -->|Persistent HTTPS| AI["Google Gemini 1.5 Flash / OpenAI"]
-    User -->|Download Public Assets| R2Public["Cloudflare R2 Public CDN (pub-xxx.r2.dev)"]
+    Render -->|S3 API / boto3 put_object| R2["Cloudflare R2 Bucket (brandmuse)"]
+    Render -->|Persistent HTTPS| AI["Google Gemini / OpenAI"]
+    User -->|Download Public Assets| R2Public["Cloudflare R2 Custom Domain (media.yourdomain.com)"]
 ```
 
 ---
@@ -88,10 +88,11 @@ uv run alembic upgrade head
    ```sql
    SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';
    ```
-3. Confirm the presence of these five tables:
+3. Confirm the presence of these six tables:
    - `alembic_version`
    - `documents`
    - `chunks`
+   - `brand_ontologies`
    - `generations`
    - `usage_counters`
 4. Confirm `vector` extension status:
@@ -113,33 +114,28 @@ Cloudflare R2 is an S3-compatible object store with zero egress bandwidth charge
 
 ### 3.2 Create the Storage Bucket
 1. Click **Create bucket**.
-2. **Bucket name:** Enter `brandmuse-images`.
-3. **Location:** Select **Automatic** or **APAC (Asia-Pacific)**.
+2. **Bucket name:** Enter `brandmuse`.
+3. **Location:** Select **APAC (Asia-Pacific)** (immutable after creation).
 4. Click **Create Bucket**.
 
-### 3.3 Enable Public Access
-To allow browsers to load and download generated assets directly:
-1. Open bucket `brandmuse-images`.
-2. Select the **Settings** tab.
-3. Scroll down to **Public access**.
-4. In the **R2.dev subdomain** section, click **Allow Access**.
-5. Enter the confirmation text `allow` and confirm.
-6. Cloudflare provides the public bucket URL, for example:
-   `https://pub-a1b2c3d4e5f6.r2.dev`
-7. Save this URL for the `R2_PUBLIC_URL` environment variable.
-
-*(Optional: If you use a custom domain on Cloudflare, click **Connect Domain** and assign a subdomain such as `assets.yourdomain.com`)*.
+### 3.3 Connect a Custom Domain (Production)
+To serve public assets with Cloudflare Cache Rules, WAF protection, and zero `r2.dev` exposure:
+1. Open bucket `brandmuse` -> **Settings** -> **Public access**.
+2. Leave **R2.dev subdomain** **Disabled** in production (only use `r2.dev` temporarily during local dev if needed).
+3. Under **Custom Domains**, click **Add** and connect your subdomain (for example, `media.yourdomain.com`).
+4. In your Cloudflare zone, configure a **Cache Rule** (`http.host eq "media.yourdomain.com"` -> **Eligible for cache**, Edge TTL **Override origin 1 year**, Browser TTL **Respect origin**) and a **WAF Custom Rule** for hotlink protection.
+5. Save `https://media.yourdomain.com` for the `R2_PUBLIC_URL` environment variable.
 
 ### 3.4 Generate R2 API Token (S3 Credentials)
-The FastAPI backend requires S3 credentials to write generated image files:
+The FastAPI backend requires S3 credentials to write generated WebP image files:
 1. Return to the main **R2** page in the left menu.
 2. In the right panel, click **Manage R2 API Tokens**.
 3. Click **Create API token**.
 4. Configure the token settings:
-   - **Token name:** `brandmuse-backend-token`
-   - **Permissions:** **Object Read & Write** (or Admin Read & Write).
-   - **Specify bucket(s):** Select **Apply to specific buckets only** and pick `brandmuse-images`.
-   - **TTL:** Select **Forever** (does not expire).
+   - **Token name:** `brandmuse-token`
+   - **Permissions:** **Object Read & Write**
+   - **Specify bucket(s):** Select **Apply to specific buckets only** and pick `brandmuse`.
+   - **TTL:** Select **Forever** (rotate periodically per `docs/r2-hardening-status.md`).
 5. Click **Create API Token**.
 6. Securely record the output values:
    - **Access Key ID:** for example, `8f3a9b...`
@@ -147,16 +143,17 @@ The FastAPI backend requires S3 credentials to write generated image files:
    - **Endpoint URL (S3):** `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`
      *(Note: Account ID is the 32-character hexadecimal string preceding `.r2.cloudflarestorage.com`)*.
 
-### 3.5 Configure CORS on the R2 Bucket
-To allow client browsers to load images and canvas previews without cross-origin blocks:
-1. Open bucket `brandmuse-images` -> select **Settings**.
-2. Scroll to **CORS Policy** and click **Add CORS policy**.
-3. Paste the following JSON configuration:
+### 3.5 Configure CORS and Lifecycle on the R2 Bucket
+To allow client browsers to load images and expose `ETag`:
+1. Open bucket `brandmuse` -> select **Settings**.
+2. Scroll to **CORS Policy** and click **Add CORS policy**:
    ```json
    [
      {
        "AllowedOrigins": [
-         "*"
+         "https://brandmuse.pages.dev",
+         "http://localhost:5173",
+         "http://127.0.0.1:5173"
        ],
        "AllowedMethods": [
          "GET",
@@ -165,12 +162,14 @@ To allow client browsers to load images and canvas previews without cross-origin
        "AllowedHeaders": [
          "*"
        ],
-       "ExposeHeaders": [],
+       "ExposeHeaders": [
+         "ETag"
+       ],
        "MaxAgeSeconds": 3600
      }
    ]
    ```
-4. Click **Save**.
+3. Under **Object lifecycle rules**, add a global rule to **Abort incomplete multipart uploads** after `1` day, and optionally a rule scoped to prefix `brandmuse-dev/` to delete test objects after `7` days. Do not add auto-delete rules to the `brandmuse/` production prefix.
 
 ---
 
@@ -183,23 +182,13 @@ The FastAPI backend runs as a Web Service on **Render** (Python 3 / Docker, Free
 2. Connect your `brandmuse` GitHub repository.
 3. Configure the Web Service:
 
-   **Option A: Docker Runtime (Recommended, matches repository Dockerfile):**
+   **Docker Runtime (Recommended, matches repository `./Dockerfile`):**
    - **Name:** `brandmuse-api`
    - **Region:** `Singapore` (matches Neon `ap-southeast-1` for lowest latency)
    - **Branch:** `main`
    - **Runtime:** `Docker`
    - **Dockerfile Path:** `./Dockerfile`
    - **Docker Context:** `.` (repository root)
-   - **Instance Type:** `Free` ($0/mo)
-
-   **Option B: Native Python 3 Runtime (Alternative with Astral `uv`):**
-   - **Name:** `brandmuse-api`
-   - **Region:** `Singapore`
-   - **Branch:** `main`
-   - **Root Directory:** `apps/api`
-   - **Runtime:** `Python 3`
-   - **Build Command:** `pip install uv && uv sync --frozen --no-dev --no-install-project`
-   - **Start Command:** `uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
    - **Instance Type:** `Free` ($0/mo)
 
 ### 4.2 Configure Environment Variables in Render
@@ -212,8 +201,12 @@ In the service's **Environment** tab:
 | `R2_ACCOUNT_ID` | `abcdef1234567890abcdef1234567890` | Cloudflare Account ID |
 | `R2_ACCESS_KEY_ID` | `8f3a9b0c1d2e3f4a5b6c7d8e` | R2 Access Key ID from Step 3.4 |
 | `R2_SECRET_ACCESS_KEY` | `c7e2d1f0a9b8c7...` | R2 Secret Access Key from Step 3.4 |
-| `R2_BUCKET_NAME` | `brandmuse-images` | Name of the configured R2 bucket |
-| `R2_PUBLIC_URL` | `https://pub-a1b2c3d4e5f6.r2.dev` | Public URL from Step 3.3 |
+| `R2_BUCKET_NAME` | `brandmuse` | Name of the configured R2 bucket |
+| `R2_KEY_PREFIX` | `brandmuse` | Key prefix (`brandmuse` in production; `*-dev` outside production) |
+| `R2_PUBLIC_URL` | `https://media.yourdomain.com` | Custom domain URL from Step 3.3 |
+| `R2_APP_QUOTA_MB` | `2048` | Hard storage quota in MB for BrandMuse |
+| `ADMIN_TOKEN` | `<random-64-hex>` | Bearer token for `GET /api/admin/usage` |
+| `MEDIA_OWNER_SECRET` | `<random-64-hex>` | HMAC secret for hashing `X-Session-Id` in object keys |
 | `GEMINI_API_KEY` | `AIzaSy...` | Google Gemini API key (LLM and Embeddings) |
 | `OPENAI_API_KEY` | `sk-proj-...` | OpenAI API key (optional fallback) |
 | `STABILITY_API_KEY` | `sk-...` | Stability AI API key (optional if using mock) |
@@ -241,7 +234,7 @@ curl https://brandmuse-13ck.onrender.com/api/health
 ```
 Expected JSON response:
 ```json
-{"status":"healthy","database":"connected","vector_extension":true}
+{"status":"ok","database":"connected","providers":{"llm":"gemini","embeddings":"gemini","image":"mock"}}
 ```
 
 ---
@@ -288,61 +281,21 @@ After Cloudflare Pages finishes deployment, obtain your assigned domain (for exa
 
 ---
 
-## 7. Step 6: Smoke Test Suite (8 Test Stages)
+## 7. Step 6: Smoke Test Suite
 
-Execute the following PowerShell script to verify all services end-to-end:
+Run the built-in end-to-end smoke test script from the repository root:
 
 ```powershell
-$API_URL = "https://brandmuse-13ck.onrender.com"
-$SESSION_ID = [guid]::NewGuid().ToString()
-
-Write-Host "=== 1. Health Check ===" -ForegroundColor Cyan
-curl.exe -s "$API_URL/api/health"
-
-Write-Host "`n=== 2. System Metrics ===" -ForegroundColor Cyan
-curl.exe -s "$API_URL/api/metrics"
-
-Write-Host "`n=== 3. Upload Sample PDF Guideline ===" -ForegroundColor Cyan
-$pdfPath = "sample_test.pdf"
-if (Test-Path "apps\api\sample_data\aura_living_brand_guidelines.pdf") {
-    $pdfPath = "apps\api\sample_data\aura_living_brand_guidelines.pdf"
-}
-curl.exe -s -X POST "$API_URL/api/documents/upload" `
-  -H "X-Session-Id: $SESSION_ID" `
-  -F "file=@$pdfPath"
-
-Write-Host "`n=== 4. Hybrid Retrieval RRF Query ===" -ForegroundColor Cyan
-curl.exe -s -X POST "$API_URL/api/retrieve" `
-  -H "Content-Type: application/json" `
-  -H "X-Session-Id: $SESSION_ID" `
-  -d '{"query":"What are the primary brand colors?","limit":3}'
-
-Write-Host "`n=== 5. Grounded Chat SSE Stream ===" -ForegroundColor Cyan
-curl.exe -N -s -X POST "$API_URL/api/ask" `
-  -H "Content-Type: application/json" `
-  -H "X-Session-Id: $SESSION_ID" `
-  -d '{"question":"Can I use bright neon yellow on our posters?"}'
-
-Write-Host "`n=== 6. Rate Limit Protection Check ===" -ForegroundColor Cyan
-for ($i=1; $i -le 3; $i++) {
-    curl.exe -s -o NUL -w "%{http_code} " "$API_URL/api/health"
-}
-Write-Host " (Expected 200 OK)"
-
-Write-Host "`n=== 7. Campaign 3 Concepts Generation ===" -ForegroundColor Cyan
-curl.exe -s -X POST "$API_URL/api/campaign/concepts" `
-  -H "Content-Type: application/json" `
-  -H "X-Session-Id: $SESSION_ID" `
-  -d '{"campaign_brief":"Minimalist autumn ceramics collection launch","target_audience":"Urban homeowners"}'
-
-Write-Host "`n=== 8. Image Generation and Cloudflare R2 Upload ===" -ForegroundColor Cyan
-curl.exe -s -X POST "$API_URL/api/images" `
-  -H "Content-Type: application/json" `
-  -H "X-Session-Id: $SESSION_ID" `
-  -d '{"prompt":"Earthy ceramic vase on limestone table with soft morning sunlight","mood":"warm minimalist"}'
+# PowerShell
+.\scripts\smoke-test.ps1 -BaseUrl "https://brandmuse-13ck.onrender.com"
 ```
 
-When Stage 8 returns an asset URL containing your `https://pub-xxx.r2.dev/...` domain or valid image payload, Cloudflare R2 object storage integration is fully verified.
+```bash
+# Bash
+bash scripts/smoke-test.sh "https://brandmuse-13ck.onrender.com"
+```
+
+When Stage 7 returns WebP `url` and `thumbnail_url` values pointing to your `R2_PUBLIC_URL` custom domain (`https://media.yourdomain.com/brandmuse/generations/...`), Cloudflare R2 integration is verified.
 
 ---
 
@@ -358,12 +311,12 @@ When Stage 8 returns an asset URL containing your `https://pub-xxx.r2.dev/...` d
 - **Fix:** URL-encode reserved characters (for example, replace `#` with `%23`), or copy the direct connection string directly from the Neon dashboard.
 
 ### Issue 3: R2 Assets Return Broken Images in Browser
-- **Cause:** Public access is not permitted or the public URL prefix is configured incorrectly.
+- **Cause:** Custom domain is inactive, `R2_PUBLIC_URL` does not match, or CORS/Hotlink WAF blocks the frontend origin.
 - **Fix:**
-  1. Open Cloudflare Dashboard -> R2 -> bucket `brandmuse-images` -> **Settings**.
-  2. Confirm that **R2.dev subdomain** status is **Allowed**.
-  3. Ensure `R2_PUBLIC_URL` in Render Environment variables matches the subdomain exactly (example: `https://pub-xxxx.r2.dev`).
-  4. Verify CORS configuration on the bucket as described in Step 3.5.
+  1. Open Cloudflare Dashboard -> R2 -> bucket `brandmuse` -> **Settings**.
+  2. Confirm that **Custom Domains** lists your domain as **Active / Enabled**.
+  3. Ensure `R2_PUBLIC_URL` in Render matches your custom domain exactly (example: `https://media.yourdomain.com`, without a trailing slash).
+  4. Verify CORS configuration on the bucket (Step 3.5) and WAF Hotlink rule allow your frontend origin.
 
 ### Issue 4: Cross-Origin Resource Sharing (CORS) Blocks Frontend Requests
 - **Cause:** The `CORS_ORIGIN` variable in Render Web Service does not match your Cloudflare Pages domain.

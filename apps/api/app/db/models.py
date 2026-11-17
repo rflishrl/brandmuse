@@ -94,6 +94,7 @@ class Generation(Base):
     concept_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     image_url: Mapped[str] = mapped_column(Text, nullable=False)
     provider: Mapped[str] = mapped_column(String(50), nullable=False)
+    size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

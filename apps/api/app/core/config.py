@@ -74,10 +74,33 @@ class Settings(BaseSettings):
     R2_ACCOUNT_ID: str = Field(default="", description="Cloudflare Account ID")
     R2_ACCESS_KEY_ID: str = Field(default="", description="Cloudflare R2 Access Key ID")
     R2_SECRET_ACCESS_KEY: str = Field(default="", description="Cloudflare R2 Secret Access Key")
-    R2_BUCKET_NAME: str = Field(default="brandmuse-images", description="Cloudflare R2 Bucket Name")
+    R2_BUCKET_NAME: str = Field(default="brandmuse", description="Cloudflare R2 Bucket Name")
+    R2_KEY_PREFIX: str = Field(
+        default="brandmuse",
+        description=(
+            "Key prefix isolating BrandMuse objects (must end with '-dev' outside production)"
+        ),
+    )
     R2_PUBLIC_URL: str = Field(
         default="",
-        description="Public URL for R2 bucket (e.g. https://pub-xxx.r2.dev or custom domain)",
+        description="Public URL for R2 bucket (custom domain in prod, e.g. https://media.example.com)",
+    )
+    R2_APP_QUOTA_MB: int = Field(
+        default=2048,
+        ge=1,
+        description="Hard storage quota in MB allocated to BrandMuse",
+    )
+
+    # Admin & Media Security
+    ADMIN_TOKEN: str = Field(
+        default="",
+        description="Secret token authorizing GET /api/admin/usage",
+    )
+    MEDIA_OWNER_SECRET: str = Field(
+        default="",
+        description=(
+            "HMAC secret used to hash X-Session-Id into non-reversible storage owner segment"
+        ),
     )
 
     # Observability (Langfuse)
@@ -108,6 +131,47 @@ class Settings(BaseSettings):
     def cors_origins(self) -> list[str]:
         """Parsed list of allowed CORS origins."""
         return [origin.strip() for origin in self.CORS_ORIGIN.split(",") if origin.strip()]
+
+    @property
+    def is_r2_active(self) -> bool:
+        """Return True when runtime settings route uploads to Cloudflare R2."""
+        provider = self.STORAGE_PROVIDER.lower()
+        return provider == "r2" or (
+            provider == "auto"
+            and bool(self.R2_ACCOUNT_ID)
+            and bool(self.R2_ACCESS_KEY_ID)
+            and bool(self.R2_SECRET_ACCESS_KEY)
+        )
+
+    @property
+    def normalized_r2_prefix(self) -> str:
+        """Normalized key prefix without leading or trailing slashes."""
+        return self.R2_KEY_PREFIX.strip().strip("/")
+
+    def validate_storage_environment(self) -> None:
+        """Fail fast at startup if R2 prefix or secret isolation does not match ENVIRONMENT."""
+        if not self.is_r2_active:
+            return
+
+        prefix = self.normalized_r2_prefix
+        if not prefix:
+            raise ValueError("R2_KEY_PREFIX must not be empty when R2 storage is active.")
+
+        if self.ENVIRONMENT != "production":
+            if not prefix.endswith("-dev"):
+                raise ValueError(
+                    "Non-production environments using R2 must set R2_KEY_PREFIX ending "
+                    "with '-dev' (for example 'brandmuse-dev')."
+                )
+        else:
+            if prefix.endswith("-dev"):
+                raise ValueError(
+                    "Production environment must not use a '-dev' R2_KEY_PREFIX."
+                )
+            if not self.MEDIA_OWNER_SECRET:
+                raise ValueError(
+                    "MEDIA_OWNER_SECRET must be set in production when R2 storage is active."
+                )
 
     @property
     def clean_database_url(self) -> str:

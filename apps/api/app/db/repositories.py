@@ -4,7 +4,7 @@ import datetime
 import uuid
 from typing import Any
 
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import APIError
@@ -178,13 +178,22 @@ class GenerationRepository:
     """Repository handling campaign Generation asset records."""
 
     @staticmethod
-    async def list_for_session(db: AsyncSession, session_id: uuid.UUID) -> list[Generation]:
-        """Fetch all image generation assets for a user session, newest first."""
+    async def list_for_session(
+        db: AsyncSession,
+        session_id: uuid.UUID,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[Generation]:
+        """Fetch image generation assets for a user session, newest first."""
         stmt = (
             select(Generation)
             .where(Generation.session_id == session_id)
             .order_by(Generation.created_at.desc())
         )
+        if offset > 0:
+            stmt = stmt.offset(offset)
+        if limit is not None:
+            stmt = stmt.limit(limit)
         res = await db.execute(stmt)
         return list(res.scalars().all())
 
@@ -195,6 +204,7 @@ class GenerationRepository:
         concept_data: dict[str, Any],
         image_url: str,
         provider: str,
+        size_bytes: int | None = None,
     ) -> Generation:
         """Persist a new campaign image generation record."""
         generation = Generation(
@@ -203,8 +213,21 @@ class GenerationRepository:
             concept_json=concept_data,
             image_url=image_url,
             provider=provider,
+            size_bytes=size_bytes,
         )
         db.add(generation)
         await db.commit()
         await db.refresh(generation)
         return generation
+
+    @staticmethod
+    async def get_storage_usage_stats(db: AsyncSession) -> tuple[int, int, int]:
+        """Return (used_bytes, total_generations, legacy_unknown_size_count)."""
+        stmt = select(
+            func.coalesce(func.sum(Generation.size_bytes), 0),
+            func.count(Generation.id),
+            func.count(Generation.id).filter(Generation.size_bytes.is_(None)),
+        )
+        res = await db.execute(stmt)
+        row = res.one()
+        return int(row[0] or 0), int(row[1] or 0), int(row[2] or 0)

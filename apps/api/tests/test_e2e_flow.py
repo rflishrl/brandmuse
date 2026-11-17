@@ -190,15 +190,19 @@ async def test_complete_end_to_end_brandmuse_flow(
         assert len(campaign_data["brand_rules_used"]) >= 2
 
     # Generate image asset (POST /api/images)
-    fake_storage_url = "https://pub-brandmuse.r2.dev/e2e-asset.png"
+    fake_storage_key = "brandmuse-dev/generations/abc123/e2e-asset.webp"
+    fake_storage_url = f"https://media.example.com/{fake_storage_key}"
+    fake_thumb_url = f"https://media.example.com/{fake_storage_key.replace('.webp', '-thumb.webp')}"
 
     with (
         patch("app.routers.images.check_session_image_hourly_limit", AsyncMock()),
+        patch("app.routers.images.check_daily_usage_available", AsyncMock()),
+        patch("app.routers.images.check_app_storage_quota", AsyncMock(return_value=(0, 1024))),
         patch("app.routers.images.check_and_increment_daily_usage", AsyncMock(return_value=1)),
         patch("app.routers.images.get_image_provider", return_value=MockImageProvider()),
         patch(
-            "app.routers.images.upload_image_to_storage",
-            AsyncMock(return_value=fake_storage_url),
+            "app.routers.images.upload_image_variants_to_storage",
+            AsyncMock(return_value=(fake_storage_key, fake_storage_url, fake_thumb_url, 2048)),
         ),
     ):
         image_resp = await client.post(
@@ -214,6 +218,7 @@ async def test_complete_end_to_end_brandmuse_flow(
         image_data = image_resp.json()
         assert "id" in image_data
         assert image_data["url"] == fake_storage_url
+        assert image_data["thumbnail_url"] == fake_thumb_url
         gen_id = image_data["id"]
 
     # Retrieve session gallery (GET /api/images)

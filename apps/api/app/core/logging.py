@@ -4,6 +4,8 @@ import logging
 import sys
 from typing import Any
 
+import structlog
+
 
 def hash_session_id(session_id: str | None) -> str:
     """Hash session ID for privacy-compliant logging."""
@@ -23,7 +25,6 @@ class JSONFormatter(logging.Formatter):
             "message": record.getMessage(),
         }
 
-        # Add contextual attributes if provided in record
         if hasattr(record, "request_id"):
             log_data["request_id"] = record.request_id
         if hasattr(record, "session_hash"):
@@ -36,18 +37,31 @@ class JSONFormatter(logging.Formatter):
 
 
 def setup_logging(level: str = "INFO") -> None:
-    """Configure structured JSON logging for the application."""
+    """Configure structured JSON logging for stdlib logging and structlog."""
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(JSONFormatter())
 
     root_logger = logging.getLogger()
     root_logger.setLevel(level.upper())
-    # Clear existing handlers to prevent duplicate lines
     root_logger.handlers = [handler]
 
-    # Silence overly verbose third-party loggers
     logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
     logging.getLogger("asyncpg").setLevel(logging.WARNING)
 
+    structlog.configure(
+        processors=[
+            structlog.contextvars.merge_contextvars,
+            structlog.processors.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso", utc=True),
+            structlog.processors.JSONRenderer(),
+        ],
+        wrapper_class=structlog.make_filtering_bound_logger(
+            getattr(logging, level.upper(), logging.INFO)
+        ),
+        logger_factory=structlog.PrintLoggerFactory(file=sys.stdout),
+        cache_logger_on_first_use=False,
+    )
+
 
 logger = logging.getLogger("brandmuse")
+slogger = structlog.get_logger("brandmuse")

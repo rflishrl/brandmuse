@@ -8,6 +8,7 @@ from app.core.errors import APIError
 from app.db.models import UsageCounter
 from app.services.usage import (
     check_and_increment_daily_usage,
+    check_app_storage_quota,
     check_session_image_hourly_limit,
 )
 
@@ -115,3 +116,24 @@ async def test_check_and_increment_daily_usage_concurrency_race_handled() -> Non
     assert count == 2
     assert winner_counter.count == 2
     mock_db.rollback.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_check_app_storage_quota_allows_and_blocks_without_numbers() -> None:
+    """Tier 1 storage quota must allow within cap and hide internal numbers on rejection."""
+    mock_db = AsyncMock()
+    mock_res = MagicMock()
+    mock_res.scalar.return_value = 100 * 1024 * 1024
+    mock_db.execute.return_value = mock_res
+
+    used, quota = await check_app_storage_quota(mock_db, quota_mb=2048, additional_bytes=1024)
+    assert used == 100 * 1024 * 1024
+    assert quota == 2048 * 1024 * 1024
+
+    mock_res.scalar.return_value = 2048 * 1024 * 1024
+    with pytest.raises(APIError) as exc_info:
+        await check_app_storage_quota(mock_db, quota_mb=2048, additional_bytes=1)
+
+    assert exc_info.value.status_code == 429
+    assert exc_info.value.code == "STORAGE_QUOTA_EXCEEDED"
+    assert not any(ch.isdigit() for ch in exc_info.value.message)

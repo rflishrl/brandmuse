@@ -13,7 +13,7 @@ export const queryKeys = {
     ontology: (id: string) => [...queryKeys.documents.all, id, "ontology"] as const,
   },
   gallery: {
-    all: ["/api/images/gallery"] as const,
+    all: ["/api/images"] as const,
   },
 } as const;
 

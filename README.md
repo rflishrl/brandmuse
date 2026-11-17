@@ -51,8 +51,8 @@ flowchart TD
     end
 
     subgraph Storage["Object Storage (Cloudflare R2)"]
-        R2Bucket["Cloudflare R2 Bucket\nbrandmuse-images (Zero Egress)"]
-        R2CDN["Cloudflare R2 Public CDN\nAsset Distribution"]
+        R2Bucket["Cloudflare R2 Bucket\nbrandmuse (Dual WebP, Zero Egress)"]
+        R2CDN["Cloudflare R2 Custom Domain\nCache Rule 1y + Immutable"]
     end
 
     subgraph AI["AI Engines and Multimodal Generation"]
@@ -125,7 +125,7 @@ flowchart TD
 
 | Architectural Vector | Express.js (Node.js) | FastAPI (Python 3.12 / uv) | BrandMuse Decision |
 | :--- | :--- | :--- | :--- |
-| **AI Ecosystem & Tooling** | JS ports lag behind upstream releases; fragmented SDK interfaces. | Native ecosystem for LangChain, pgvector, ReportLab, and Hugging Face. | **FastAPI:** Direct access to production-grade AI primitives without wrappers. |
+| **AI Ecosystem & Tooling** | JS ports lag behind upstream releases; fragmented SDK interfaces. | Native ecosystem for LangChain, pgvector, ReportLab, and Pillow. | **FastAPI:** Direct access to production-grade AI primitives without wrappers. |
 | **Async Streaming (SSE)** | Requires manual stream pipes, backpressure management, and connection listeners. | Built-in `StreamingResponse` with native async generators and Starlette disconnect detection. | **FastAPI:** Reliable real-time token streaming with automatic client disconnect aborts. |
 | **Type Contracts & OpenAPI** | Manual Swagger/JSDoc comments that drift from runtime code. | Pydantic v2 schemas automatically produce strict OpenAPI 3.1 specifications. | **FastAPI:** Zero schema drift. Orval generates typed TypeScript clients directly. |
 | **Memory Baseline** | V8 engine uses 70–120 MB RSS baseline memory. | Astral uv with Python slim runs under 45 MB RSS. | **FastAPI:** Runs under 50 MB RSS, easily staying well within Render Free Tier's 512 MB allocation. |
@@ -203,7 +203,7 @@ bun run dev
 
 ### 3. Code Quality & Test Verification
 ```bash
-# Backend test suite (47 unit and integration tests)
+# Backend test suite (84 unit and integration tests)
 cd apps/api
 uv run pytest
 uv run ruff check .
@@ -249,11 +249,16 @@ bun run api:generate
 | `R2_ACCOUNT_ID` | Optional | - | Cloudflare Account ID for R2 storage |
 | `R2_ACCESS_KEY_ID` | Optional | - | Cloudflare R2 Access Key ID |
 | `R2_SECRET_ACCESS_KEY` | Optional | - | Cloudflare R2 Secret Access Key |
-| `R2_BUCKET_NAME` | No | `brandmuse-images` | Cloudflare R2 Bucket name |
-| `R2_PUBLIC_URL` | Optional | - | Public URL base for stored assets |
+| `R2_BUCKET_NAME` | No | `brandmuse` | Cloudflare R2 Bucket name |
+| `R2_KEY_PREFIX` | No | `brandmuse` | Object key prefix (`*-dev` outside production) |
+| `R2_PUBLIC_URL` | Optional | - | Custom domain URL base for stored assets |
+| `R2_APP_QUOTA_MB` | No | `2048` | Hard storage quota in MB for BrandMuse |
+| `ADMIN_TOKEN` | Optional | - | Bearer token for `GET /api/admin/usage` |
+| `MEDIA_OWNER_SECRET` | Yes (Prod R2) | - | HMAC secret for hashing `X-Session-Id` in keys |
 | `DAILY_LLM_LIMIT` | No | `200` | Global daily cap on LLM invocations |
 | `DAILY_IMAGE_LIMIT` | No | `25` | Global daily cap on image generations |
-| `CORS_ORIGIN` | Yes | `*` | Comma-separated allowed HTTP CORS origins |
+| `SESSION_IMAGE_HOURLY_LIMIT` | No | `5` | Per-session hourly cap on image generations |
+| `CORS_ORIGIN` | Yes | `http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173` | Comma-separated allowed HTTP CORS origins |
 | `VITE_API_URL` | Yes (Frontend) | `http://localhost:8000` | Backend API base URL for web client |
 
 ---

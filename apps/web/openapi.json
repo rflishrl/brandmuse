@@ -383,7 +383,7 @@
           "images"
         ],
         "summary": "Generate Stable Diffusion visual asset for a campaign concept",
-        "description": "Generate image with safety moderation, rate limits, and Cloudflare R2 persistence.",
+        "description": "Generate WebP image variants with safety moderation, quota checks, and R2 persistence.",
         "operationId": "generateImage",
         "parameters": [
           {
@@ -442,10 +442,37 @@
         "tags": [
           "images"
         ],
-        "summary": "Retrieve all generated assets for the active user session",
-        "description": "List all images generated within the current isolated session ordered newest first.",
+        "summary": "Retrieve paginated generated assets for the active user session",
+        "description": "List paginated images generated within the current isolated session ordered newest first.",
         "operationId": "getGallery",
         "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Max items per page",
+              "default": 24,
+              "title": "Limit"
+            },
+            "description": "Max items per page"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Pagination offset",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Pagination offset"
+          },
           {
             "name": "X-Session-Id",
             "in": "header",
@@ -762,10 +789,123 @@
           }
         }
       }
+    },
+    "/api/admin/usage": {
+      "get": {
+        "tags": [
+          "admin"
+        ],
+        "summary": "Inspect BrandMuse R2 storage quota and daily usage counters",
+        "description": "Return Tier 1 storage consumption and daily usage telemetry for administrators.",
+        "operationId": "getAdminUsage",
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUsageResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AdminUsageResponse": {
+        "properties": {
+          "bucket": {
+            "type": "string",
+            "title": "Bucket",
+            "description": "Configured Cloudflare R2 bucket name"
+          },
+          "prefix": {
+            "type": "string",
+            "title": "Prefix",
+            "description": "Configured R2 key prefix for BrandMuse"
+          },
+          "used_bytes": {
+            "type": "integer",
+            "title": "Used Bytes",
+            "description": "Sum of recorded size_bytes in generations"
+          },
+          "quota_bytes": {
+            "type": "integer",
+            "title": "Quota Bytes",
+            "description": "Configured R2_APP_QUOTA_MB in bytes"
+          },
+          "percent_used": {
+            "type": "number",
+            "title": "Percent Used",
+            "description": "Percentage of BrandMuse quota consumed"
+          },
+          "total_generations": {
+            "type": "integer",
+            "title": "Total Generations",
+            "description": "Total generation rows in database"
+          },
+          "legacy_unknown_size_count": {
+            "type": "integer",
+            "title": "Legacy Unknown Size Count",
+            "description": "Rows without recorded size_bytes pending backfill/migration"
+          },
+          "daily_image_count": {
+            "type": "integer",
+            "title": "Daily Image Count",
+            "description": "Images generated today"
+          },
+          "daily_llm_count": {
+            "type": "integer",
+            "title": "Daily Llm Count",
+            "description": "LLM calls recorded today"
+          }
+        },
+        "type": "object",
+        "required": [
+          "bucket",
+          "prefix",
+          "used_bytes",
+          "quota_bytes",
+          "percent_used",
+          "total_generations",
+          "legacy_unknown_size_count",
+          "daily_image_count",
+          "daily_llm_count"
+        ],
+        "title": "AdminUsageResponse",
+        "description": "Operational storage and daily quota telemetry for administrators."
+      },
       "Body_uploadDocument": {
         "properties": {
           "file": {
@@ -1493,13 +1633,31 @@
             },
             "type": "array",
             "title": "Generations",
-            "description": "All image generations belonging to this session",
+            "description": "Image generations belonging to this session",
             "default": []
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "description": "Page size applied to this response",
+            "default": 24
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "description": "Pagination offset applied to this response",
+            "default": 0
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More",
+            "description": "Whether additional records exist",
+            "default": false
           }
         },
         "type": "object",
         "title": "GalleryResponse",
-        "description": "List of all generated assets created within the active session."
+        "description": "Paginated list of generated assets created within the active session."
       },
       "GenerationItem": {
         "properties": {
@@ -1525,10 +1683,34 @@
             "title": "Image Url",
             "description": "Permanent public image URL"
           },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url",
+            "description": "Static thumbnail WebP URL for gallery grid cards"
+          },
           "provider": {
             "type": "string",
             "title": "Provider",
             "description": "Image provider used, e.g. stability or replicate"
+          },
+          "size_bytes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size Bytes",
+            "description": "Total stored WebP size in bytes across full and thumbnail variants"
           },
           "created_at": {
             "type": "string",
@@ -1672,6 +1854,18 @@
             "type": "string",
             "title": "Url",
             "description": "Permanent public HTTPS URL of the generated asset"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thumbnail Url",
+            "description": "Static thumbnail WebP URL for compact previews"
           }
         },
         "type": "object",

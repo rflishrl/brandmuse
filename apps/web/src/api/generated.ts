@@ -25,6 +25,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AdminUsageResponse,
   BodyUploadDocument,
   BrandOntologyCertify,
   BrandOntologyResponse,
@@ -36,6 +37,7 @@ import type {
   DocumentListResponse,
   DocumentUploadResponse,
   GalleryResponse,
+  GetGalleryParams,
   HTTPValidationError,
   HealthResponse,
   ImageGenerateRequest,
@@ -569,7 +571,7 @@ export const useRefineConcept = <TError = HTTPValidationError,
     }
     
 /**
- * Generate image with safety moderation, rate limits, and Cloudflare R2 persistence.
+ * Generate WebP image variants with safety moderation, quota checks, and R2 persistence.
  * @summary Generate Stable Diffusion visual asset for a campaign concept
  */
 export const generateImage = (
@@ -635,17 +637,18 @@ export const useGenerateImage = <TError = HTTPValidationError,
     }
     
 /**
- * List all images generated within the current isolated session ordered newest first.
- * @summary Retrieve all generated assets for the active user session
+ * List paginated images generated within the current isolated session ordered newest first.
+ * @summary Retrieve paginated generated assets for the active user session
  */
 export const getGallery = (
-    
+    params?: GetGalleryParams,
  options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
 ) => {
       
       
       return customInstance<GalleryResponse>(
-      {url: `/api/images`, method: 'GET', signal
+      {url: `/api/images`, method: 'GET',
+        params, signal
     },
       options);
     }
@@ -653,23 +656,23 @@ export const getGallery = (
 
 
 
-export const getGetGalleryQueryKey = () => {
+export const getGetGalleryQueryKey = (params?: GetGalleryParams,) => {
     return [
-    `/api/images`
+    `/api/images`, ...(params ? [params]: [])
     ] as const;
     }
 
     
-export const getGetGalleryQueryOptions = <TData = Awaited<ReturnType<typeof getGallery>>, TError = HTTPValidationError>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getGallery>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+export const getGetGalleryQueryOptions = <TData = Awaited<ReturnType<typeof getGallery>>, TError = HTTPValidationError>(params?: GetGalleryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getGallery>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetGalleryQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetGalleryQueryKey(params);
 
   
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGallery>>> = ({ signal }) => getGallery(requestOptions, signal);
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getGallery>>> = ({ signal }) => getGallery(params, requestOptions, signal);
 
       
 
@@ -683,7 +686,7 @@ export type GetGalleryQueryError = HTTPValidationError
 
 
 export function useGetGallery<TData = Awaited<ReturnType<typeof getGallery>>, TError = HTTPValidationError>(
-  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getGallery>>, TError, TData>> & Pick<
+ params: undefined |  GetGalleryParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getGallery>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getGallery>>,
           TError,
@@ -693,7 +696,7 @@ export function useGetGallery<TData = Awaited<ReturnType<typeof getGallery>>, TE
  , queryClient?: QueryClient
   ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetGallery<TData = Awaited<ReturnType<typeof getGallery>>, TError = HTTPValidationError>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getGallery>>, TError, TData>> & Pick<
+ params?: GetGalleryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getGallery>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getGallery>>,
           TError,
@@ -703,19 +706,19 @@ export function useGetGallery<TData = Awaited<ReturnType<typeof getGallery>>, TE
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 export function useGetGallery<TData = Awaited<ReturnType<typeof getGallery>>, TError = HTTPValidationError>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getGallery>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ params?: GetGalleryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getGallery>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient
   ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
- * @summary Retrieve all generated assets for the active user session
+ * @summary Retrieve paginated generated assets for the active user session
  */
 
 export function useGetGallery<TData = Awaited<ReturnType<typeof getGallery>>, TError = HTTPValidationError>(
-  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getGallery>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ params?: GetGalleryParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getGallery>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
  , queryClient?: QueryClient 
  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const queryOptions = getGetGalleryQueryOptions(options)
+  const queryOptions = getGetGalleryQueryOptions(params,options)
 
   const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 
@@ -1019,3 +1022,97 @@ export const useCertifyOntologyApiDocumentsDocumentIdOntologyCertifyPost = <TErr
       return useMutation(mutationOptions, queryClient);
     }
     
+/**
+ * Return Tier 1 storage consumption and daily usage telemetry for administrators.
+ * @summary Inspect BrandMuse R2 storage quota and daily usage counters
+ */
+export const getAdminUsage = (
+    
+ options?: SecondParameter<typeof customInstance>,signal?: AbortSignal
+) => {
+      
+      
+      return customInstance<AdminUsageResponse>(
+      {url: `/api/admin/usage`, method: 'GET', signal
+    },
+      options);
+    }
+  
+
+
+
+export const getGetAdminUsageQueryKey = () => {
+    return [
+    `/api/admin/usage`
+    ] as const;
+    }
+
+    
+export const getGetAdminUsageQueryOptions = <TData = Awaited<ReturnType<typeof getAdminUsage>>, TError = HTTPValidationError>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminUsage>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetAdminUsageQueryKey();
+
+  
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminUsage>>> = ({ signal }) => getAdminUsage(requestOptions, signal);
+
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminUsage>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetAdminUsageQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminUsage>>>
+export type GetAdminUsageQueryError = HTTPValidationError
+
+
+export function useGetAdminUsage<TData = Awaited<ReturnType<typeof getAdminUsage>>, TError = HTTPValidationError>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminUsage>>, TError, TData>> & Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAdminUsage>>,
+          TError,
+          Awaited<ReturnType<typeof getAdminUsage>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAdminUsage<TData = Awaited<ReturnType<typeof getAdminUsage>>, TError = HTTPValidationError>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminUsage>>, TError, TData>> & Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getAdminUsage>>,
+          TError,
+          Awaited<ReturnType<typeof getAdminUsage>>
+        > , 'initialData'
+      >, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAdminUsage<TData = Awaited<ReturnType<typeof getAdminUsage>>, TError = HTTPValidationError>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminUsage>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+/**
+ * @summary Inspect BrandMuse R2 storage quota and daily usage counters
+ */
+
+export function useGetAdminUsage<TData = Awaited<ReturnType<typeof getAdminUsage>>, TError = HTTPValidationError>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAdminUsage>>, TError, TData>>, request?: SecondParameter<typeof customInstance>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+
+  const queryOptions = getGetAdminUsageQueryOptions(options)
+
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
+
+  return query;
+}
+
+
+
+
+

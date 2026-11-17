@@ -16,9 +16,9 @@ flowchart TD
     User["Browser Pengguna"] -->|HTTPS CDN Edge| Pages["Cloudflare Pages (apps/web: React 18 / Bun)"]
     Pages -->|REST / SSE Streaming + X-Session-Id| Render["Render Web Service (FastAPI / Uvicorn Port Dinamis)"]
     Render -->|Pooled Connection / Port 5432 ssl=require| Neon["Neon.tech (PostgreSQL 16 + pgvector)"]
-    Render -->|S3 API / boto3 put_object| R2["Cloudflare R2 Bucket (brandmuse-images)"]
-    Render -->|Persistent HTTP Connection Pool| AI["Google Gemini 1.5 Flash / OpenAI"]
-    User -->|Download Public Assets| R2Public["Cloudflare R2 Public CDN"]
+    Render -->|S3 API / boto3 put_object| R2["Cloudflare R2 Bucket (brandmuse)"]
+    Render -->|Persistent HTTP Connection Pool| AI["Google Gemini / OpenAI"]
+    User -->|Download Public Assets| R2Public["Cloudflare R2 Custom Domain"]
 ```
 
 ---
@@ -31,23 +31,13 @@ flowchart TD
 3. Hubungkan repositori **`brandmuse`**.
 4. Isi parameter service:
 
-   **Pilihan A: Docker Runtime (Direkomendasikan, sesuai Dockerfile repositori):**
+   **Docker Runtime (Direkomendasikan, sesuai `./Dockerfile` repositori):**
    - **Name:** `brandmuse-api` (menghasilkan domain `https://brandmuse-13ck.onrender.com`).
    - **Region:** Singapore (`ap-southeast-1`, selaras dengan region Neon).
    - **Branch:** `main`
    - **Runtime:** **Docker**
    - **Dockerfile Path:** `./Dockerfile`
    - **Docker Context:** `.` (root repositori)
-   - **Instance Type:** Pilih **Free** ($0/month, Tanpa Kartu Kredit).
-
-   **Pilihan B: Native Python 3 Runtime (Alternatif menggunakan Astral `uv`):**
-   - **Name:** `brandmuse-api`
-   - **Region:** Singapore (`ap-southeast-1`).
-   - **Branch:** `main`
-   - **Root Directory:** `apps/api`
-   - **Runtime:** **Python 3**
-   - **Build Command:** `pip install uv && uv sync --frozen --no-dev --no-install-project`
-   - **Start Command:** `uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT`
    - **Instance Type:** Pilih **Free** ($0/month, Tanpa Kartu Kredit).
 
 ---
@@ -67,8 +57,12 @@ Masuk ke menu service Anda di Render -> tab **Environment**, masukkan variabel b
 | `R2_ACCOUNT_ID` | `c3a...` | Cloudflare Account ID untuk storage R2 |
 | `R2_ACCESS_KEY_ID` | `41f...` | Cloudflare R2 Access Key ID |
 | `R2_SECRET_ACCESS_KEY` | `89a...` | Cloudflare R2 Secret Access Key |
-| `R2_BUCKET_NAME` | `brandmuse-images` | Nama bucket Cloudflare R2 |
-| `R2_PUBLIC_URL` | `https://pub-xxx.r2.dev` | Public URL Cloudflare R2 |
+| `R2_BUCKET_NAME` | `brandmuse` | Nama bucket Cloudflare R2 |
+| `R2_KEY_PREFIX` | `brandmuse` | Prefix objek di bucket (`brandmuse` di produksi; `*-dev` di non-produksi) |
+| `R2_PUBLIC_URL` | `https://media.yourdomain.com` | Custom domain Cloudflare R2 |
+| `R2_APP_QUOTA_MB` | `2048` | Kuota keras penyimpanan BrandMuse (MB) |
+| `ADMIN_TOKEN` | `<random-64-hex>` | Bearer token untuk `GET /api/admin/usage` |
+| `MEDIA_OWNER_SECRET` | `<random-64-hex>` | Rahasia HMAC untuk hash `X-Session-Id` pada key objek |
 
 ### 3.2 Variabel Runtime
 
