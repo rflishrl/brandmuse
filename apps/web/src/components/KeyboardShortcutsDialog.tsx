@@ -10,44 +10,44 @@ interface KeyboardShortcutsDialogProps {
 interface ShortcutItem {
   keys: string[];
   description: string;
-  category: "Navigasi" | "Aksi Input" | "Umum";
+  category: "Navigation" | "Input Actions" | "General";
 }
 
 const SHORTCUTS: ShortcutItem[] = [
   {
     keys: ["⌘ / Ctrl", "K"],
-    description: "Fokus ke kolom prompt chat",
-    category: "Navigasi",
+    description: "Focus the chat prompt input",
+    category: "Navigation",
   },
   {
     keys: ["⌘ / Ctrl", "B"],
-    description: "Buka / tutup sidebar navigasi desktop",
-    category: "Navigasi",
+    description: "Toggle desktop navigation sidebar",
+    category: "Navigation",
   },
   {
     keys: ["⌘ / Ctrl", "1–5"],
-    description: "Pindah cepat tab (Ask, Rules, Campaign, Gallery, Docs)",
-    category: "Navigasi",
+    description: "Switch tabs (Ask, Rules, Campaign, Gallery, Docs)",
+    category: "Navigation",
   },
   {
     keys: ["Enter"],
-    description: "Kirim pesan prompt (aman IME composition)",
-    category: "Aksi Input",
+    description: "Send prompt (safe during IME composition)",
+    category: "Input Actions",
   },
   {
     keys: ["Shift", "Enter"],
-    description: "Buat baris baru pada teks pertanyaan",
-    category: "Aksi Input",
+    description: "Insert a new line in the prompt",
+    category: "Input Actions",
   },
   {
     keys: ["Esc"],
-    description: "Tutup modal, drawer, atau lightbox aktif",
-    category: "Umum",
+    description: "Close the active modal, drawer, or lightbox",
+    category: "General",
   },
   {
     keys: ["⌘ / Ctrl", "/"],
-    description: "Tampilkan bantuan pintasan keyboard ini",
-    category: "Umum",
+    description: "Show this keyboard shortcuts dialog",
+    category: "General",
   },
 ];
 
@@ -110,10 +110,10 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
                 id="shortcuts-dialog-title"
                 className="text-base font-semibold text-foreground tracking-tight"
               >
-                Pintasan Keyboard (Keyboard Shortcuts)
+                Keyboard Shortcuts
               </h3>
               <p className="text-xs text-muted-foreground">
-                Navigasi cepat dan kontrol efisien di BrandMuse
+                Quick navigation and controls in BrandMuse
               </p>
             </div>
           </div>
@@ -121,7 +121,7 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
             type="button"
             onClick={onClose}
             className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors cursor-pointer"
-            aria-label="Tutup dialog"
+            aria-label="Close dialog"
           >
             <X className="w-4 h-4" />
           </button>
@@ -129,7 +129,7 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
 
         {/* Shortcuts list grouped by category */}
         <div className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto pr-1">
-          {(["Navigasi", "Aksi Input", "Umum"] as const).map((category) => {
+          {(["Navigation", "Input Actions", "General"] as const).map((category) => {
             const items = SHORTCUTS.filter((s) => s.category === category);
             return (
               <div key={category} className="flex flex-col gap-2">
@@ -166,8 +166,8 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
         {/* Footer tip */}
         <div className="pt-2 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
           <span>
-            Tekan <kbd className="px-1.5 py-0.5 rounded bg-surface border font-mono">Esc</kbd> untuk
-            menutup
+            Press <kbd className="px-1.5 py-0.5 rounded bg-surface border font-mono">Esc</kbd> to
+            close
           </span>
           <span className="font-mono">BrandMuse Core UX</span>
         </div>

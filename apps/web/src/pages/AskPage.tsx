@@ -257,7 +257,7 @@ export const AskPage: React.FC = () => {
   const handleCopy = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
-    toast.success("Jawaban berhasil disalin ke clipboard!");
+    toast.success("Answer copied to clipboard!");
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -536,9 +536,9 @@ export const AskPage: React.FC = () => {
                     type="button"
                     onClick={() => {
                       toast.promise(loadSampleBrand(), {
-                        loading: "Memuat sample brand...",
-                        success: "Sample brand berhasil dimuat!",
-                        error: "Gagal memuat sample brand",
+                        loading: "Loading sample brand...",
+                        success: "Sample brand loaded!",
+                        error: "Failed to load sample brand",
                       });
                     }}
                     disabled={isLoadingSample}

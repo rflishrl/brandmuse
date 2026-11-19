@@ -109,7 +109,7 @@ export const BrandSync: React.FC = () => {
         return result?.document;
       } catch (err) {
         console.error("Failed to load sample brand:", err);
-        return undefined;
+        throw err;
       }
     };
     setLoadSampleBrandFn(handleLoadSampleBrand);

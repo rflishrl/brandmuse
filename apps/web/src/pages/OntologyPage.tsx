@@ -96,11 +96,11 @@ export const OntologyPage: React.FC = () => {
     try {
       await navigator.clipboard.writeText(hex);
       setCopiedHex(hex);
-      toast.success(`Hex code ${hex} disalin ke clipboard`);
+      toast.success(`Hex code ${hex} copied to clipboard`);
     } catch {
       // Fallback
       setCopiedHex(hex);
-      toast.success(`Hex code ${hex} disalin ke clipboard`);
+      toast.success(`Hex code ${hex} copied to clipboard`);
     }
   };
 
@@ -314,7 +314,13 @@ export const OntologyPage: React.FC = () => {
             <Button
               variant="default"
               size="sm"
-              onClick={() => loadSampleBrand()}
+              onClick={() => {
+                toast.promise(loadSampleBrand(), {
+                  loading: "Loading sample brand...",
+                  success: "Sample brand loaded!",
+                  error: "Failed to load sample brand",
+                });
+              }}
               disabled={isLoadingSample}
               className="gap-2"
             >

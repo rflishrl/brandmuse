@@ -99,3 +99,31 @@ async def test_parse_pdf_pages_vision_enrichment_for_sparse_pages() -> None:
         assert "Sparse text" in text
         assert "Terracotta #D2691E" in text
         assert "[Visual Brand Elements / Diagram OCR]:" in text
+
+
+def test_find_sample_pdf_path_works_in_repo_and_shallow_container(tmp_path) -> None:
+    """Verify _find_sample_pdf_path finds sample PDF without assuming fixed parent depth."""
+    from pathlib import Path
+    from unittest.mock import patch
+
+    from app.routers import documents as documents_router
+
+    # Local repo layout resolves the shipped sample PDF
+    found = documents_router._find_sample_pdf_path()
+    assert found is not None
+    assert found.name == "sample-brand-guideline.pdf"
+    assert found.is_file()
+
+    # Shallow container-like layout (/app/app/routers/documents.py)
+    container_root = tmp_path / "app"
+    fake_router = container_root / "app" / "routers" / "documents.py"
+    fake_router.parent.mkdir(parents=True)
+    fake_router.write_text("# stub", encoding="utf-8")
+
+    sample_dir = container_root / "samples"
+    sample_dir.mkdir()
+    sample_file = sample_dir / "sample-brand-guideline.pdf"
+    sample_file.write_bytes(b"%PDF-1.4\n")
+
+    with patch.object(documents_router, "__file__", str(fake_router)):
+        assert documents_router._find_sample_pdf_path() == Path(sample_file).resolve()

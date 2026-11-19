@@ -6,7 +6,7 @@ export const PageLoadingFallback: React.FC = () => {
     <div
       role="status"
       aria-busy="true"
-      aria-label="Memuat konten halaman"
+      aria-label="Loading page content"
       className="w-full flex flex-col gap-6 animate-in fade-in duration-150"
     >
       {/* Header Skeleton */}

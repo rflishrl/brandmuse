@@ -75,7 +75,7 @@ const GalleryCard: React.FC<GalleryCardProps> = ({ gen, idx, onSelect }) => {
         {imageError ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-surface-user text-muted-foreground gap-2">
             <ImageIcon className="w-8 h-8 opacity-40" aria-hidden="true" />
-            <span className="text-xs">Gambar tidak dapat dimuat</span>
+            <span className="text-xs">Unable to load image</span>
           </div>
         ) : (
           <img
@@ -144,7 +144,7 @@ export const GalleryPage: React.FC = () => {
   const handleCopyUrl = (url: string) => {
     navigator.clipboard.writeText(url);
     setCopiedUrl(true);
-    toast.success("URL gambar berhasil disalin ke clipboard!");
+    toast.success("Image URL copied to clipboard!");
     setTimeout(() => setCopiedUrl(false), 2000);
   };
 
@@ -391,12 +391,12 @@ export const GalleryPage: React.FC = () => {
                   {copiedUrl ? (
                     <>
                       <Check className="w-3.5 h-3.5 text-success-icon" aria-hidden="true" />
-                      <span>URL Disalin!</span>
+                      <span>URL Copied!</span>
                     </>
                   ) : (
                     <>
                       <Copy className="w-3.5 h-3.5" aria-hidden="true" />
-                      <span>Salin URL Gambar</span>
+                      <span>Copy Image URL</span>
                     </>
                   )}
                 </Button>

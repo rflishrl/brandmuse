@@ -57,18 +57,18 @@ export class ErrorBoundary extends Component<Props, State> {
 
             <div className="flex flex-col gap-1.5 max-w-md">
               <h2 className="text-lg font-bold text-foreground tracking-tight">
-                Terjadi Kesalahan pada Antarmuka
+                Something Went Wrong
               </h2>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Aplikasi mengalami kendala tak terduga saat memuat bagian ini. Anda dapat mencoba
-                memuat ulang komponen atau kembali ke beranda.
+                An unexpected error occurred while rendering this section. You can try again, reload
+                the page, or return home.
               </p>
             </div>
 
             {this.state.error?.message && (
               <div className="w-full p-3 rounded-xl bg-surface-user border border-border/80 text-left">
                 <span className="text-[10px] uppercase font-mono text-muted-foreground block mb-1">
-                  Detail Error
+                  Error Details
                 </span>
                 <p className="text-xs font-mono text-danger break-words">
                   {this.state.error.message}
@@ -84,7 +84,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 className="gap-1.5 text-xs"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span>Coba Lagi</span>
+                <span>Try Again</span>
               </Button>
 
               <Button
@@ -94,7 +94,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 className="gap-1.5 text-xs"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
-                <span>Muat Ulang Halaman</span>
+                <span>Reload Page</span>
               </Button>
 
               <Button
@@ -104,7 +104,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 className="gap-1.5 text-xs"
               >
                 <Home className="w-3.5 h-3.5" />
-                <span>Ke Beranda</span>
+                <span>Go Home</span>
               </Button>
             </div>
           </div>

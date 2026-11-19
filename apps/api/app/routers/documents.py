@@ -19,6 +19,15 @@ from app.schemas.documents import (
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 
+def _find_sample_pdf_path() -> Path | None:
+    """Locate sample-brand-guideline.pdf across local repo and container layouts."""
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "samples" / "sample-brand-guideline.pdf"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
 @router.post(
     "",
     response_model=DocumentUploadResponse,
@@ -82,9 +91,9 @@ async def load_sample_brand(
             chunk_count=0,
         )
 
-    # Locate sample PDF on disk
-    sample_path = Path(__file__).resolve().parents[4] / "samples" / "sample-brand-guideline.pdf"
-    if not sample_path.exists():
+    # Locate sample PDF on disk (works in both repo root and Docker /app layout)
+    sample_path = _find_sample_pdf_path()
+    if sample_path is None:
         raise APIError(
             code="SAMPLE_NOT_FOUND",
             message="Sample brand guideline PDF is missing from repository.",

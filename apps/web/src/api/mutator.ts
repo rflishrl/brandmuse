@@ -116,7 +116,7 @@ export const customInstance = async <T>(
       throw new CustomApiError(
         504,
         "SERVER_WARMING_UP",
-        "Server demo sedang bangun (Render Free Tier). Silakan coba lagi beberapa detik lagi."
+        "Demo server is waking up (Render Free Tier). Please try again in a few seconds."
       );
     }
     if (callerSignal?.aborted) {
@@ -125,7 +125,7 @@ export const customInstance = async <T>(
     throw new CustomApiError(
       503,
       "SERVER_UNREACHABLE",
-      "Server demo sedang bangun atau tidak terjangkau. Silakan coba lagi sebentar."
+      "Demo server is waking up or unreachable. Please try again shortly."
     );
   } finally {
     clearTimeout(timeoutId);
@@ -138,7 +138,7 @@ export const customInstance = async <T>(
 
     if (response.status === 502 || response.status === 503 || response.status === 504) {
       errorMessage =
-        "Server demo sedang bangun (Render Free Tier). Silakan coba lagi beberapa detik lagi.";
+        "Demo server is waking up (Render Free Tier). Please try again in a few seconds.";
     }
 
     try {

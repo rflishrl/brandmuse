@@ -178,13 +178,13 @@ export const CampaignPage: React.FC = () => {
         [index]: { loading: false, url: res.url },
       }));
       queryClient.invalidateQueries({ queryKey: queryKeys.gallery.all });
-      toast.success(`Gambar untuk konsep "${concept.title}" berhasil di-generate!`);
+      toast.success(`Image generated for "${concept.title}"!`);
     } catch (err: unknown) {
       let msg = "Failed to generate image asset.";
       if (err instanceof CustomApiError) {
         msg =
           err.code === "STORAGE_QUOTA_EXCEEDED"
-            ? "Kapasitas penyimpanan demo sedang penuh sementara. Silakan coba lagi nanti."
+            ? "Demo storage quota is temporarily full. Please try again later."
             : err.message;
       } else if (err instanceof Error) {
         msg = err.message;
@@ -200,7 +200,7 @@ export const CampaignPage: React.FC = () => {
   const handleCopyPrompt = (promptText: string, index: number) => {
     navigator.clipboard.writeText(promptText);
     setCopiedPromptIndex(index);
-    toast.success("Prompt kampanye berhasil disalin!");
+    toast.success("Campaign prompt copied!");
     setTimeout(() => setCopiedPromptIndex(null), 2000);
   };
 
@@ -229,9 +229,9 @@ export const CampaignPage: React.FC = () => {
             size="sm"
             onClick={() => {
               toast.promise(loadSampleBrand(), {
-                loading: "Memuat sample brand...",
-                success: "Sample brand berhasil dimuat!",
-                error: "Gagal memuat sample brand",
+                loading: "Loading sample brand...",
+                success: "Sample brand loaded!",
+                error: "Failed to load sample brand",
               });
             }}
             disabled={isLoadingSample}

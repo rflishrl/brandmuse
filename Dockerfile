@@ -27,11 +27,12 @@ ENV PATH="/app/.venv/bin:$PATH" \
 
 WORKDIR /app
 
-# Copy virtual environment and application source
+# Copy virtual environment, application source, and sample brand guideline PDF
 COPY --from=builder --chown=appuser:appuser /app/.venv /app/.venv
 COPY --chown=appuser:appuser apps/api/app/ ./app/
 COPY --chown=appuser:appuser apps/api/alembic/ ./alembic/
 COPY --chown=appuser:appuser apps/api/alembic.ini ./
+COPY --chown=appuser:appuser samples/ ./samples/
 
 # Ensure write permissions for appuser on required directories
 RUN mkdir -p /app/data /tmp && chown -R appuser:appuser /app /tmp /home/appuser

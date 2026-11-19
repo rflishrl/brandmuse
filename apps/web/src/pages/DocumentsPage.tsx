@@ -76,7 +76,7 @@ export const DocumentsPage: React.FC = () => {
         setSelectedDocumentId(result.document.id);
       }
       setUploadStatus(null);
-      toast.success(`Dokumen "${file.name}" berhasil diunggah dan diekstrak!`);
+      toast.success(`Document "${file.name}" uploaded and extracted!`);
     } catch (err: unknown) {
       setUploadStatus(null);
       const msg =
@@ -90,9 +90,9 @@ export const DocumentsPage: React.FC = () => {
 
   const handleLoadSample = async () => {
     toast.promise(loadSampleBrand(), {
-      loading: "Memuat sample brand...",
-      success: "Sample brand berhasil dimuat!",
-      error: "Gagal memuat sample brand",
+      loading: "Loading sample brand...",
+      success: "Sample brand loaded!",
+      error: "Failed to load sample brand",
     });
   };
 

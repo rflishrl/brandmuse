@@ -41,6 +41,8 @@ export const AppShell: React.FC<AppShellProps> = ({
   onUseSampleBrand,
 }) => {
   const selectedDocumentFilename = useBrandStore((s) => s.selectedDocument?.filename);
+  const isSampleActive = useBrandStore((s) => Boolean(s.selectedDocument?.is_sample));
+  const isLoadingSample = useBrandStore((s) => s.isLoadingSample);
   const loadSampleBrand = useBrandStore((s) => s.loadSampleBrand);
   const isServerWarmingUp = useBrandStore((s) => s.isServerWarmingUp);
   const isServerOffline = useBrandStore((s) => s.isServerOffline);
@@ -54,9 +56,9 @@ export const AppShell: React.FC<AppShellProps> = ({
       return;
     }
     toast.promise(loadSampleBrand(), {
-      loading: "Memuat sample brand...",
-      success: "Sample brand berhasil dimuat!",
-      error: "Gagal memuat sample brand",
+      loading: "Loading sample brand...",
+      success: "Aura Living sample brand is active!",
+      error: (err) => (err instanceof Error ? err.message : "Failed to load sample brand"),
     });
   };
 
@@ -336,14 +338,25 @@ export const AppShell: React.FC<AppShellProps> = ({
                 handleUseSample?.();
                 setMobileOpen(false);
               }}
-              className="flex items-center justify-between px-3 py-2 rounded-xl text-xs text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
+              disabled={isLoadingSample}
+              className="flex items-center justify-between px-3 py-2 rounded-xl text-xs text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors disabled:opacity-60"
             >
               <span className="flex items-center gap-2.5">
-                <Bookmark className="w-4 h-4" />
+                {isLoadingSample ? (
+                  <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Bookmark className="w-4 h-4" aria-hidden="true" />
+                )}
                 <span>Load Aura Living Demo</span>
               </span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-foreground/5 text-muted-foreground">
-                Demo
+              <span
+                className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                  isSampleActive
+                    ? "bg-emerald-500/15 text-success-text"
+                    : "bg-foreground/5 text-muted-foreground"
+                }`}
+              >
+                {isSampleActive ? "Active" : "Demo"}
               </span>
             </button>
             <button
@@ -499,12 +512,27 @@ export const AppShell: React.FC<AppShellProps> = ({
           <button
             type="button"
             onClick={() => handleUseSample?.()}
+            disabled={isLoadingSample}
             title="Load demo brand guideline (Aura Living)"
             aria-label="Load demo brand guideline"
-            className="w-full h-11 rounded-2xl flex items-center overflow-hidden text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] border border-transparent hover:border-border dark:hover:border-white/10 transition-all group"
+            className={`w-full h-11 rounded-2xl flex items-center overflow-hidden transition-all group border disabled:opacity-60 ${
+              isSampleActive
+                ? "text-foreground bg-foreground/[0.06] border-border dark:border-white/15"
+                : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] border-transparent hover:border-border dark:hover:border-white/10"
+            }`}
           >
             <div className="w-11 h-11 shrink-0 flex items-center justify-center">
-              <Bookmark className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
+              {isLoadingSample ? (
+                <Loader2 className="w-4 h-4 text-foreground animate-spin shrink-0" />
+              ) : (
+                <Bookmark
+                  className={`w-4 h-4 transition-colors shrink-0 ${
+                    isSampleActive
+                      ? "text-foreground"
+                      : "text-muted-foreground group-hover:text-foreground"
+                  }`}
+                />
+              )}
             </div>
             <div
               className={`flex-1 flex items-center justify-between transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
@@ -514,8 +542,14 @@ export const AppShell: React.FC<AppShellProps> = ({
               }`}
             >
               <span className="font-medium text-xs">Sample Brand</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-foreground/5 text-muted-foreground">
-                Demo
+              <span
+                className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                  isSampleActive
+                    ? "bg-emerald-500/15 text-success-text"
+                    : "bg-foreground/5 text-muted-foreground"
+                }`}
+              >
+                {isSampleActive ? "Active" : "Demo"}
               </span>
             </div>
           </button>
@@ -524,8 +558,8 @@ export const AppShell: React.FC<AppShellProps> = ({
           <button
             type="button"
             onClick={() => setShowShortcutsDialog(true)}
-            title="Pintasan keyboard (⌘ / Ctrl + /)"
-            aria-label="Pintasan keyboard"
+            title="Keyboard shortcuts (⌘ / Ctrl + /)"
+            aria-label="Keyboard shortcuts"
             className="w-full h-11 rounded-2xl flex items-center overflow-hidden text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] border border-transparent hover:border-border dark:hover:border-white/10 transition-all group"
           >
             <div className="w-11 h-11 shrink-0 flex items-center justify-center">
@@ -539,9 +573,6 @@ export const AppShell: React.FC<AppShellProps> = ({
               }`}
             >
               <span className="font-medium text-xs">Shortcuts</span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-foreground/5 text-muted-foreground">
-                ⌘/
-              </span>
             </div>
           </button>
 
@@ -656,21 +687,21 @@ export const AppShell: React.FC<AppShellProps> = ({
                 <div className="flex flex-col min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold text-foreground tracking-tight">
-                      Menghubungkan ke Server Backend
+                      Connecting to Backend Server
                     </span>
                     <span className="hidden sm:inline-flex text-[10px] font-mono px-1.5 py-0.5 rounded-md bg-foreground/5 dark:bg-white/[0.06] text-muted-foreground border border-border/60 dark:border-white/10">
                       Cloud Backend
                     </span>
                   </div>
                   <span className="text-[11px] text-muted-foreground leading-snug truncate">
-                    Server backend sedang bangun dari standby (Render Free Tier).
+                    Backend server is waking up from standby (Render Free Tier).
                   </span>
                 </div>
               </div>
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-foreground/[0.04] dark:bg-white/[0.06] border border-border/60 dark:border-white/10 shrink-0">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 <span className="text-[11px] font-mono text-muted-foreground whitespace-nowrap">
-                  ~20–30 dtk
+                  ~20-30s
                 </span>
               </div>
             </aside>
@@ -688,11 +719,10 @@ export const AppShell: React.FC<AppShellProps> = ({
                 </div>
                 <div className="flex flex-col min-w-0">
                   <span className="text-xs font-semibold text-foreground tracking-tight">
-                    Server Backend Belum Terhubung
+                    Backend Server Unreachable
                   </span>
                   <span className="text-[11px] text-muted-foreground leading-snug truncate">
-                    Server backend di Render belum merespons. Pastikan Web Service dalam keadaan
-                    Live.
+                    The Render backend server is not responding. Ensure the Web Service is live.
                   </span>
                 </div>
               </div>
@@ -700,12 +730,12 @@ export const AppShell: React.FC<AppShellProps> = ({
                 type="button"
                 onClick={() => {
                   refetchDocuments();
-                  toast.info("Mencoba menghubungkan ulang ke server...");
+                  toast.info("Reconnecting to server...");
                 }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-foreground/5 hover:bg-foreground/10 dark:bg-white/[0.08] dark:hover:bg-white/[0.14] border border-border dark:border-white/10 text-xs font-medium text-foreground transition-all shrink-0 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
               >
                 <RefreshCw className="w-3 h-3 text-muted-foreground" aria-hidden="true" />
-                <span>Hubungkan Ulang</span>
+                <span>Reconnect</span>
               </button>
             </aside>
           )}
