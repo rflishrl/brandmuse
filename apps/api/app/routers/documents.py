@@ -20,8 +20,13 @@ router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 
 def _find_sample_pdf_path() -> Path | None:
-    """Locate sample-brand-guideline.pdf across local repo and container layouts."""
-    for parent in Path(__file__).resolve().parents:
+    """Locate sample-brand-guideline.pdf in packaged assets, repo root, or containers."""
+    router_path = Path(__file__).resolve()
+    bundled_asset = router_path.parents[1] / "assets" / "sample-brand-guideline.pdf"
+    if bundled_asset.is_file():
+        return bundled_asset
+
+    for parent in router_path.parents:
         candidate = parent / "samples" / "sample-brand-guideline.pdf"
         if candidate.is_file():
             return candidate
