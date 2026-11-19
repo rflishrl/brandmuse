@@ -159,11 +159,12 @@ class OllamaEmbeddingProvider(BaseEmbeddingProvider):
 
 
 class GeminiEmbeddingProvider(BaseEmbeddingProvider):
-    """Google Gemini hosted embeddings via text-embedding-004 with zero-padding to target dim."""
+    """Google Gemini hosted embeddings via gemini-embedding-001 with MRL dimensionality."""
 
-    def __init__(self, api_key: str | None = None, model: str = "models/text-embedding-004"):
-        self.api_key = api_key or settings.GEMINI_API_KEY
-        self.model = model
+    def __init__(self, api_key: str | None = None, model: str | None = None):
+        self.api_key = (api_key or settings.GEMINI_API_KEY).strip()
+        raw_model = (model or settings.GEMINI_EMBEDDING_MODEL).strip()
+        self.model = raw_model if raw_model.startswith("models/") else f"models/{raw_model}"
         self.batch_size = 32
 
     async def embed_documents(self, texts: list[str]) -> list[list[float]]:
@@ -178,10 +179,7 @@ class GeminiEmbeddingProvider(BaseEmbeddingProvider):
 
         all_embeddings: list[list[float]] = []
         target_dim = settings.EMBEDDING_DIM
-        url = (
-            f"https://generativelanguage.googleapis.com/v1beta/"
-            f"models/text-embedding-004:batchEmbedContents?key={self.api_key}"
-        )
+        url = f"https://generativelanguage.googleapis.com/v1beta/{self.model}:batchEmbedContents"
 
         client = get_http_client()
         for i in range(0, len(texts), self.batch_size):
@@ -191,11 +189,17 @@ class GeminiEmbeddingProvider(BaseEmbeddingProvider):
                     {
                         "model": self.model,
                         "content": {"parts": [{"text": t}]},
+                        "outputDimensionality": target_dim,
                     }
                     for t in batch
                 ]
             }
-            response = await client.post(url, json=payload, timeout=30.0)
+            response = await client.post(
+                url,
+                headers={"x-goog-api-key": self.api_key},
+                json=payload,
+                timeout=30.0,
+            )
             if response.status_code != 200:
                 raise APIError(
                     code="EMBEDDING_ERROR",
@@ -205,7 +209,7 @@ class GeminiEmbeddingProvider(BaseEmbeddingProvider):
             data = response.json()
             for item in data.get("embeddings", []):
                 values: list[float] = item.get("values", [])
-                # Zero-pad to target_dim if smaller (e.g. 768 to 1536 preserves cosine distance)
+                # Guard vector dimension to match pgvector column width
                 if len(values) < target_dim:
                     values = values + [0.0] * (target_dim - len(values))
                 elif len(values) > target_dim:

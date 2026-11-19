@@ -58,6 +58,14 @@ class Settings(BaseSettings):
     # Credentials
     OPENAI_API_KEY: str = Field(default="", description="OpenAI API key")
     GEMINI_API_KEY: str = Field(default="", description="Google Gemini API key")
+    GEMINI_MODEL: str = Field(
+        default="gemini-3.5-flash-lite",
+        description="Google Gemini chat model ID",
+    )
+    GEMINI_EMBEDDING_MODEL: str = Field(
+        default="models/gemini-embedding-001",
+        description="Google Gemini embedding model ID",
+    )
     OLLAMA_BASE_URL: str = Field(
         default="http://localhost:11434", description="Ollama API base URL"
     )

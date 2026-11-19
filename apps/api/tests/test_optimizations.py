@@ -81,3 +81,36 @@ async def test_http_client_singleton_and_close() -> None:
     client3 = get_http_client()
     assert not client3.is_closed
     await close_http_client()
+
+
+@pytest.mark.asyncio
+async def test_gemini_embedding_provider_uses_current_model_header_and_mrl_dim() -> None:
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    import httpx
+
+    from app.providers.embeddings import GeminiEmbeddingProvider
+
+    provider = GeminiEmbeddingProvider(api_key="  test-gemini-key  ", model="gemini-embedding-001")
+    assert provider.model == "models/gemini-embedding-001"
+    assert provider.api_key == "test-gemini-key"
+
+    mock_response = MagicMock(spec=httpx.Response)
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"embeddings": [{"values": [0.1] * 1536}]}
+
+    mock_client = MagicMock()
+    mock_client.post = AsyncMock(return_value=mock_response)
+
+    with patch("app.providers.embeddings.get_http_client", return_value=mock_client):
+        vectors = await provider.embed_documents(["Brand guideline text"])
+
+    assert len(vectors) == 1
+    assert len(vectors[0]) == 1536
+    call_args = mock_client.post.call_args
+    assert call_args.args[0] == (
+        "https://generativelanguage.googleapis.com/v1beta/"
+        "models/gemini-embedding-001:batchEmbedContents"
+    )
+    assert call_args.kwargs["headers"] == {"x-goog-api-key": "test-gemini-key"}
+    assert call_args.kwargs["json"]["requests"][0]["outputDimensionality"] == 1536

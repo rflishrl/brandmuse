@@ -32,16 +32,17 @@ def get_llm(
             streaming=streaming,
         )
     elif provider == "gemini":
-        if not settings.GEMINI_API_KEY:
+        gemini_key = settings.GEMINI_API_KEY.strip()
+        if not gemini_key:
             raise APIError(
                 code="MISSING_API_KEY",
                 message="GEMINI_API_KEY is not configured.",
                 status_code=500,
             )
         return ChatOpenAI(
-            model="gemini-1.5-flash",
+            model=settings.GEMINI_MODEL.strip(),
             base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
-            api_key=SecretStr(settings.GEMINI_API_KEY),
+            api_key=SecretStr(gemini_key),
             temperature=temperature,
             max_completion_tokens=max_tokens,
             streaming=streaming,
