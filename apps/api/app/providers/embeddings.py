@@ -3,6 +3,8 @@ from abc import ABC, abstractmethod
 from collections import OrderedDict
 from typing import Any
 
+import httpx
+
 from app.core.config import get_settings
 from app.core.errors import APIError
 from app.core.http import get_http_client
@@ -109,12 +111,19 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
         client = get_http_client()
         for i in range(0, len(texts), self.batch_size):
             batch = texts[i : i + self.batch_size]
-            response = await client.post(
-                "https://api.openai.com/v1/embeddings",
-                headers={"Authorization": f"Bearer {self.api_key}"},
-                json={"input": batch, "model": self.model},
-                timeout=30.0,
-            )
+            try:
+                response = await client.post(
+                    "https://api.openai.com/v1/embeddings",
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    json={"input": batch, "model": self.model},
+                    timeout=30.0,
+                )
+            except httpx.HTTPError as exc:
+                raise APIError(
+                    code="EMBEDDING_ERROR",
+                    message=f"OpenAI embedding request failed ({type(exc).__name__}): {exc}",
+                    status_code=502,
+                ) from exc
             if response.status_code != 200:
                 raise APIError(
                     code="EMBEDDING_ERROR",
@@ -142,11 +151,18 @@ class OllamaEmbeddingProvider(BaseEmbeddingProvider):
         all_embeddings: list[list[float]] = []
         client = get_http_client()
         for text in texts:
-            response = await client.post(
-                f"{self.base_url}/api/embeddings",
-                json={"model": self.model, "prompt": text},
-                timeout=60.0,
-            )
+            try:
+                response = await client.post(
+                    f"{self.base_url}/api/embeddings",
+                    json={"model": self.model, "prompt": text},
+                    timeout=60.0,
+                )
+            except httpx.HTTPError as exc:
+                raise APIError(
+                    code="EMBEDDING_ERROR",
+                    message=f"Ollama embedding request failed ({type(exc).__name__}): {exc}",
+                    status_code=502,
+                ) from exc
             if response.status_code != 200:
                 raise APIError(
                     code="EMBEDDING_ERROR",
@@ -194,12 +210,19 @@ class GeminiEmbeddingProvider(BaseEmbeddingProvider):
                     for t in batch
                 ]
             }
-            response = await client.post(
-                url,
-                headers={"x-goog-api-key": self.api_key},
-                json=payload,
-                timeout=30.0,
-            )
+            try:
+                response = await client.post(
+                    url,
+                    headers={"x-goog-api-key": self.api_key},
+                    json=payload,
+                    timeout=30.0,
+                )
+            except httpx.HTTPError as exc:
+                raise APIError(
+                    code="EMBEDDING_ERROR",
+                    message=f"Gemini embedding request failed ({type(exc).__name__}): {exc}",
+                    status_code=502,
+                ) from exc
             if response.status_code != 200:
                 raise APIError(
                     code="EMBEDDING_ERROR",

@@ -6,6 +6,9 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.core.config import get_settings
+from app.core.logging import logger
+
 
 class APIError(Exception):
     """Base application exception returning consistent JSON error envelopes."""
@@ -82,13 +85,20 @@ def register_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(Exception)
-    async def unhandled_exception_handler(_request: Request, _exc: Exception) -> JSONResponse:
+    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        logger.exception("Unhandled error during %s %s", request.method, request.url.path)
+        headers: dict[str, str] = {}
+        origin = request.headers.get("origin")
+        if origin and origin in get_settings().cors_origins:
+            headers["Access-Control-Allow-Origin"] = origin
+            headers["Vary"] = "Origin"
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            headers=headers,
             content={
                 "error": {
                     "code": "INTERNAL_SERVER_ERROR",
-                    "message": "An unexpected server error occurred.",
+                    "message": f"An unexpected server error occurred ({type(exc).__name__}).",
                 }
             },
         )

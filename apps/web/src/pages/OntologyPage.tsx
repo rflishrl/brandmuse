@@ -318,7 +318,8 @@ export const OntologyPage: React.FC = () => {
                 toast.promise(loadSampleBrand(), {
                   loading: "Loading sample brand...",
                   success: "Sample brand loaded!",
-                  error: "Failed to load sample brand",
+                  error: (err) =>
+                    err instanceof Error ? err.message : "Failed to load sample brand",
                 });
               }}
               disabled={isLoadingSample}

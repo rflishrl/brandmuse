@@ -5,6 +5,7 @@ from typing import Any
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     Boolean,
+    Computed,
     Date,
     DateTime,
     ForeignKey,
@@ -74,7 +75,11 @@ class Chunk(Base):
     chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[Any] = mapped_column(Vector(settings.EMBEDDING_DIM), nullable=True)
-    tsv: Mapped[Any] = mapped_column(TSVECTOR, nullable=True)
+    tsv: Mapped[Any] = mapped_column(
+        TSVECTOR,
+        Computed(f"to_tsvector('{settings.FTS_CONFIG}', content)", persisted=True),
+        nullable=True,
+    )
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
