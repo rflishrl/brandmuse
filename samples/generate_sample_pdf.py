@@ -219,6 +219,7 @@ def build_pdf(output_path: str) -> None:
     print(f"Sample brand guideline generated successfully at: {output_path}")
 
 if __name__ == "__main__":
-    out_dir = Path(__file__).resolve().parent
-    out_file = out_dir / "sample-brand-guideline.pdf"
+    repo_root = Path(__file__).resolve().parent.parent
+    out_file = repo_root / "apps" / "api" / "app" / "assets" / "sample-brand-guideline.pdf"
+    out_file.parent.mkdir(parents=True, exist_ok=True)
     build_pdf(str(out_file))

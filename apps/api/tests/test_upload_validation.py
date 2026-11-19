@@ -101,29 +101,59 @@ async def test_parse_pdf_pages_vision_enrichment_for_sparse_pages() -> None:
         assert "[Visual Brand Elements / Diagram OCR]:" in text
 
 
-def test_find_sample_pdf_path_works_in_repo_and_shallow_container(tmp_path) -> None:
-    """Verify _find_sample_pdf_path finds sample PDF in bundled assets and repo layouts."""
-    from pathlib import Path
-    from unittest.mock import patch
+def test_get_sample_pdf_path_resolves_single_source_asset() -> None:
+    """Verify get_sample_pdf_path resolves the canonical PDF inside app/assets."""
+    from app.services.sample_seed import get_sample_pdf_path
 
-    from app.routers import documents as documents_router
-
-    # Bundled asset or repo layout resolves the shipped sample PDF
-    found = documents_router._find_sample_pdf_path()
+    found = get_sample_pdf_path()
     assert found is not None
     assert found.name == "sample-brand-guideline.pdf"
+    assert found.parent.name == "assets"
     assert found.is_file()
 
-    # Shallow container-like layout (/app/app/routers/documents.py) with bundled app/assets/
-    container_root = tmp_path / "app"
-    fake_router = container_root / "app" / "routers" / "documents.py"
-    fake_router.parent.mkdir(parents=True)
-    fake_router.write_text("# stub", encoding="utf-8")
 
-    asset_dir = container_root / "app" / "assets"
-    asset_dir.mkdir(parents=True)
-    asset_file = asset_dir / "sample-brand-guideline.pdf"
-    asset_file.write_bytes(b"%PDF-1.4\n")
+@pytest.mark.asyncio
+async def test_ensure_sample_brand_seeded_handles_concurrent_integrity_error() -> None:
+    """Verify ensure_sample_brand_seeded recovers gracefully on concurrent IntegrityError."""
+    import datetime
+    import uuid
+    from unittest.mock import AsyncMock, MagicMock, patch
 
-    with patch.object(documents_router, "__file__", str(fake_router)):
-        assert documents_router._find_sample_pdf_path() == Path(asset_file).resolve()
+    from sqlalchemy.exc import IntegrityError
+
+    from app.db.models import Document
+    from app.services.sample_seed import ensure_sample_brand_seeded
+
+    winner_doc = Document(
+        id=uuid.uuid4(),
+        session_id=uuid.uuid4(),
+        filename="Aura Living - Brand Guidelines.pdf",
+        page_count=6,
+        is_sample=True,
+        created_at=datetime.datetime.now(datetime.UTC),
+    )
+
+    mock_db = AsyncMock()
+    mock_db.rollback = AsyncMock()
+
+    with (
+        patch(
+            "app.services.sample_seed.DocumentRepository.get_sample_document",
+            AsyncMock(side_effect=[None, None, winner_doc]),
+        ),
+        patch(
+            "app.services.sample_seed.ingest_pdf_document",
+            AsyncMock(
+                side_effect=IntegrityError("INSERT", {}, Exception("uq_documents_single_sample"))
+            ),
+        ),
+        patch(
+            "app.services.sample_seed.get_sample_pdf_path",
+            return_value=MagicMock(read_bytes=MagicMock(return_value=b"%PDF-1.4\n")),
+        ),
+    ):
+        doc, chunk_count = await ensure_sample_brand_seeded(mock_db)
+
+    assert doc.id == winner_doc.id
+    assert chunk_count == 0
+    mock_db.rollback.assert_awaited_once()

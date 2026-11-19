@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-api dev-web lint typecheck test build api-generate migrate docker-up docker-down eval-retrieval eval-quantization smoke-test
+.PHONY: help install dev dev-api dev-web lint typecheck test build api-generate migrate seed-sample docker-up docker-down eval-retrieval eval-quantization smoke-test
 
 SHELL := /bin/bash
 
@@ -46,6 +46,9 @@ api-generate:
 
 migrate:
 	cd apps/api && uv run alembic upgrade head
+
+seed-sample:
+	cd apps/api && uv run python -m app.scripts.seed_sample
 
 eval-retrieval:
 	cd apps/api && uv run python ../../eval/retrieval.py

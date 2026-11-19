@@ -13,6 +13,7 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -45,6 +46,15 @@ class Document(Base):
     )
     ontology: Mapped["BrandOntology | None"] = relationship(
         "BrandOntology", back_populates="document", uselist=False, cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        Index(
+            "uq_documents_single_sample",
+            "is_sample",
+            unique=True,
+            postgresql_where=text("is_sample IS TRUE"),
+        ),
     )
 
 

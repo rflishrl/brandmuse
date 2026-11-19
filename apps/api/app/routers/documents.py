@@ -1,10 +1,8 @@
 import uuid
-from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import APIError
 from app.core.security import get_session_id
 from app.db.repositories import DocumentRepository
 from app.db.session import get_db
@@ -15,22 +13,9 @@ from app.schemas.documents import (
     DocumentResponse,
     DocumentUploadResponse,
 )
+from app.services.sample_seed import ensure_sample_brand_seeded
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
-
-
-def _find_sample_pdf_path() -> Path | None:
-    """Locate sample-brand-guideline.pdf in packaged assets, repo root, or containers."""
-    router_path = Path(__file__).resolve()
-    bundled_asset = router_path.parents[1] / "assets" / "sample-brand-guideline.pdf"
-    if bundled_asset.is_file():
-        return bundled_asset
-
-    for parent in router_path.parents:
-        candidate = parent / "samples" / "sample-brand-guideline.pdf"
-        if candidate.is_file():
-            return candidate
-    return None
 
 
 @router.post(
@@ -81,40 +66,7 @@ async def load_sample_brand(
     db: AsyncSession = Depends(get_db),
 ) -> DocumentUploadResponse:
     """Ensure the shared sample brand guideline is loaded and return its metadata."""
-    # Check if a sample document already exists
-    existing_sample = await DocumentRepository.get_sample_document(db)
-
-    if existing_sample:
-        return DocumentUploadResponse(
-            document=DocumentResponse(
-                id=existing_sample.id,
-                filename=existing_sample.filename,
-                page_count=existing_sample.page_count,
-                is_sample=True,
-                created_at=existing_sample.created_at,
-            ),
-            chunk_count=0,
-        )
-
-    # Locate sample PDF on disk (works in both repo root and Docker /app layout)
-    sample_path = _find_sample_pdf_path()
-    if sample_path is None:
-        raise APIError(
-            code="SAMPLE_NOT_FOUND",
-            message="Sample brand guideline PDF is missing from repository.",
-            status_code=404,
-        )
-
-    with open(sample_path, "rb") as f:
-        pdf_bytes = f.read()
-
-    doc, chunk_count = await ingest_pdf_document(
-        db=db,
-        session_id=session_id,
-        filename="Aura Living - Brand Guidelines.pdf",
-        pdf_bytes=pdf_bytes,
-        is_sample=True,
-    )
+    doc, chunk_count = await ensure_sample_brand_seeded(db, session_id=session_id)
 
     return DocumentUploadResponse(
         document=DocumentResponse(

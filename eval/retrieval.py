@@ -170,8 +170,15 @@ async def run_evaluation() -> None:
     print(" Comparing: Vector-Only vs. Keyword-Only (BM25) vs. Hybrid RRF")
     print("=" * 70)
 
-    # 1. Load and chunk sample PDF
-    pdf_path = Path(__file__).resolve().parent.parent / "samples" / "sample-brand-guideline.pdf"
+    # 1. Load and chunk sample PDF from single source of truth
+    pdf_path = (
+        Path(__file__).resolve().parent.parent
+        / "apps"
+        / "api"
+        / "app"
+        / "assets"
+        / "sample-brand-guideline.pdf"
+    )
     if not pdf_path.exists():
         print(f"Error: Sample PDF not found at {pdf_path}")
         return
