@@ -18,7 +18,8 @@ const ReactQueryDevtools = import.meta.env.DEV
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 30, // 30 seconds
+      staleTime: 1000 * 60 * 5, // 5 minutes: prevents redundant re-fetches across tab switches
+      gcTime: 1000 * 60 * 15, // 15 minutes cache retention
       retry: (failureCount, error) => {
         // Do not retry 4xx client errors (400, 401, 404, etc.)
         if (error instanceof CustomApiError && error.status >= 400 && error.status < 500) {

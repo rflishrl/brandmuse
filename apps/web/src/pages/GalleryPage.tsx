@@ -135,6 +135,8 @@ export const GalleryPage: React.FC = () => {
     }
   }, [data, offset]);
 
+  const displayedGenerations =
+    offset === 0 && generations.length === 0 && data?.generations ? data.generations : generations;
   const hasMore = Boolean(data?.has_more);
 
   const [activeLightboxItem, setActiveLightboxItem] = useState<GenerationItem | null>(null);
@@ -190,7 +192,7 @@ export const GalleryPage: React.FC = () => {
     : { ext: "webp", label: "Download WebP" };
 
   return (
-    <div className="w-full flex flex-col gap-8 animate-in fade-in duration-200">
+    <div className="w-full flex flex-col gap-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -209,7 +211,7 @@ export const GalleryPage: React.FC = () => {
       </div>
 
       {/* Grid, Error, or Empty State */}
-      {isLoading && generations.length === 0 ? (
+      {isLoading && displayedGenerations.length === 0 ? (
         <div
           role="status"
           className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"
@@ -223,7 +225,7 @@ export const GalleryPage: React.FC = () => {
             />
           ))}
         </div>
-      ) : isError && generations.length === 0 ? (
+      ) : isError && displayedGenerations.length === 0 ? (
         <div
           role="alert"
           aria-live="polite"
@@ -249,7 +251,7 @@ export const GalleryPage: React.FC = () => {
             <span>Retry</span>
           </Button>
         </div>
-      ) : generations.length === 0 ? (
+      ) : displayedGenerations.length === 0 ? (
         <div className="p-12 rounded-card bg-surface border border-border text-center flex flex-col items-center justify-center gap-4 shadow-xs">
           <div className="w-12 h-12 rounded-full bg-surface-user flex items-center justify-center text-muted-foreground">
             <ImageIcon className="w-6 h-6" aria-hidden="true" />
@@ -268,7 +270,7 @@ export const GalleryPage: React.FC = () => {
       ) : (
         <div className="flex flex-col gap-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {generations.map((gen, idx) => (
+            {displayedGenerations.map((gen, idx) => (
               <GalleryCard
                 key={gen.id}
                 gen={gen}

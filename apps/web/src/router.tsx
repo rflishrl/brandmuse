@@ -3,16 +3,13 @@ import { createBrowserRouter, Navigate, Outlet } from "react-router";
 import { BrandSync } from "@/components/BrandSync";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AppShell } from "@/components/layout/AppShell";
+import { CachedTabStage } from "@/components/layout/CachedTabStage";
 import { PageLoadingFallback } from "@/components/layout/PageLoadingFallback";
 import { Toaster } from "@/components/ui/sonner";
+import { routeImporters } from "@/lib/routePrefetch";
 
-// Code-split route components via React.lazy
-const AskPage = lazy(() => import("@/pages/AskPage"));
-const OntologyPage = lazy(() => import("@/pages/OntologyPage"));
-const CampaignPage = lazy(() => import("@/pages/CampaignPage"));
-const GalleryPage = lazy(() => import("@/pages/GalleryPage"));
-const DocumentsPage = lazy(() => import("@/pages/DocumentsPage"));
-const HealthCheckPage = lazy(() => import("@/pages/HealthCheckPage"));
+// Non-tab routes stay standard lazy routes
+const HealthCheckPage = lazy(routeImporters["/health"]);
 const NotFoundPage = lazy(() => import("@/pages/NotFoundPage"));
 
 const RootLayout = () => (
@@ -20,6 +17,7 @@ const RootLayout = () => (
     <BrandSync />
     <AppShell>
       <ErrorBoundary>
+        <CachedTabStage />
         <Suspense fallback={<PageLoadingFallback />}>
           <Outlet />
         </Suspense>
@@ -40,11 +38,11 @@ export const router = createBrowserRouter([
       },
       {
         path: "ask",
-        element: <AskPage />,
+        element: null,
       },
       {
         path: "rules",
-        element: <OntologyPage />,
+        element: null,
       },
       {
         path: "ontology",
@@ -52,15 +50,15 @@ export const router = createBrowserRouter([
       },
       {
         path: "campaign",
-        element: <CampaignPage />,
+        element: null,
       },
       {
         path: "gallery",
-        element: <GalleryPage />,
+        element: null,
       },
       {
         path: "documents",
-        element: <DocumentsPage />,
+        element: null,
       },
       {
         path: "health",

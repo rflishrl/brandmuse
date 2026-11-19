@@ -113,6 +113,20 @@ dialog:modal {
   overscroll-behavior: contain;
 }
 
+/* Modern Web Guidance: Cache inactive SPA tab views with content-visibility and display:none fallback */
+.spa-view.inactive {
+  content-visibility: hidden;
+  position: absolute;
+  inset: 0 0 auto 0;
+  pointer-events: none;
+}
+
+@supports not (content-visibility: hidden) {
+  .spa-view.inactive {
+    display: none;
+  }
+}
+
 dialog::backdrop {
   overflow: hidden;
   overscroll-behavior: contain;

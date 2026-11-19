@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { useSearchParams } from "react-router";
 import { useGetHealth, useListDocuments, useLoadSampleBrand } from "@/api/generated";
 import type { DocumentResponse } from "@/api/model";
+import { prefetchPrimaryRoutesIdle } from "@/lib/routePrefetch";
 import { useBrandStore } from "@/store/useBrandStore";
 
 export const BrandSync: React.FC = () => {
@@ -14,6 +15,11 @@ export const BrandSync: React.FC = () => {
   const setLoadSampleBrandFn = useBrandStore((s) => s.setLoadSampleBrandFn);
   const setIsLoadingSample = useBrandStore((s) => s.setIsLoadingSample);
   const setSelectedDocumentId = useBrandStore((s) => s.setSelectedDocumentId);
+
+  // Preload lazy route chunks during browser idle time for instant tab switches
+  useEffect(() => {
+    return prefetchPrimaryRoutesIdle();
+  }, []);
 
   // Sync URL searchParam 'doc' changes into store
   const lastParamRef = useRef<string | null>(null);

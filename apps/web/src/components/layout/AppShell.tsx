@@ -1,3 +1,4 @@
+import { useQueryClient } from "@tanstack/react-query";
 import {
   AlertTriangle,
   Bookmark,
@@ -25,6 +26,7 @@ import { BrandMuseOrb } from "@/components/BrandMuseOrb";
 import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
+import { prefetchRoute, prefetchRouteData } from "@/lib/routePrefetch";
 import { useBrandStore } from "@/store/useBrandStore";
 
 interface AppShellProps {
@@ -40,6 +42,8 @@ export const AppShell: React.FC<AppShellProps> = ({
   currentDocumentName,
   onUseSampleBrand,
 }) => {
+  const queryClient = useQueryClient();
+  const selectedDocumentId = useBrandStore((s) => s.selectedDocumentId);
   const selectedDocumentFilename = useBrandStore((s) => s.selectedDocument?.filename);
   const isSampleActive = useBrandStore((s) => Boolean(s.selectedDocument?.is_sample));
   const isLoadingSample = useBrandStore((s) => s.isLoadingSample);
@@ -125,9 +129,11 @@ export const AppShell: React.FC<AppShellProps> = ({
           navigate("/ask");
         }
         setTimeout(() => {
-          const textarea = document.querySelector<HTMLTextAreaElement>("textarea");
+          const textarea = document.querySelector<HTMLTextAreaElement>(
+            'textarea[aria-label="Ask about brand guidelines"]'
+          );
           textarea?.focus();
-        }, 120);
+        }, 60);
         return;
       }
 
@@ -316,6 +322,14 @@ export const AppShell: React.FC<AppShellProps> = ({
                   <Link
                     key={item.path}
                     to={item.path}
+                    onMouseEnter={() => {
+                      prefetchRoute(item.path);
+                      prefetchRouteData(queryClient, item.path, selectedDocumentId);
+                    }}
+                    onFocus={() => {
+                      prefetchRoute(item.path);
+                      prefetchRouteData(queryClient, item.path, selectedDocumentId);
+                    }}
                     onClick={() => setMobileOpen(false)}
                     className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all ${
                       active
@@ -471,6 +485,14 @@ export const AppShell: React.FC<AppShellProps> = ({
                   to={item.path}
                   title={item.label}
                   aria-label={item.label}
+                  onMouseEnter={() => {
+                    prefetchRoute(item.path);
+                    prefetchRouteData(queryClient, item.path, selectedDocumentId);
+                  }}
+                  onFocus={() => {
+                    prefetchRoute(item.path);
+                    prefetchRouteData(queryClient, item.path, selectedDocumentId);
+                  }}
                   className={`
                     relative rounded-2xl flex items-center overflow-hidden h-11 w-full transition-all duration-200 group
                     ${
