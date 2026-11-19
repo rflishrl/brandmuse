@@ -16,6 +16,7 @@ from app.schemas.ontology import (
     BrandOntologyResponse,
     BrandOntologyUpdate,
 )
+from app.services.sample_seed import ensure_sample_ontology_seeded
 from app.services.usage import check_and_increment_daily_usage
 
 settings = get_settings()
@@ -50,20 +51,33 @@ async def extract_ontology(
     db: AsyncSession = Depends(get_db),
 ) -> BrandOntologyResponse:
     """Extract brand rules ontology from guideline chunks using structured LLM output."""
-    doc = await _get_document_or_404(db, document_id, session_id, for_mutation=True)
+    doc = await _get_document_or_404(db, document_id, session_id, for_mutation=False)
 
-    # Check daily LLM usage limits
-    await check_and_increment_daily_usage(db, "llm", settings.DAILY_LLM_LIMIT)
+    if doc.is_sample:
+        existing = await OntologyRepository.get_by_document_id(db, document_id)
+        if existing:
+            raise APIError(
+                code="SAMPLE_READ_ONLY",
+                message=(
+                    "Sample brand guidelines are immutable and cannot be modified or re-extracted."
+                ),
+                status_code=403,
+            )
+        await check_and_increment_daily_usage(db, "llm", settings.DAILY_LLM_LIMIT)
+        record = await ensure_sample_ontology_seeded(db, doc, session_id=session_id)
+    else:
+        # Check daily LLM usage limits
+        await check_and_increment_daily_usage(db, "llm", settings.DAILY_LLM_LIMIT)
 
-    # Extract structured ontology
-    ontology_data = await extract_brand_ontology_from_doc(db, doc, session_id)
+        # Extract structured ontology
+        ontology_data = await extract_brand_ontology_from_doc(db, doc, session_id)
 
-    # Upsert BrandOntology record via repository
-    record = await OntologyRepository.upsert(
-        db=db,
-        document_id=document_id,
-        ontology_data=ontology_data.model_dump(),
-    )
+        # Upsert BrandOntology record via repository
+        record = await OntologyRepository.upsert(
+            db=db,
+            document_id=document_id,
+            ontology_data=ontology_data.model_dump(),
+        )
 
     return BrandOntologyResponse(
         id=record.id,
@@ -89,9 +103,13 @@ async def get_ontology(
     db: AsyncSession = Depends(get_db),
 ) -> BrandOntologyResponse:
     """Get the current brand ontology for a document."""
-    await _get_document_or_404(db, document_id, session_id, for_mutation=False)
+    doc = await _get_document_or_404(db, document_id, session_id, for_mutation=False)
 
     record = await OntologyRepository.get_by_document_id(db, document_id)
+
+    if not record and doc.is_sample:
+        await check_and_increment_daily_usage(db, "llm", settings.DAILY_LLM_LIMIT)
+        record = await ensure_sample_ontology_seeded(db, doc, session_id=session_id)
 
     if not record:
         raise APIError(

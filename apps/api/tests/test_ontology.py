@@ -299,3 +299,90 @@ async def test_sample_ontology_mutation_forbidden(client: AsyncClient, mock_db: 
     )
     assert response_cert.status_code == 403
     assert response_cert.json()["error"]["code"] == "SAMPLE_READ_ONLY"
+
+
+@pytest.mark.asyncio
+async def test_get_sample_ontology_auto_seeds_when_missing(
+    client: AsyncClient, mock_db: AsyncMock
+) -> None:
+    """Verify GET /ontology on a sample doc auto-seeds and certifies ontology once if missing."""
+    doc_id = uuid.uuid4()
+    session_id = uuid.uuid4()
+    ont_id = uuid.uuid4()
+    now = datetime.datetime.now(datetime.UTC)
+
+    sample_doc = Document(
+        id=doc_id, session_id=uuid.uuid4(), filename="Aura Living.pdf", is_sample=True
+    )
+    seeded_ontology = BrandOntology(
+        id=ont_id,
+        document_id=doc_id,
+        ontology_data=_sample_ontology_data().model_dump(),
+        is_certified=True,
+        certified_by="Aura Living Official Guidelines",
+        certified_at=now,
+        created_at=now,
+        updated_at=now,
+    )
+
+    doc_res = MagicMock()
+    doc_res.scalar_one_or_none.return_value = sample_doc
+    ont_res = MagicMock()
+    ont_res.scalar_one_or_none.return_value = None
+    mock_db.execute.side_effect = [doc_res, ont_res]
+
+    with (
+        patch("app.routers.ontology.check_and_increment_daily_usage", AsyncMock()),
+        patch(
+            "app.routers.ontology.ensure_sample_ontology_seeded",
+            AsyncMock(return_value=seeded_ontology),
+        ) as mock_seed,
+    ):
+        response = await client.get(
+            f"/api/documents/{doc_id}/ontology",
+            headers={"X-Session-Id": str(session_id)},
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["is_certified"] is True
+    assert data["certified_by"] == "Aura Living Official Guidelines"
+    assert data["ontology"]["identity"]["brand_name"] == "Aura Living"
+    mock_seed.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_extract_sample_ontology_forbidden_when_already_exists(
+    client: AsyncClient, mock_db: AsyncMock
+) -> None:
+    """Verify POST /ontology/extract returns 403 SAMPLE_READ_ONLY if sample ontology exists."""
+    doc_id = uuid.uuid4()
+    session_id = uuid.uuid4()
+    now = datetime.datetime.now(datetime.UTC)
+
+    sample_doc = Document(
+        id=doc_id, session_id=uuid.uuid4(), filename="Aura Living.pdf", is_sample=True
+    )
+    existing_ont = BrandOntology(
+        id=uuid.uuid4(),
+        document_id=doc_id,
+        ontology_data=_sample_ontology_data().model_dump(),
+        is_certified=True,
+        certified_by="Aura Living Official Guidelines",
+        certified_at=now,
+        created_at=now,
+        updated_at=now,
+    )
+
+    doc_res = MagicMock()
+    doc_res.scalar_one_or_none.return_value = sample_doc
+    ont_res = MagicMock()
+    ont_res.scalar_one_or_none.return_value = existing_ont
+    mock_db.execute.side_effect = [doc_res, ont_res]
+
+    response = await client.post(
+        f"/api/documents/{doc_id}/ontology/extract",
+        headers={"X-Session-Id": str(session_id)},
+    )
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "SAMPLE_READ_ONLY"

@@ -8,14 +8,17 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import APIError
-from app.db.models import Document
-from app.db.repositories import DocumentRepository
+from app.db.models import BrandOntology, Document
+from app.db.repositories import DocumentRepository, OntologyRepository
 from app.rag.ingest import ingest_pdf_document
+from app.rag.ontology import extract_brand_ontology_from_doc
 
 SAMPLE_BRAND_FILENAME = "Aura Living - Brand Guidelines.pdf"
+SAMPLE_CERTIFIED_BY = "Aura Living Official Guidelines"
 SAMPLE_SYSTEM_SESSION_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 _sample_seed_lock = asyncio.Lock()
+_sample_ontology_lock = asyncio.Lock()
 
 
 def get_sample_pdf_path() -> Path | None:
@@ -64,4 +67,39 @@ async def ensure_sample_brand_seeded(
             existing = await DocumentRepository.get_sample_document(db)
             if existing:
                 return existing, 0
+            raise
+
+
+async def ensure_sample_ontology_seeded(
+    db: AsyncSession,
+    doc: Document,
+    session_id: uuid.UUID = SAMPLE_SYSTEM_SESSION_ID,
+) -> BrandOntology:
+    """Ensure the read-only sample brand document has its canonical certified ontology."""
+    existing = await OntologyRepository.get_by_document_id(db, doc.id)
+    if existing:
+        return existing
+
+    async with _sample_ontology_lock:
+        existing = await OntologyRepository.get_by_document_id(db, doc.id)
+        if existing:
+            return existing
+
+        ontology_data = await extract_brand_ontology_from_doc(db, doc, session_id)
+        try:
+            await OntologyRepository.upsert(
+                db=db,
+                document_id=doc.id,
+                ontology_data=ontology_data.model_dump(),
+            )
+            return await OntologyRepository.certify(
+                db=db,
+                document_id=doc.id,
+                certified_by=SAMPLE_CERTIFIED_BY,
+            )
+        except IntegrityError:
+            await db.rollback()
+            existing = await OntologyRepository.get_by_document_id(db, doc.id)
+            if existing:
+                return existing
             raise

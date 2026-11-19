@@ -232,7 +232,7 @@ export const AskPage: React.FC = () => {
         // Ignore storage error
       }
     }
-    toast.info("Riwayat percakapan telah dibersihkan.");
+    toast.info("Chat history cleared.");
   };
 
   useEffect(() => {

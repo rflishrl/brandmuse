@@ -83,6 +83,7 @@ export const OntologyPage: React.FC = () => {
 
   const ontologyData = ontologyResponse?.ontology;
   const isCertified = Boolean(ontologyResponse?.is_certified);
+  const isSampleDoc = Boolean(selectedDocument?.is_sample);
 
   // Clear copied hex after 2 seconds
   useEffect(() => {
@@ -412,7 +413,7 @@ export const OntologyPage: React.FC = () => {
               </div>
 
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span
                     role="status"
                     aria-atomic="true"
@@ -422,6 +423,11 @@ export const OntologyPage: React.FC = () => {
                       {isCertified ? "Certified Guidelines" : "Draft Guidelines (Uncertified)"}
                     </Badge>
                   </span>
+                  {isSampleDoc && (
+                    <Badge variant="quote" className="text-[11px]">
+                      Read-Only Demo
+                    </Badge>
+                  )}
                   {isCertified && formattedCertifiedDate && (
                     <span className="text-xs text-muted-foreground hidden sm:inline">
                       Certified on {formattedCertifiedDate}
@@ -430,11 +436,13 @@ export const OntologyPage: React.FC = () => {
                 </div>
 
                 <p className="text-xs sm:text-sm text-muted-foreground mt-1 max-w-2xl leading-normal">
-                  {isCertified
-                    ? `Certified by ${
-                        ontologyResponse.certified_by || "Brand Director"
-                      }. These rules are actively injected into the grounding prompt for Ask and Campaign generation.`
-                    : "These rules were extracted automatically by AI and are currently in Draft status. Complete Human-in-the-Loop review and certify them to make them authoritative."}
+                  {isSampleDoc
+                    ? "Sample brand rules are read-only and pre-certified for demo exploration. Upload your own PDF in Documents to edit, re-extract, or certify custom rules."
+                    : isCertified
+                      ? `Certified by ${
+                          ontologyResponse.certified_by || "Brand Director"
+                        }. These rules are actively injected into the grounding prompt for Ask and Campaign generation.`
+                      : "These rules were extracted automatically by AI and are currently in Draft status. Complete Human-in-the-Loop review and certify them to make them authoritative."}
                 </p>
               </div>
             </div>
@@ -451,30 +459,34 @@ export const OntologyPage: React.FC = () => {
                 Export Tokens
               </Button>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExtract}
-                disabled={extractMutation.isPending}
-                className="gap-1.5 text-xs"
-                title="Re-run LLM extraction across guideline pages"
-              >
-                <RefreshCw
-                  className={`w-3.5 h-3.5 ${extractMutation.isPending ? "animate-spin" : ""}`}
-                  aria-hidden="true"
-                />
-                Re-extract
-              </Button>
+              {!isSampleDoc && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExtract}
+                    disabled={extractMutation.isPending}
+                    className="gap-1.5 text-xs"
+                    title="Re-run LLM extraction across guideline pages"
+                  >
+                    <RefreshCw
+                      className={`w-3.5 h-3.5 ${extractMutation.isPending ? "animate-spin" : ""}`}
+                      aria-hidden="true"
+                    />
+                    Re-extract
+                  </Button>
 
-              <Button
-                variant={isCertified ? "secondary" : "success"}
-                size="sm"
-                onClick={openCertifyModal}
-                className="gap-2 text-xs font-medium"
-              >
-                <ShieldCheck className="w-4 h-4" aria-hidden="true" />
-                {isCertified ? "Re-certify" : "Certify Guidelines"}
-              </Button>
+                  <Button
+                    variant={isCertified ? "secondary" : "success"}
+                    size="sm"
+                    onClick={openCertifyModal}
+                    className="gap-2 text-xs font-medium"
+                  >
+                    <ShieldCheck className="w-4 h-4" aria-hidden="true" />
+                    {isCertified ? "Re-certify" : "Certify Guidelines"}
+                  </Button>
+                </>
+              )}
             </div>
           </div>
 
