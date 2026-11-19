@@ -135,7 +135,7 @@ The FastAPI backend requires S3 credentials to write generated WebP image files:
    - **Token name:** `brandmuse-token`
    - **Permissions:** **Object Read & Write**
    - **Specify bucket(s):** Select **Apply to specific buckets only** and pick `brandmuse`.
-   - **TTL:** Select **Forever** (rotate periodically per `docs/r2-hardening-status.md`).
+   - **TTL:** Select **Forever** (rotate periodically in Cloudflare Dashboard and Render env).
 5. Click **Create API Token**.
 6. Securely record the output values:
    - **Access Key ID:** for example, `8f3a9b...`

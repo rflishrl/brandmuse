@@ -19,7 +19,7 @@
 * **Backend API Base:** [https://brandmuse-13ck.onrender.com](https://brandmuse-13ck.onrender.com) (Render Web Service)
 * **Interactive OpenAPI Documentation:** [https://brandmuse-13ck.onrender.com/docs](https://brandmuse-13ck.onrender.com/docs)
 * **API Health Check:** [https://brandmuse-13ck.onrender.com/api/health](https://brandmuse-13ck.onrender.com/api/health)
-* **Deployment & Ops Guides:** [Render Deployment Guide](DEPLOYMENT_RENDER.md) | [Neon & Cloudflare R2 Guide](DEPLOYMENT_NEON_R2.md) | [R2 Hardening Status](docs/r2-hardening-status.md) | [Switch Public Domain](docs/switch-public-domain.md)
+* **Deployment Guides:** [Render Deployment Guide](DEPLOYMENT_RENDER.md) | [Neon & Cloudflare R2 Guide](DEPLOYMENT_NEON_R2.md)
 
 ---
 
