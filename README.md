@@ -19,7 +19,7 @@
 * **Backend API Base:** [https://brandmuse-13ck.onrender.com](https://brandmuse-13ck.onrender.com) (Render Web Service)
 * **Interactive OpenAPI Documentation:** [https://brandmuse-13ck.onrender.com/docs](https://brandmuse-13ck.onrender.com/docs)
 * **API Health Check:** [https://brandmuse-13ck.onrender.com/api/health](https://brandmuse-13ck.onrender.com/api/health)
-* **Deployment Guides:** [Render Deployment Guide](DEPLOYMENT_RENDER.md) | [Neon & Cloudflare R2 Guide](DEPLOYMENT_NEON_R2.md)
+* **Deployment & Ops Guides:** [Render Deployment Guide](DEPLOYMENT_RENDER.md) | [Neon & Cloudflare R2 Guide](DEPLOYMENT_NEON_R2.md) | [R2 Hardening Status](docs/r2-hardening-status.md) | [Switch Public Domain](docs/switch-public-domain.md)
 
 ---
 
@@ -83,9 +83,9 @@ flowchart TD
 
     FastAPI --> MockImg
     FastAPI -.-> CloudImg
-    FastAPI -->|S3 API put_object| R2Bucket
+    FastAPI -->|Dual WebP put_object| R2Bucket
     R2Bucket --> R2CDN
-    R2CDN -->|Direct Image Download| UI
+    R2CDN -->|Immutable WebP + WAF| UI
 ```
 
 ---
@@ -102,13 +102,14 @@ flowchart TD
 ### 2. Campaign Concept Generator & Refinement
 - **Multi-Angle Guideline Retrieval:** Fires 3 concurrent vector and lexical queries targeting tone of voice, visual lighting/palette, and compliance rules.
 - **Structured Schema Synthesis:** Emits 3 distinct creative concepts adhering to Pydantic schemas (`CampaignOutput`) with automated validation retries.
-- **Interactive Concept Refinement (`/api/campaign/concepts/refine`):** Allows users to adjust specific concepts with targeted instructions while re-evaluating compliance against guideline rules.
+- **Interactive Concept Refinement (`/api/campaign/refine`):** Allows users to adjust specific concepts with targeted instructions while re-evaluating compliance against guideline rules.
 - **Reference Example Support:** Accepts reference campaign copy and visual examples in briefs to guide thematic alignment.
 
 ### 3. Visual Synthesis & Negative Prompting
 - **Visual Prompt Sanitization:** Automatically strips text, watermarks, logo instructions, and named individuals prior to image dispatch.
 - **Negative Prompt Controls:** Injects structured negative parameters (`blurry, deformed, text overlay, watermark, off-brand colors, logo artifacts`) across providers.
-- **Free Offline Engine:** Built-in deterministic SVG/Canvas mock generator requiring zero external API keys or cloud spend, with optional Stability AI SDXL and Replicate integrations.
+- **Free Offline Engine & Dual WebP Pipeline:** Built-in deterministic Pillow mock generator requiring zero external API keys, alongside Stability AI SDXL and Replicate integrations. All generated assets are encoded into static dual WebP variants (full max `1920 px` q=80 + thumbnail `480 px` q=78) with immutable 1-year cache headers (`public, max-age=31536000, immutable`) served through a Cloudflare R2 custom domain.
+- **Provider Download SSRF Guard:** External Replicate outputs are restricted to HTTPS `replicate.delivery` hosts, rejecting private/non-global IPs, cross-host redirects, and payloads over 15 MB.
 
 ### 4. Multimodal Brand Asset Ingestion
 - **Vision-Assisted Parsing (`app/rag/vision.py`):** Inspects visual brand components (logos, palette swatches, spacing grids, typography hierarchies) from PDF pages.
@@ -117,7 +118,8 @@ flowchart TD
 ### 5. Production Guardrails & Quotas
 - **Database-Persisted Quotas:** Enforces `DAILY_LLM_LIMIT` and `DAILY_IMAGE_LIMIT` to safeguard free cloud budgets.
 - **Session Rate Limiting:** Limits image synthesis per session (default 5/hour) returning standard `429 Too Many Requests`.
-- **Stateless Session Isolation:** Uses an explicit `X-Session-Id` UUID header without tracking cookies or session state leakage.
+- **Stateless Session Isolation & Privacy Keys:** Uses an explicit `X-Session-Id` UUID header without cookies; R2 object keys hash the session ID with `MEDIA_OWNER_SECRET` (`<prefix>/generations/<owner>/<uuid>.webp`) so raw session UUIDs never appear in storage keys or public URLs.
+- **Storage Quota, Prefix Guard, & Admin Telemetry:** Enforces `R2_APP_QUOTA_MB` (`2048 MB` default) on `generations.size_bytes` before upload, restricts all R2 operations strictly to `R2_KEY_PREFIX` (`brandmuse/` in production, `*-dev/` otherwise), and exposes `GET /api/admin/usage` protected by `ADMIN_TOKEN`.
 
 ---
 
@@ -163,9 +165,9 @@ Evaluated using [`eval/quantization.py`](file:///C:/Projects/brandmuse/eval/quan
 | **Frontend Web** | React 18, TypeScript, Vite | Tailwind CSS, Radix UI primitives, TanStack Query v5, Orval OpenAPI generator |
 | **Frontend Tooling** | Biome 2.6, Bun 1.4 | Fast linter, formatter, and import organizer; zero ESLint/Prettier configuration drift |
 | **AI Providers** | Multi-Provider Engine | Google Gemini 1.5 Flash (free tier), OpenAI gpt-4o-mini, local Ollama Llama-3.2 |
-| **Image Synthesis** | Canvas Mock + Cloud Providers | Deterministic SVG/Canvas mock engine (offline/free), Stability AI SDXL, Replicate |
+| **Image Synthesis** | Pillow Mock + Cloud Providers | Deterministic Pillow mock engine (offline/free), Stability AI SDXL, Replicate, dual WebP conversion |
 | **Observability** | Langfuse SDK v5 | Optional latency, token usage, and retrieval scoring traces with user content redaction |
-| **Hosting (Free Tier)** | Cloud Infrastructure | Cloudflare Pages (Frontend SPA), Render (Backend Web Service), Neon (Serverless Postgres), Cloudflare R2 (Storage) |
+| **Hosting (Free Tier)** | Cloud Infrastructure | Cloudflare Pages (SPA + `_headers` CSP), Render (Docker API), Neon (Serverless Postgres), Cloudflare R2 (Custom Domain + Cache Rule + WAF Hotlink) |
 
 ---
 
@@ -241,7 +243,7 @@ bun run api:generate
 | `LLM_PROVIDER` | No | `gemini` | Primary LLM engine: `gemini`, `openai`, or `ollama` |
 | `EMBEDDING_PROVIDER` | No | `gemini` | Embedding engine: `gemini`, `openai`, or `ollama` |
 | `EMBEDDING_DIM` | No | `1536` | Embedding vector dimensions (1536 for OpenAI and zero-padded Gemini) |
-| `IMAGE_PROVIDER` | No | `mock` | Image synthesis driver: `mock` (free/offline), `stability`, or `replicate` |
+| `IMAGE_PROVIDER` | No | `stability` (`mock` in `.env.example`) | Image synthesis driver: `mock` (free/offline), `stability`, or `replicate` |
 | `GEMINI_API_KEY` | Optional | - | API key for Google Gemini models and embeddings |
 | `OPENAI_API_KEY` | Optional | - | API key for OpenAI models and embeddings |
 | `STABILITY_API_KEY` | Optional | - | API key for Stability AI SDXL |
