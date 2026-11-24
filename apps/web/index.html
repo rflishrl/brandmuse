@@ -14,10 +14,13 @@
       (() => {
         try {
           const saved = localStorage.getItem("brandmuse_theme");
-          if (saved === "light" || (saved === "system" && !window.matchMedia("(prefers-color-scheme: dark)").matches)) {
-            document.documentElement.classList.remove("dark");
-          } else {
-            document.documentElement.classList.add("dark");
+          const isLight =
+            saved === "light" ||
+            (saved === "system" && !window.matchMedia("(prefers-color-scheme: dark)").matches);
+          document.documentElement.classList.toggle("dark", !isLight);
+          const meta = document.querySelector('meta[name="color-scheme"]');
+          if (meta) {
+            meta.setAttribute("content", saved === "system" ? "light dark" : isLight ? "light" : "dark");
           }
         } catch {}
       })();

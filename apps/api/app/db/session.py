@@ -1,3 +1,4 @@
+import uuid
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -16,21 +17,27 @@ engine_kwargs: dict[str, Any] = {
     "echo": settings.ENVIRONMENT == "development",
     "pool_pre_ping": True,
     "pool_recycle": 300,
+    "pool_timeout": 10,
 }
 
 if settings.DB_POOLER_MODE:
-    # Serverless PgBouncer / Neon pooler mode:
-    # Disable prepared statement caching (incompatible with PgBouncer transaction mode)
-    # but maintain a small client-side connection pool to eliminate TCP handshake latency
+    # Serverless PgBouncer / Neon transaction pooler mode:
+    # Disable prepared statement caching and generate unique statement names to avoid
+    # DuplicatePreparedStatementError across pooled backend connections.
     engine_kwargs["pool_size"] = 5
     engine_kwargs["max_overflow"] = 10
     engine_kwargs["connect_args"] = {
         "statement_cache_size": 0,
         "prepared_statement_cache_size": 0,
+        "prepared_statement_name_func": lambda: f"__asyncpg_{uuid.uuid4().hex}__",
+        "command_timeout": 30,
     }
 else:
     engine_kwargs["pool_size"] = 10
     engine_kwargs["max_overflow"] = 20
+    engine_kwargs["connect_args"] = {
+        "command_timeout": 30,
+    }
 
 engine: AsyncEngine = create_async_engine(settings.clean_database_url, **engine_kwargs)
 

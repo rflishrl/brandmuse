@@ -10,7 +10,7 @@ export const queryKeys = {
     all: ["/api/documents"] as const,
     list: () => [...queryKeys.documents.all] as const,
     detail: (id: string) => [...queryKeys.documents.all, id] as const,
-    ontology: (id: string) => [...queryKeys.documents.all, id, "ontology"] as const,
+    ontology: (id: string) => [`/api/documents/${id}/ontology`] as const,
   },
   gallery: {
     all: ["/api/images"] as const,

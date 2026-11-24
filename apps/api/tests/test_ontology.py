@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import AsyncClient
 
-from app.db.models import BrandOntology, Chunk, Document
+from app.db.models import BrandOntology, Document
 from app.rag.ontology import extract_brand_ontology_from_doc, format_ontology_context
 from app.schemas.ontology import (
     BrandIdentity,
@@ -112,14 +112,8 @@ async def test_extract_brand_ontology_from_doc() -> None:
 
     mock_db = AsyncMock()
     mock_chunks_res = MagicMock()
-    mock_chunks_res.scalars.return_value.all.return_value = [
-        Chunk(
-            id=uuid.uuid4(),
-            document_id=doc_id,
-            page=1,
-            chunk_index=0,
-            content="Aura Living brand guidelines.",
-        )
+    mock_chunks_res.all.return_value = [
+        (1, 0, "Aura Living brand guidelines."),
     ]
     mock_db.execute.return_value = mock_chunks_res
 

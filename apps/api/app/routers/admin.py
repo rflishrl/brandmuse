@@ -37,9 +37,7 @@ def require_admin_token(
         )
 
     provided = authorization[len("Bearer ") :].strip()
-    if not provided or not hmac.compare_digest(
-        provided.encode("utf-8"), expected.encode("utf-8")
-    ):
+    if not provided or not hmac.compare_digest(provided.encode("utf-8"), expected.encode("utf-8")):
         raise APIError(
             code="UNAUTHORIZED",
             message="Invalid admin token.",
@@ -58,11 +56,13 @@ async def get_admin_usage(
     db: AsyncSession = Depends(get_db),
 ) -> AdminUsageResponse:
     """Return Tier 1 storage consumption and daily usage telemetry for administrators."""
-    used_bytes, total_generations, legacy_unknown_size_count = (
-        await GenerationRepository.get_storage_usage_stats(db)
-    )
+    (
+        used_bytes,
+        total_generations,
+        legacy_unknown_size_count,
+    ) = await GenerationRepository.get_storage_usage_stats(db)
 
-    today = datetime.date.today()
+    today = datetime.datetime.now(datetime.UTC).date()
     stmt = select(UsageCounter).where(UsageCounter.day == today)
     res = await db.execute(stmt)
     counters = {c.kind: c.count for c in res.scalars().all()}

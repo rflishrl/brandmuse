@@ -3,6 +3,7 @@ import base64
 import hashlib
 import hmac
 import uuid
+from functools import lru_cache
 from typing import Any
 
 import boto3
@@ -135,18 +136,28 @@ def media_variant_url(key_or_url: str, width: int) -> str:
     return public_media_url(key_or_url)
 
 
-def _get_r2_client() -> Any:
+@lru_cache(maxsize=1)
+def _build_r2_client(account_id: str, access_key: str, secret_key: str) -> Any:
     return boto3.client(
         "s3",
-        endpoint_url=f"https://{settings.R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
-        aws_access_key_id=settings.R2_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.R2_SECRET_ACCESS_KEY,
+        endpoint_url=f"https://{account_id}.r2.cloudflarestorage.com",
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
         config=Config(
             signature_version="s3v4",
             request_checksum_calculation="when_required",
             response_checksum_validation="when_required",
+            max_pool_connections=16,
         ),
         region_name="auto",
+    )
+
+
+def _get_r2_client() -> Any:
+    return _build_r2_client(
+        settings.R2_ACCOUNT_ID,
+        settings.R2_ACCESS_KEY_ID,
+        settings.R2_SECRET_ACCESS_KEY,
     )
 
 
@@ -170,13 +181,20 @@ def put_object_sync(
 
 
 def delete_objects_sync(keys: list[str]) -> list[str]:
-    """Delete objects from R2 enforcing prefix guard on every key."""
+    """Delete objects from R2 enforcing prefix guard on every key (batched when >1)."""
     if not keys:
         return []
     safe_keys = [validate_storage_key(k) for k in keys]
     client = _get_r2_client()
-    for safe_key in safe_keys:
-        client.delete_object(Bucket=settings.R2_BUCKET_NAME, Key=safe_key)
+    if len(safe_keys) == 1:
+        client.delete_object(Bucket=settings.R2_BUCKET_NAME, Key=safe_keys[0])
+    else:
+        for i in range(0, len(safe_keys), 1000):
+            batch = safe_keys[i : i + 1000]
+            client.delete_objects(
+                Bucket=settings.R2_BUCKET_NAME,
+                Delete={"Objects": [{"Key": k} for k in batch], "Quiet": True},
+            )
     return safe_keys
 
 
@@ -230,27 +248,38 @@ async def upload_image_variants_to_storage(
     """
     if settings.is_r2_active:
         full_key, thumb_key = build_generation_keys(session_id)
-        try:
-            await asyncio.to_thread(put_object_sync, full_key, full_bytes, content_type)
-        except Exception as exc:
-            logger.error("Cloudflare R2 upload error: %s", exc)
-            slogger.error("r2_upload_failed", key=full_key, error=str(exc))
-            raise APIError(
-                code="STORAGE_UPLOAD_FAILED",
-                message=f"Failed to upload image to Cloudflare R2: {exc}",
-                status_code=502,
-            ) from exc
+        full_res, thumb_res = await asyncio.gather(
+            asyncio.to_thread(put_object_sync, full_key, full_bytes, content_type),
+            asyncio.to_thread(put_object_sync, thumb_key, thumb_bytes, content_type),
+            return_exceptions=True,
+        )
 
-        try:
-            await asyncio.to_thread(put_object_sync, thumb_key, thumb_bytes, content_type)
-        except Exception as exc:
-            slogger.error("r2_thumb_upload_failed", key=thumb_key, error=str(exc))
-            await delete_storage_objects([full_key])
+        if isinstance(full_res, BaseException) or isinstance(thumb_res, BaseException):
+            cleanup_keys: list[str] = []
+            if not isinstance(full_res, BaseException):
+                cleanup_keys.append(full_key)
+            if not isinstance(thumb_res, BaseException):
+                cleanup_keys.append(thumb_key)
+            if cleanup_keys:
+                await delete_storage_objects(cleanup_keys)
+
+            failed_exc: BaseException = (
+                full_res
+                if isinstance(full_res, BaseException)
+                else (
+                    thumb_res
+                    if isinstance(thumb_res, BaseException)
+                    else RuntimeError("R2 upload failed")
+                )
+            )
+            failed_key = full_key if isinstance(full_res, BaseException) else thumb_key
+            logger.error("Cloudflare R2 upload error: %s", failed_exc)
+            slogger.error("r2_upload_failed", key=failed_key, error=str(failed_exc))
             raise APIError(
                 code="STORAGE_UPLOAD_FAILED",
-                message=f"Failed to upload image thumbnail to Cloudflare R2: {exc}",
+                message=f"Failed to upload image to Cloudflare R2: {failed_exc}",
                 status_code=502,
-            ) from exc
+            ) from failed_exc
 
         total_bytes = len(full_bytes) + len(thumb_bytes)
         full_url = public_media_url(full_key)

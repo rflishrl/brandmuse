@@ -1,9 +1,7 @@
 import uuid
 from typing import Any, Literal
 
-from langfuse import get_client
-from langfuse.langchain import CallbackHandler
-from langfuse.types import TraceContext
+from langchain_core.runnables import RunnableConfig
 
 from app.core.config import get_settings
 from app.core.logging import hash_session_id, slogger
@@ -22,25 +20,48 @@ def get_langfuse_callback(
     trace_id: str | None = None,
     is_sample: bool = False,
     metadata: dict[str, Any] | None = None,
-) -> CallbackHandler | None:
-    """Create a Langfuse CallbackHandler with session hash, tags, and privacy enforcement."""
+) -> Any | None:
+    """Create a Langfuse CallbackHandler lazily with trace context."""
+    _ = (session_id, feature, is_sample, metadata)
     if not is_langfuse_enabled():
         return None
 
-    meta = metadata or {}
-    meta["session_hash"] = hash_session_id(str(session_id))
-    meta["feature"] = feature
-    meta["is_sample"] = is_sample
-    meta["privacy_mode"] = "full" if (is_sample or settings.TRACE_USER_CONTENT) else "metadata_only"
+    from langfuse.langchain import CallbackHandler
+    from langfuse.types import TraceContext
 
     trace_context = TraceContext(trace_id=trace_id) if trace_id else None
-
-    handler = CallbackHandler(
+    return CallbackHandler(
         public_key=settings.LANGFUSE_PUBLIC_KEY,
         trace_context=trace_context,
     )
 
-    return handler
+
+def get_langfuse_runnable_config(
+    session_id: uuid.UUID,
+    feature: str = "ask",
+    trace_id: str | None = None,
+    is_sample: bool = False,
+    metadata: dict[str, Any] | None = None,
+) -> RunnableConfig:
+    """Build LangChain RunnableConfig with Langfuse callback and trace metadata attached."""
+    session_hash = hash_session_id(str(session_id))
+    meta: dict[str, Any] = dict(metadata or {})
+    meta["session_hash"] = session_hash
+    meta["langfuse_session_id"] = session_hash
+    meta["feature"] = feature
+    meta["is_sample"] = is_sample
+    meta["privacy_mode"] = "full" if (is_sample or settings.TRACE_USER_CONTENT) else "metadata_only"
+
+    handler = get_langfuse_callback(
+        session_id=session_id,
+        feature=feature,
+        trace_id=trace_id,
+        is_sample=is_sample,
+        metadata=meta,
+    )
+    if not handler:
+        return RunnableConfig(callbacks=[], metadata=meta)
+    return RunnableConfig(callbacks=[handler], metadata=meta)
 
 
 def get_trace_url(trace_id: str | None) -> str | None:
@@ -65,6 +86,8 @@ def record_langfuse_event(
     meta["privacy_mode"] = "full" if settings.TRACE_USER_CONTENT else "metadata_only"
 
     try:
+        from langfuse import get_client
+
         client = get_client()
         client.create_event(name=name, metadata=meta, level=level)
     except Exception as exc:

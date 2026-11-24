@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.db.models import Chunk
 from app.providers.embeddings import BaseEmbeddingProvider
 from app.rag.retrieve import hybrid_retrieve
 
@@ -18,47 +17,24 @@ class DummyEmbeddingProvider(BaseEmbeddingProvider):
 
 @pytest.mark.asyncio
 async def test_hybrid_retrieve_merges_vector_and_keyword() -> None:
-    """Verify hybrid_retrieve combines vector and keyword results with scores."""
+    """Verify hybrid_retrieve runs a single combined CTE query and merges scores with RRF."""
     doc_id = uuid.uuid4()
     chunk1_id = uuid.uuid4()
     chunk2_id = uuid.uuid4()
 
-    chunk1 = Chunk(
-        id=chunk1_id,
-        document_id=doc_id,
-        page=1,
-        chunk_index=0,
-        content="Our primary tone is calm and articulate.",
-    )
-    chunk2 = Chunk(
-        id=chunk2_id,
-        document_id=doc_id,
-        page=2,
-        chunk_index=1,
-        content="Forbidden words include revolutionary and disruption.",
-    )
-
     mock_db = AsyncMock()
 
-    # First execute call -> SET LOCAL hnsw.ef_search = 60
-    mock_set_param_result = MagicMock()
-
-    # Second execute call -> vector search results: (chunk, distance)
-    # distance = 0.1 -> similarity = 0.90
-    vector_rows = [(chunk1, 0.1), (chunk2, 0.3)]
-    mock_vector_result = MagicMock()
-    mock_vector_result.all.return_value = vector_rows
-
-    # Third execute call -> keyword search results: (chunk, rank)
-    keyword_rows = [(chunk2, 0.8), (chunk1, 0.2)]
-    mock_keyword_result = MagicMock()
-    mock_keyword_result.all.return_value = keyword_rows
-
-    mock_db.execute.side_effect = [
-        mock_set_param_result,
-        mock_vector_result,
-        mock_keyword_result,
+    # Single combined CTE execute call returns (id, page, chunk_index, content, metric, source)
+    # Vector metric is cosine distance (0.1 -> similarity 0.90), keyword metric is ts_rank_cd
+    combined_rows = [
+        (chunk1_id, 1, 0, "Our primary tone is calm and articulate.", 0.1, "vector"),
+        (chunk2_id, 2, 1, "Forbidden words include revolutionary and disruption.", 0.3, "vector"),
+        (chunk2_id, 2, 1, "Forbidden words include revolutionary and disruption.", 0.8, "keyword"),
+        (chunk1_id, 1, 0, "Our primary tone is calm and articulate.", 0.2, "keyword"),
     ]
+    mock_result = MagicMock()
+    mock_result.all.return_value = combined_rows
+    mock_db.execute.return_value = mock_result
 
     dummy_provider = DummyEmbeddingProvider()
     results = await hybrid_retrieve(
@@ -69,13 +45,13 @@ async def test_hybrid_retrieve_merges_vector_and_keyword() -> None:
         embedding_provider=dummy_provider,
     )
 
+    # Executed in exactly 1 DB round trip (no SET LOCAL, no concurrent AsyncSession gather)
+    assert mock_db.execute.await_count == 1
     assert len(results) == 2
-    # Verify both chunks retrieved with fused scores and individual retriever metrics
     ids = [r.item_id for r in results]
     assert str(chunk1_id) in ids
     assert str(chunk2_id) in ids
 
-    # Check that individual scores and ranks were properly tracked
     r1 = next(r for r in results if r.item_id == str(chunk1_id))
     assert r1.vector_score == 0.90
     assert r1.keyword_score == 0.2

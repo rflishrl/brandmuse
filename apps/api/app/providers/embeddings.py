@@ -1,3 +1,5 @@
+import array
+import asyncio
 import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
@@ -11,18 +13,21 @@ from app.core.http import get_http_client
 
 settings = get_settings()
 
+EMBEDDING_BATCH_CONCURRENCY = 4
+
 
 class QueryEmbeddingCache:
-    """Thread-safe in-memory bounded LRU cache with TTL for query embeddings.
+    """Memory-compact bounded LRU cache with TTL for query embeddings.
 
-    Prevents redundant external API calls for repeated or similar user queries,
-    saving network latency, CPU usage, and external AI token budget.
+    Stores embeddings as 32-bit float arrays (`array('f')`, matching PostgreSQL pgvector
+    storage precision) instead of Python `list[float]` to cut memory footprint ~8x on
+    memory-constrained containers (e.g. Render 512MB).
     """
 
-    def __init__(self, maxsize: int = 1024, ttl_seconds: float = 3600.0) -> None:
+    def __init__(self, maxsize: int = 512, ttl_seconds: float = 3600.0) -> None:
         self.maxsize = maxsize
         self.ttl = ttl_seconds
-        self._cache: OrderedDict[str, tuple[float, list[float]]] = OrderedDict()
+        self._cache: OrderedDict[str, tuple[float, array.array[float]]] = OrderedDict()
 
     def get(self, key: str) -> list[float] | None:
         now = time.time()
@@ -30,7 +35,7 @@ class QueryEmbeddingCache:
             ts, emb = self._cache[key]
             if now - ts < self.ttl:
                 self._cache.move_to_end(key)
-                return emb
+                return list(emb)
             del self._cache[key]
         return None
 
@@ -38,7 +43,7 @@ class QueryEmbeddingCache:
         now = time.time()
         if key in self._cache:
             self._cache.move_to_end(key)
-        self._cache[key] = (now, value)
+        self._cache[key] = (now, array.array("f", value))
         if len(self._cache) > self.maxsize:
             self._cache.popitem(last=False)
 
@@ -65,14 +70,17 @@ class BaseEmbeddingProvider(ABC):
         """Embed a list of text strings in batches."""
         pass
 
+    def _query_cache_key(self, cleaned: str) -> str:
+        model_name = getattr(self, "model", "default")
+        return f"{self.__class__.__name__}:{model_name}:{cleaned.lower()}"
+
     async def embed_query(self, text: str) -> list[float]:
         """Embed a single query string, checking the in-memory LRU/TTL cache first."""
         cleaned = text.strip()
         if not cleaned:
             return [0.0] * settings.EMBEDDING_DIM
 
-        model_name = getattr(self, "model", "default")
-        cache_key = f"{self.__class__.__name__}:{model_name}:{cleaned.lower()}"
+        cache_key = self._query_cache_key(cleaned)
         cached = _query_cache.get(cache_key)
         if cached is not None:
             return cached
@@ -80,6 +88,38 @@ class BaseEmbeddingProvider(ABC):
         results = await self._compute_embed_query(cleaned)
         _query_cache.set(cache_key, results)
         return results
+
+    async def embed_queries(self, texts: list[str]) -> list[list[float]]:
+        """Embed multiple query strings in 1 batched call for cache misses."""
+        if not texts:
+            return []
+
+        results: list[list[float] | None] = [None] * len(texts)
+        missing_indices: list[int] = []
+        missing_texts: list[str] = []
+        missing_keys: list[str] = []
+
+        for idx, raw in enumerate(texts):
+            cleaned = raw.strip()
+            if not cleaned:
+                results[idx] = [0.0] * settings.EMBEDDING_DIM
+                continue
+            key = self._query_cache_key(cleaned)
+            cached = _query_cache.get(key)
+            if cached is not None:
+                results[idx] = cached
+            else:
+                missing_indices.append(idx)
+                missing_texts.append(cleaned)
+                missing_keys.append(key)
+
+        if missing_texts:
+            computed = await self.embed_documents(missing_texts)
+            for idx, key, vec in zip(missing_indices, missing_keys, computed, strict=True):
+                _query_cache.set(key, vec)
+                results[idx] = vec
+
+        return [r if r is not None else [0.0] * settings.EMBEDDING_DIM for r in results]
 
     async def _compute_embed_query(self, text: str) -> list[float]:
         """Compute query embedding by delegating to embed_documents."""
@@ -107,34 +147,37 @@ class OpenAIEmbeddingProvider(BaseEmbeddingProvider):
                 status_code=500,
             )
 
-        all_embeddings: list[list[float]] = []
         client = get_http_client()
-        for i in range(0, len(texts), self.batch_size):
-            batch = texts[i : i + self.batch_size]
-            try:
-                response = await client.post(
-                    "https://api.openai.com/v1/embeddings",
-                    headers={"Authorization": f"Bearer {self.api_key}"},
-                    json={"input": batch, "model": self.model},
-                    timeout=30.0,
-                )
-            except httpx.HTTPError as exc:
-                raise APIError(
-                    code="EMBEDDING_ERROR",
-                    message=f"OpenAI embedding request failed ({type(exc).__name__}): {exc}",
-                    status_code=502,
-                ) from exc
-            if response.status_code != 200:
-                raise APIError(
-                    code="EMBEDDING_ERROR",
-                    message=f"OpenAI embedding failed: {response.text}",
-                    status_code=502,
-                )
-            data: dict[str, Any] = response.json()
-            sorted_items = sorted(data["data"], key=lambda x: x["index"])
-            all_embeddings.extend([item["embedding"] for item in sorted_items])
+        batches = [texts[i : i + self.batch_size] for i in range(0, len(texts), self.batch_size)]
+        sem = asyncio.Semaphore(EMBEDDING_BATCH_CONCURRENCY)
 
-        return all_embeddings
+        async def _embed_batch(batch: list[str]) -> list[list[float]]:
+            async with sem:
+                try:
+                    response = await client.post(
+                        "https://api.openai.com/v1/embeddings",
+                        headers={"Authorization": f"Bearer {self.api_key}"},
+                        json={"input": batch, "model": self.model},
+                        timeout=30.0,
+                    )
+                except httpx.HTTPError as exc:
+                    raise APIError(
+                        code="EMBEDDING_ERROR",
+                        message=f"OpenAI embedding request failed ({type(exc).__name__}): {exc}",
+                        status_code=502,
+                    ) from exc
+                if response.status_code != 200:
+                    raise APIError(
+                        code="EMBEDDING_ERROR",
+                        message=f"OpenAI embedding failed: {response.text}",
+                        status_code=502,
+                    )
+                data: dict[str, Any] = response.json()
+                sorted_items = sorted(data["data"], key=lambda x: x["index"])
+                return [item["embedding"] for item in sorted_items]
+
+        batch_results = await asyncio.gather(*(_embed_batch(b) for b in batches))
+        return [vec for group in batch_results for vec in group]
 
 
 class OllamaEmbeddingProvider(BaseEmbeddingProvider):
@@ -148,8 +191,33 @@ class OllamaEmbeddingProvider(BaseEmbeddingProvider):
         if not texts:
             return []
 
-        all_embeddings: list[list[float]] = []
         client = get_http_client()
+        # Prefer Ollama's native batch endpoint (/api/embed); fall back to legacy /api/embeddings.
+        try:
+            batch_res = await client.post(
+                f"{self.base_url}/api/embed",
+                json={"model": self.model, "input": texts},
+                timeout=60.0,
+            )
+            if batch_res.status_code == 200:
+                payload = batch_res.json()
+                embeddings = payload.get("embeddings")
+                if isinstance(embeddings, list) and len(embeddings) == len(texts):
+                    return embeddings
+            elif batch_res.status_code != 404:
+                raise APIError(
+                    code="EMBEDDING_ERROR",
+                    message=f"Ollama embedding failed: {batch_res.text}",
+                    status_code=502,
+                )
+        except httpx.HTTPError as exc:
+            raise APIError(
+                code="EMBEDDING_ERROR",
+                message=f"Ollama embedding request failed ({type(exc).__name__}): {exc}",
+                status_code=502,
+            ) from exc
+
+        all_embeddings: list[list[float]] = []
         for text in texts:
             try:
                 response = await client.post(
@@ -193,53 +261,56 @@ class GeminiEmbeddingProvider(BaseEmbeddingProvider):
                 status_code=500,
             )
 
-        all_embeddings: list[list[float]] = []
         target_dim = settings.EMBEDDING_DIM
         url = f"https://generativelanguage.googleapis.com/v1beta/{self.model}:batchEmbedContents"
-
         client = get_http_client()
-        for i in range(0, len(texts), self.batch_size):
-            batch = texts[i : i + self.batch_size]
-            payload = {
-                "requests": [
-                    {
-                        "model": self.model,
-                        "content": {"parts": [{"text": t}]},
-                        "outputDimensionality": target_dim,
-                    }
-                    for t in batch
-                ]
-            }
-            try:
-                response = await client.post(
-                    url,
-                    headers={"x-goog-api-key": self.api_key},
-                    json=payload,
-                    timeout=30.0,
-                )
-            except httpx.HTTPError as exc:
-                raise APIError(
-                    code="EMBEDDING_ERROR",
-                    message=f"Gemini embedding request failed ({type(exc).__name__}): {exc}",
-                    status_code=502,
-                ) from exc
-            if response.status_code != 200:
-                raise APIError(
-                    code="EMBEDDING_ERROR",
-                    message=f"Gemini embedding API failed: {response.text}",
-                    status_code=502,
-                )
-            data = response.json()
-            for item in data.get("embeddings", []):
-                values: list[float] = item.get("values", [])
-                # Guard vector dimension to match pgvector column width
-                if len(values) < target_dim:
-                    values = values + [0.0] * (target_dim - len(values))
-                elif len(values) > target_dim:
-                    values = values[:target_dim]
-                all_embeddings.append(values)
+        batches = [texts[i : i + self.batch_size] for i in range(0, len(texts), self.batch_size)]
+        sem = asyncio.Semaphore(EMBEDDING_BATCH_CONCURRENCY)
 
-        return all_embeddings
+        async def _embed_batch(batch: list[str]) -> list[list[float]]:
+            async with sem:
+                payload = {
+                    "requests": [
+                        {
+                            "model": self.model,
+                            "content": {"parts": [{"text": t}]},
+                            "outputDimensionality": target_dim,
+                        }
+                        for t in batch
+                    ]
+                }
+                try:
+                    response = await client.post(
+                        url,
+                        headers={"x-goog-api-key": self.api_key},
+                        json=payload,
+                        timeout=30.0,
+                    )
+                except httpx.HTTPError as exc:
+                    raise APIError(
+                        code="EMBEDDING_ERROR",
+                        message=f"Gemini embedding request failed ({type(exc).__name__}): {exc}",
+                        status_code=502,
+                    ) from exc
+                if response.status_code != 200:
+                    raise APIError(
+                        code="EMBEDDING_ERROR",
+                        message=f"Gemini embedding API failed: {response.text}",
+                        status_code=502,
+                    )
+                data = response.json()
+                out: list[list[float]] = []
+                for item in data.get("embeddings", []):
+                    values: list[float] = item.get("values", [])
+                    if len(values) < target_dim:
+                        values = values + [0.0] * (target_dim - len(values))
+                    elif len(values) > target_dim:
+                        values = values[:target_dim]
+                    out.append(values)
+                return out
+
+        batch_results = await asyncio.gather(*(_embed_batch(b) for b in batches))
+        return [vec for group in batch_results for vec in group]
 
 
 def get_embedding_provider(name: str | None = None) -> BaseEmbeddingProvider:

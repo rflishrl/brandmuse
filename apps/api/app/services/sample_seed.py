@@ -51,7 +51,7 @@ async def ensure_sample_brand_seeded(
                 status_code=404,
             )
 
-        pdf_bytes = sample_path.read_bytes()
+        pdf_bytes = await asyncio.to_thread(sample_path.read_bytes)
 
         try:
             return await ingest_pdf_document(
@@ -87,14 +87,11 @@ async def ensure_sample_ontology_seeded(
 
         ontology_data = await extract_brand_ontology_from_doc(db, doc, session_id)
         try:
-            await OntologyRepository.upsert(
+            return await OntologyRepository.upsert(
                 db=db,
                 document_id=doc.id,
                 ontology_data=ontology_data.model_dump(),
-            )
-            return await OntologyRepository.certify(
-                db=db,
-                document_id=doc.id,
+                is_certified=True,
                 certified_by=SAMPLE_CERTIFIED_BY,
             )
         except IntegrityError:

@@ -20,14 +20,45 @@ import {
   X,
 } from "lucide-react";
 import type React from "react";
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { BrandMuseOrb } from "@/components/BrandMuseOrb";
-import { KeyboardShortcutsDialog } from "@/components/KeyboardShortcutsDialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/components/ui/sonner";
 import { prefetchRoute, prefetchRouteData } from "@/lib/routePrefetch";
 import { useBrandStore } from "@/store/useBrandStore";
+
+const KeyboardShortcutsDialog = lazy(() => import("@/components/KeyboardShortcutsDialog"));
+
+const THEME_STORAGE_KEY = "brandmuse_theme";
+
+const NAV_ITEMS = [
+  {
+    label: "Ask",
+    path: "/ask",
+    icon: MessageSquare,
+  },
+  {
+    label: "Brand Rules",
+    path: "/rules",
+    icon: ShieldCheck,
+  },
+  {
+    label: "Campaign",
+    path: "/campaign",
+    icon: Megaphone,
+  },
+  {
+    label: "Gallery",
+    path: "/gallery",
+    icon: ImageIcon,
+  },
+  {
+    label: "Documents",
+    path: "/documents",
+    icon: FileText,
+  },
+] as const;
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -50,6 +81,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   const loadSampleBrand = useBrandStore((s) => s.loadSampleBrand);
   const isServerWarmingUp = useBrandStore((s) => s.isServerWarmingUp);
   const isServerOffline = useBrandStore((s) => s.isServerOffline);
+  const refetchHealth = useBrandStore((s) => s.refetchHealth);
   const refetchDocuments = useBrandStore((s) => s.refetchDocuments);
 
   const effectiveDocumentName =
@@ -103,6 +135,17 @@ export const AppShell: React.FC<AppShellProps> = ({
     });
   }, []);
 
+  const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear pending focus timer on unmount
+  useEffect(() => {
+    return () => {
+      if (focusTimerRef.current) {
+        clearTimeout(focusTimerRef.current);
+      }
+    };
+  }, []);
+
   // Keyboard shortcuts: Cmd+B (Sidebar), Cmd+K (Focus Prompt), Cmd+/ (Shortcuts Help), Cmd+1..5 (Tabs)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -128,7 +171,10 @@ export const AppShell: React.FC<AppShellProps> = ({
         if (location.pathname !== "/ask") {
           navigate("/ask");
         }
-        setTimeout(() => {
+        if (focusTimerRef.current) {
+          clearTimeout(focusTimerRef.current);
+        }
+        focusTimerRef.current = setTimeout(() => {
           const textarea = document.querySelector<HTMLTextAreaElement>(
             'textarea[aria-label="Ask about brand guidelines"]'
           );
@@ -170,63 +216,48 @@ export const AppShell: React.FC<AppShellProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [toggleSidebar, location.pathname, navigate, showShortcutsDialog, mobileOpen]);
 
-  // Apply theme class to document element
+  // Apply theme class + sync meta[name="color-scheme"] and cross-tab storage updates
   useEffect(() => {
     const root = document.documentElement;
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
     const applyTheme = () => {
       const isDark = theme === "dark" || (theme === "system" && mediaQuery.matches);
-      if (isDark) {
-        root.classList.add("dark");
-      } else {
-        root.classList.remove("dark");
+      root.classList.toggle("dark", isDark);
+      const meta = document.querySelector<HTMLMetaElement>('meta[name="color-scheme"]');
+      if (meta) {
+        meta.content = theme === "system" ? "light dark" : isDark ? "dark" : "light";
       }
     };
 
     applyTheme();
     try {
-      localStorage.setItem("brandmuse_theme", theme);
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
     } catch {
       // Ignore localStorage failure
     }
 
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key !== THEME_STORAGE_KEY) return;
+      const next = e.newValue as ThemeMode | null;
+      if (next === "light" || next === "dark" || next === "system") {
+        setTheme(next);
+      }
+    };
+
     mediaQuery.addEventListener("change", applyTheme);
-    return () => mediaQuery.removeEventListener("change", applyTheme);
+    window.addEventListener("storage", handleStorage);
+    return () => {
+      mediaQuery.removeEventListener("change", applyTheme);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, [theme]);
 
   // Close mobile drawer on route change
   useEffect(() => {
+    void location.pathname;
     setMobileOpen(false);
-  }, []);
-
-  const navItems = [
-    {
-      label: "Ask",
-      path: "/ask",
-      icon: MessageSquare,
-    },
-    {
-      label: "Brand Rules",
-      path: "/rules",
-      icon: ShieldCheck,
-    },
-    {
-      label: "Campaign",
-      path: "/campaign",
-      icon: Megaphone,
-    },
-    {
-      label: "Gallery",
-      path: "/gallery",
-      icon: ImageIcon,
-    },
-    {
-      label: "Documents",
-      path: "/documents",
-      icon: FileText,
-    },
-  ];
+  }, [location.pathname]);
 
   const cycleTheme = () => {
     const nextTheme: Record<ThemeMode, ThemeMode> = {
@@ -274,7 +305,9 @@ export const AppShell: React.FC<AppShellProps> = ({
       {/* Mobile Drawer (Slides out when opened on small screens) */}
       {mobileOpen && (
         <aside
-          className="fixed inset-y-0 left-0 z-50 w-[270px] bg-surface border-r border-border p-5 flex flex-col justify-between md:hidden shadow-2xl animate-in slide-in-from-left duration-200"
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-y-0 left-0 z-50 w-[270px] bg-surface border-r border-border p-5 flex flex-col justify-between md:hidden shadow-2xl overflow-y-auto [overscroll-behavior:contain]"
           aria-label="Mobile navigation drawer"
         >
           <div className="flex flex-col gap-6">
@@ -306,14 +339,14 @@ export const AppShell: React.FC<AppShellProps> = ({
                 window.dispatchEvent(new CustomEvent("brandmuse:new-chat"));
                 setMobileOpen(false);
               }}
-              className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-foreground/10 hover:bg-foreground/15 border border-foreground/15 text-foreground text-xs font-semibold shadow-xs transition-all"
+              className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-foreground/10 hover:bg-foreground/15 border border-foreground/15 text-foreground text-xs font-semibold transition-colors"
             >
               <Plus className="w-4 h-4" />
               <span>New Chat</span>
             </Link>
 
             <nav className="flex flex-col gap-1.5">
-              {navItems.map((item) => {
+              {NAV_ITEMS.map((item) => {
                 const active =
                   location.pathname === item.path ||
                   (item.path === "/ask" && location.pathname === "/");
@@ -331,9 +364,9 @@ export const AppShell: React.FC<AppShellProps> = ({
                       prefetchRouteData(queryClient, item.path, selectedDocumentId);
                     }}
                     onClick={() => setMobileOpen(false)}
-                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-all ${
+                    className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm transition-colors ${
                       active
-                        ? "bg-foreground/10 text-foreground font-semibold border border-foreground/20 shadow-xs"
+                        ? "bg-foreground/10 text-foreground font-semibold border border-foreground/20"
                         : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
                     }`}
                   >
@@ -405,7 +438,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           hidden md:flex sticky top-0 inset-y-0 left-0 z-40 h-screen
           bg-surface/85 dark:bg-[#08080A]/80 backdrop-blur-xl border-r border-border dark:border-white/[0.08]
           flex-col justify-between shrink-0 select-none overflow-x-hidden
-          transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-[width] px-3 py-4
+          transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] px-3 py-4
           ${isExpanded ? "w-[240px]" : "w-[68px]"}
         `}
         aria-label="Desktop navigation sidebar"
@@ -424,7 +457,7 @@ export const AppShell: React.FC<AppShellProps> = ({
                 <BrandMuseOrb size={28} glow />
               </div>
               <div
-                className={`flex flex-col transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
+                className={`flex flex-col transition-[opacity,max-width,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
                   isExpanded
                     ? "opacity-100 max-w-[150px] translate-x-0"
                     : "opacity-0 max-w-0 -translate-x-2 pointer-events-none"
@@ -454,7 +487,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             }}
             title="New Chat"
             aria-label="Start new chat session"
-            className="w-full h-11 rounded-2xl flex items-center overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] shadow-xs group bg-foreground/5 hover:bg-foreground/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.12] border border-border dark:border-white/10 text-foreground hover:scale-[1.02] active:scale-[0.98]"
+            className="w-full h-11 rounded-2xl flex items-center overflow-hidden transition-[background-color,border-color,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] group bg-foreground/5 hover:bg-foreground/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.12] border border-border dark:border-white/10 text-foreground hover:scale-[1.02] active:scale-[0.98]"
           >
             <div className="w-11 h-11 shrink-0 flex items-center justify-center">
               <span className="p-1 rounded-lg bg-foreground/10 text-foreground group-hover:scale-105 transition-transform">
@@ -462,7 +495,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               </span>
             </div>
             <span
-              className={`text-xs font-semibold tracking-tight transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
+              className={`text-xs font-semibold tracking-tight transition-[opacity,max-width,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
                 isExpanded
                   ? "opacity-100 max-w-[120px] translate-x-0"
                   : "opacity-0 max-w-0 -translate-x-2 pointer-events-none"
@@ -474,7 +507,7 @@ export const AppShell: React.FC<AppShellProps> = ({
 
           {/* Nav Rail / Menu Items */}
           <nav className="flex flex-col gap-1.5 w-full mt-1" aria-label="Main menu">
-            {navItems.map((item) => {
+            {NAV_ITEMS.map((item) => {
               const active =
                 location.pathname === item.path ||
                 (item.path === "/ask" && location.pathname === "/");
@@ -494,7 +527,7 @@ export const AppShell: React.FC<AppShellProps> = ({
                     prefetchRouteData(queryClient, item.path, selectedDocumentId);
                   }}
                   className={`
-                    relative rounded-2xl flex items-center overflow-hidden h-11 w-full transition-all duration-200 group
+                    relative rounded-2xl flex items-center overflow-hidden h-11 w-full transition-[background-color,color,border-color,transform] duration-200 group
                     ${
                       active
                         ? "bg-foreground/10 text-foreground font-semibold border border-foreground/20 dark:bg-white/[0.14] dark:text-white dark:border-white/20 dark:shadow-[0_0_20px_rgba(255,255,255,0.08)]"
@@ -514,7 +547,7 @@ export const AppShell: React.FC<AppShellProps> = ({
                     />
                   </div>
                   <span
-                    className={`text-xs font-medium tracking-tight truncate transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
+                    className={`text-xs font-medium tracking-tight truncate transition-[opacity,max-width,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
                       isExpanded
                         ? "opacity-100 max-w-[140px] translate-x-0"
                         : "opacity-0 max-w-0 -translate-x-2 pointer-events-none"
@@ -537,7 +570,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             disabled={isLoadingSample}
             title="Load demo brand guideline (Aura Living)"
             aria-label="Load demo brand guideline"
-            className={`w-full h-11 rounded-2xl flex items-center overflow-hidden transition-all group border disabled:opacity-60 ${
+            className={`w-full h-11 rounded-2xl flex items-center overflow-hidden transition-colors group border disabled:opacity-60 ${
               isSampleActive
                 ? "text-foreground bg-foreground/[0.06] border-border dark:border-white/15"
                 : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] border-transparent hover:border-border dark:hover:border-white/10"
@@ -557,7 +590,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               )}
             </div>
             <div
-              className={`flex-1 flex items-center justify-between transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
+              className={`flex-1 flex items-center justify-between transition-[opacity,max-width,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
                 isExpanded
                   ? "opacity-100 max-w-[160px] pr-2.5 translate-x-0"
                   : "opacity-0 max-w-0 pr-0 -translate-x-2 pointer-events-none"
@@ -582,13 +615,13 @@ export const AppShell: React.FC<AppShellProps> = ({
             onClick={() => setShowShortcutsDialog(true)}
             title="Keyboard shortcuts (⌘ / Ctrl + /)"
             aria-label="Keyboard shortcuts"
-            className="w-full h-11 rounded-2xl flex items-center overflow-hidden text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] border border-transparent hover:border-border dark:hover:border-white/10 transition-all group"
+            className="w-full h-11 rounded-2xl flex items-center overflow-hidden text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] border border-transparent hover:border-border dark:hover:border-white/10 transition-colors group"
           >
             <div className="w-11 h-11 shrink-0 flex items-center justify-center">
               <Keyboard className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
             </div>
             <div
-              className={`flex-1 flex items-center justify-between transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
+              className={`flex-1 flex items-center justify-between transition-[opacity,max-width,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
                 isExpanded
                   ? "opacity-100 max-w-[160px] pr-2.5 translate-x-0"
                   : "opacity-0 max-w-0 pr-0 -translate-x-2 pointer-events-none"
@@ -604,13 +637,13 @@ export const AppShell: React.FC<AppShellProps> = ({
             onClick={cycleTheme}
             title={`Toggle theme (current: ${theme}). Click to change.`}
             aria-label={`Toggle theme, current is ${theme}`}
-            className="w-full h-11 rounded-2xl flex items-center overflow-hidden text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] border border-transparent hover:border-border dark:hover:border-white/10 transition-all group"
+            className="w-full h-11 rounded-2xl flex items-center overflow-hidden text-muted-foreground hover:text-foreground hover:bg-foreground/[0.05] border border-transparent hover:border-border dark:hover:border-white/10 transition-colors group"
           >
             <div className="w-11 h-11 shrink-0 flex items-center justify-center">
               <ThemeIcon className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
             </div>
             <div
-              className={`flex-1 flex items-center justify-between transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
+              className={`flex-1 flex items-center justify-between transition-[opacity,max-width,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
                 isExpanded
                   ? "opacity-100 max-w-[160px] pr-2.5 translate-x-0"
                   : "opacity-0 max-w-0 pr-0 -translate-x-2 pointer-events-none"
@@ -626,20 +659,20 @@ export const AppShell: React.FC<AppShellProps> = ({
           {/* Active Brand Workspace Status Indicator */}
           <div className="w-full flex items-center overflow-hidden pt-1">
             <div
-              className={`w-full flex items-center rounded-xl transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
+              className={`w-full flex items-center rounded-xl transition-colors duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
                 isExpanded
                   ? "p-1.5 bg-foreground/[0.03] border border-border/60 dark:border-white/5"
                   : "h-11 justify-center bg-transparent border-transparent"
               }`}
             >
               <div
-                className="w-8 h-8 rounded-xl bg-foreground/10 border border-border dark:border-white/20 flex items-center justify-center text-foreground shrink-0 shadow-xs"
+                className="w-8 h-8 rounded-xl bg-foreground/10 border border-border dark:border-white/20 flex items-center justify-center text-foreground shrink-0"
                 title={`Active Guideline • ${effectiveDocumentName}`}
               >
                 <FileText className="w-4 h-4 text-muted-foreground" />
               </div>
               <div
-                className={`flex flex-col min-w-0 transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
+                className={`flex flex-col min-w-0 transition-[opacity,max-width,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
                   isExpanded
                     ? "opacity-100 max-w-[140px] pl-2 translate-x-0"
                     : "opacity-0 max-w-0 pl-0 -translate-x-2 pointer-events-none"
@@ -662,7 +695,7 @@ export const AppShell: React.FC<AppShellProps> = ({
             onClick={toggleSidebar}
             title={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
             aria-label={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
-            className="w-full h-10 rounded-xl flex items-center overflow-hidden text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all"
+            className="w-full h-10 rounded-xl flex items-center overflow-hidden text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-colors"
           >
             <div className="w-11 h-10 shrink-0 flex items-center justify-center">
               {isExpanded ? (
@@ -672,7 +705,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               )}
             </div>
             <span
-              className={`text-[11px] font-medium transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
+              className={`text-[11px] font-medium transition-[opacity,max-width,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] whitespace-nowrap overflow-hidden ${
                 isExpanded
                   ? "opacity-100 max-w-[130px] translate-x-0"
                   : "opacity-0 max-w-0 -translate-x-2 pointer-events-none"
@@ -696,10 +729,10 @@ export const AppShell: React.FC<AppShellProps> = ({
               role="status"
               aria-live="polite"
               aria-atomic="true"
-              className="w-full p-3 sm:px-4 sm:py-3 rounded-2xl bg-surface/90 dark:bg-[#121217]/90 backdrop-blur-xl border border-border dark:border-white/10 shadow-card flex items-center justify-between gap-3.5 transition-all duration-300 animate-in fade-in slide-in-from-top-2 shrink-0"
+              className="w-full p-3 sm:px-4 sm:py-3 rounded-2xl bg-surface/90 dark:bg-[#121217]/90 backdrop-blur-xl border border-border dark:border-white/10 shadow-card flex items-center justify-between gap-3.5 shrink-0"
             >
               <div className="flex items-center gap-3 min-w-0">
-                <div className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-foreground/5 dark:bg-white/[0.08] border border-border/80 dark:border-white/10 shrink-0 shadow-xs">
+                <div className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-foreground/5 dark:bg-white/[0.08] border border-border/80 dark:border-white/10 shrink-0">
                   <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
@@ -733,7 +766,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           {isServerOffline && (
             <aside
               role="alert"
-              className="w-full p-3 sm:px-4 sm:py-3 rounded-2xl bg-surface/90 dark:bg-[#121217]/90 backdrop-blur-xl border border-danger/30 shadow-card flex items-center justify-between gap-3.5 transition-all duration-300 animate-in fade-in slide-in-from-top-2 shrink-0"
+              className="w-full p-3 sm:px-4 sm:py-3 rounded-2xl bg-surface/90 dark:bg-[#121217]/90 backdrop-blur-xl border border-danger/30 shadow-card flex items-center justify-between gap-3.5 shrink-0"
             >
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-8 h-8 rounded-xl bg-danger/10 border border-danger/20 flex items-center justify-center shrink-0">
@@ -751,10 +784,11 @@ export const AppShell: React.FC<AppShellProps> = ({
               <button
                 type="button"
                 onClick={() => {
+                  refetchHealth();
                   refetchDocuments();
                   toast.info("Reconnecting to server...");
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-foreground/5 hover:bg-foreground/10 dark:bg-white/[0.08] dark:hover:bg-white/[0.14] border border-border dark:border-white/10 text-xs font-medium text-foreground transition-all shrink-0 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-foreground/5 hover:bg-foreground/10 dark:bg-white/[0.08] dark:hover:bg-white/[0.14] border border-border dark:border-white/10 text-xs font-medium text-foreground transition-[background-color,transform] shrink-0 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
               >
                 <RefreshCw className="w-3 h-3 text-muted-foreground" aria-hidden="true" />
                 <span>Reconnect</span>
@@ -766,11 +800,15 @@ export const AppShell: React.FC<AppShellProps> = ({
         </div>
       </main>
 
-      {/* Global Keyboard Shortcuts Help Dialog */}
-      <KeyboardShortcutsDialog
-        isOpen={showShortcutsDialog}
-        onClose={() => setShowShortcutsDialog(false)}
-      />
+      {/* Global Keyboard Shortcuts Help Dialog (lazy-loaded on demand) */}
+      {showShortcutsDialog && (
+        <Suspense fallback={null}>
+          <KeyboardShortcutsDialog
+            isOpen={showShortcutsDialog}
+            onClose={() => setShowShortcutsDialog(false)}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };

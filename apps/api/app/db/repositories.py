@@ -91,6 +91,8 @@ class OntologyRepository:
         db: AsyncSession,
         document_id: uuid.UUID,
         ontology_data: dict[str, Any],
+        is_certified: bool = False,
+        certified_by: str | None = None,
     ) -> BrandOntology:
         """Create or update a BrandOntology record and invalidate memory cache."""
         stmt = select(BrandOntology).where(BrandOntology.document_id == document_id)
@@ -103,7 +105,9 @@ class OntologyRepository:
                 id=uuid.uuid4(),
                 document_id=document_id,
                 ontology_data=ontology_data,
-                is_certified=False,
+                is_certified=is_certified,
+                certified_at=now if is_certified else None,
+                certified_by=certified_by if is_certified else None,
                 created_at=now,
                 updated_at=now,
             )
@@ -111,11 +115,14 @@ class OntologyRepository:
         else:
             existing.ontology_data = ontology_data
             existing.updated_at = now
+            if is_certified:
+                existing.is_certified = True
+                existing.certified_at = now
+                existing.certified_by = certified_by
             record = existing
 
         await db.commit()
         invalidate_cached_ontology(document_id)
-        await db.refresh(record)
         return record
 
     @staticmethod
@@ -141,7 +148,6 @@ class OntologyRepository:
 
         await db.commit()
         invalidate_cached_ontology(document_id)
-        await db.refresh(record)
         return record
 
     @staticmethod
@@ -170,7 +176,6 @@ class OntologyRepository:
 
         await db.commit()
         invalidate_cached_ontology(document_id)
-        await db.refresh(record)
         return record
 
 
@@ -214,10 +219,10 @@ class GenerationRepository:
             image_url=image_url,
             provider=provider,
             size_bytes=size_bytes,
+            created_at=datetime.datetime.now(datetime.UTC),
         )
         db.add(generation)
         await db.commit()
-        await db.refresh(generation)
         return generation
 
     @staticmethod

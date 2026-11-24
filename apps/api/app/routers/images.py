@@ -1,9 +1,11 @@
+import asyncio
 import uuid
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.errors import APIError
 from app.core.logging import hash_session_id, slogger
 from app.core.security import get_session_id
 from app.db.repositories import GenerationRepository
@@ -54,7 +56,10 @@ async def generate_image(
         db, session_id, limit=settings.SESSION_IMAGE_HOURLY_LIMIT
     )
     await check_daily_usage_available(db, "image", settings.DAILY_IMAGE_LIMIT)
-    await check_app_storage_quota(db, settings.R2_APP_QUOTA_MB)
+    used_bytes, quota_bytes = await check_app_storage_quota(db, settings.R2_APP_QUOTA_MB)
+
+    # Release DB read transaction before slow image generation, WebP encoding, and R2 upload
+    await db.rollback()
 
     provider = get_image_provider()
     raw_bytes = await provider.generate_image(
@@ -62,16 +67,24 @@ async def generate_image(
         aspect_ratio=payload.aspect_ratio,
         negative_prompt=payload.negative_prompt,
     )
-    full_webp_bytes, thumb_webp_bytes = encode_webp_variants(raw_bytes)
+    full_webp_bytes, thumb_webp_bytes = await asyncio.to_thread(encode_webp_variants, raw_bytes)
 
-    planned_r2_bytes = (
-        len(full_webp_bytes) + len(thumb_webp_bytes) if settings.is_r2_active else 0
-    )
-    await check_app_storage_quota(
-        db,
-        settings.R2_APP_QUOTA_MB,
-        additional_bytes=planned_r2_bytes,
-    )
+    planned_r2_bytes = len(full_webp_bytes) + len(thumb_webp_bytes) if settings.is_r2_active else 0
+    if used_bytes + planned_r2_bytes > quota_bytes:
+        slogger.warning(
+            "storage_quota_exceeded",
+            used_bytes=used_bytes,
+            additional_bytes=planned_r2_bytes,
+            quota_bytes=quota_bytes,
+        )
+        raise APIError(
+            code="STORAGE_QUOTA_EXCEEDED",
+            message=(
+                "Image generation is temporarily paused while demo storage capacity "
+                "is being refreshed. Please try again later."
+            ),
+            status_code=429,
+        )
 
     stored_value, public_url, thumb_url, stored_bytes = await upload_image_variants_to_storage(
         full_webp_bytes,

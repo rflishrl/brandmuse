@@ -1,25 +1,36 @@
-import asyncio
 import uuid
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_core.runnables import RunnableConfig
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.errors import APIError
 from app.core.logging import logger
-from app.db.cache import get_cached_brand_ontology, get_cached_document
-from app.observability.langfuse import get_langfuse_callback, get_trace_url
+from app.db.cache import get_cached_document, get_cached_formatted_ontology
+from app.observability.langfuse import get_langfuse_runnable_config, get_trace_url
+from app.providers.embeddings import get_embedding_provider
 from app.providers.llm import get_llm
-from app.rag.ontology import format_ontology_context
 from app.rag.prompt import format_context_block
+from app.rag.query import expand_query_for_retrieval
 from app.rag.retrieve import hybrid_retrieve
 from app.rag.rrf import FusedResult
 from app.schemas.campaign import CampaignBrief, CampaignOutput, CampaignResponse, Concept
 from app.services.usage import check_and_increment_daily_usage
 
 settings = get_settings()
+_DEFAULT_HYBRID_RETRIEVE = hybrid_retrieve
+
+
+def _is_non_retryable_client_error(exc: Exception) -> bool:
+    """Return True for deterministic 4xx client errors (except 429 rate limits)."""
+    status_code = getattr(exc, "status_code", None)
+    if isinstance(status_code, int) and 400 <= status_code < 500 and status_code != 429:
+        return True
+    response = getattr(exc, "response", None)
+    resp_status = getattr(response, "status_code", None)
+    return isinstance(resp_status, int) and 400 <= resp_status < 500 and resp_status != 429
+
 
 CAMPAIGN_SYSTEM_PROMPT = """You are BrandMuse Creative Director, an AI branding strategist.
 Your task is to generate 3 distinct, creative, and on-brand campaign concepts based strictly on \
@@ -81,18 +92,32 @@ async def generate_campaign_concepts(
     # 2. Check & increment daily usage quota
     await check_and_increment_daily_usage(db, "llm", settings.DAILY_LLM_LIMIT)
 
-    # 3. Targeted multi-angle retrieval concurrently
+    # 3. Batch-embed all 3 retrieval queries in 1 HTTP call, then execute single-RTT CTE queries
+    # sequentially on the AsyncSession (preventing concurrent asyncpg operations on one session).
     q1 = f"tone of voice copywriting guidelines personality {brief.mood}"
     q2 = f"visual style photography lighting color palette {brief.product}"
     q3 = "brand restrictions rules and prohibited elements"
+    queries = [q1, q2, q3]
 
-    retrieval_tasks = [
-        hybrid_retrieve(db, document_id, query_text=q1, top_k=3),
-        hybrid_retrieve(db, document_id, query_text=q2, top_k=3),
-        hybrid_retrieve(db, document_id, query_text=q3, top_k=3),
-    ]
-
-    retrieval_batches = await asyncio.gather(*retrieval_tasks)
+    retrieval_batches: list[list[FusedResult]] = []
+    if hybrid_retrieve is _DEFAULT_HYBRID_RETRIEVE:
+        provider = get_embedding_provider()
+        expanded_queries = [expand_query_for_retrieval(q) for q in queries]
+        query_embeddings = await provider.embed_queries(expanded_queries)
+        for q_text, q_emb in zip(queries, query_embeddings, strict=True):
+            retrieval_batches.append(
+                await hybrid_retrieve(
+                    db,
+                    document_id,
+                    query_text=q_text,
+                    top_k=3,
+                    query_embedding=q_emb,
+                )
+            )
+    else:
+        for q_text in queries:
+            batch = await hybrid_retrieve(db, document_id, query_text=q_text, top_k=3)
+            retrieval_batches.append(batch)
 
     # Deduplicate chunks by chunk_index
     seen_chunk_indices: set[int] = set()
@@ -115,9 +140,12 @@ async def generate_campaign_concepts(
 
     context_text = format_context_block(raw_context_pieces)
 
-    # Check for structured brand ontology grounding
-    ontology_data = await get_cached_brand_ontology(db, document_id)
-    ontology_context = f"\n\n{format_ontology_context(ontology_data)}" if ontology_data else ""
+    # Check for structured brand ontology grounding (cached pre-formatted prompt)
+    formatted_ontology = await get_cached_formatted_ontology(db, document_id)
+    ontology_context = f"\n\n{formatted_ontology}" if formatted_ontology else ""
+
+    # Release DB read transaction before long-running LLM call
+    await db.rollback()
 
     system_prompt = f"{CAMPAIGN_SYSTEM_PROMPT}{ontology_context}\n\n{context_text}"
 
@@ -146,15 +174,15 @@ async def generate_campaign_concepts(
 
     # 4. Observability and trace setup
     trace_id = str(uuid.uuid4())
-    handler = get_langfuse_callback(
+    config = get_langfuse_runnable_config(
         session_id=session_id,
         feature="campaign",
         trace_id=trace_id,
+        is_sample=bool(doc.get("is_sample", False)),
         metadata={"document_id": str(document_id), "product": brief.product},
     )
-    config = RunnableConfig(callbacks=[handler] if handler else [])
 
-    # 5. LLM structured generation with retry
+    # 5. LLM structured generation with retry for transient errors only
     llm = get_llm(streaming=False, temperature=0.7, max_tokens=2500)
     structured_llm = llm.with_structured_output(CampaignOutput)
 
@@ -162,6 +190,13 @@ async def generate_campaign_concepts(
     try:
         output = await structured_llm.ainvoke(messages, config=config)
     except Exception as exc:
+        if _is_non_retryable_client_error(exc):
+            logger.error("Campaign generation non-retryable client error: %s", exc)
+            raise APIError(
+                code="CAMPAIGN_GENERATION_FAILED",
+                message="Failed to generate structured campaign concepts. Please try again.",
+                status_code=502,
+            ) from exc
         logger.warning("First campaign generation attempt failed, retrying: %s", exc)
         try:
             output = await structured_llm.ainvoke(messages, config=config)
@@ -239,8 +274,11 @@ async def refine_campaign_concept(
     ]
     context_text = format_context_block(raw_context_pieces)
 
-    ontology_data = await get_cached_brand_ontology(db, document_id)
-    ontology_context = f"\n\n{format_ontology_context(ontology_data)}" if ontology_data else ""
+    formatted_ontology = await get_cached_formatted_ontology(db, document_id)
+    ontology_context = f"\n\n{formatted_ontology}" if formatted_ontology else ""
+
+    # Release DB read transaction before long-running LLM call
+    await db.rollback()
 
     system_prompt = f"{REFINE_SYSTEM_PROMPT}{ontology_context}\n\n{context_text}"
 
@@ -262,13 +300,13 @@ async def refine_campaign_concept(
     ]
 
     trace_id = str(uuid.uuid4())
-    handler = get_langfuse_callback(
+    config = get_langfuse_runnable_config(
         session_id=session_id,
         feature="campaign_refine",
         trace_id=trace_id,
+        is_sample=bool(doc.get("is_sample", False)),
         metadata={"document_id": str(document_id), "title": concept.title},
     )
-    config = RunnableConfig(callbacks=[handler] if handler else [])
 
     llm = get_llm(streaming=False, temperature=0.7, max_tokens=2000)
     structured_llm = llm.with_structured_output(Concept)
@@ -276,6 +314,13 @@ async def refine_campaign_concept(
     try:
         updated_concept = await structured_llm.ainvoke(messages, config=config)
     except Exception as exc:
+        if _is_non_retryable_client_error(exc):
+            logger.error("Concept refinement non-retryable client error: %s", exc)
+            raise APIError(
+                code="CAMPAIGN_REFINE_FAILED",
+                message="Failed to refine concept. Please try again.",
+                status_code=502,
+            ) from exc
         logger.warning("First concept refinement attempt failed, retrying: %s", exc)
         try:
             updated_concept = await structured_llm.ainvoke(messages, config=config)

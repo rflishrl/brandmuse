@@ -72,26 +72,17 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    const handleCancel = (e: Event) => {
-      e.preventDefault();
-      onClose();
-    };
-
-    dialog.addEventListener("cancel", handleCancel);
-    return () => dialog.removeEventListener("cancel", handleCancel);
-  }, [onClose]);
-
   if (!isOpen) return null;
 
   return (
     <dialog
       ref={dialogRef}
       aria-labelledby="shortcuts-dialog-title"
-      className="p-0 rounded-2xl bg-surface text-foreground border border-border shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm max-w-lg w-full m-auto animate-in fade-in zoom-in-95 duration-150"
+      className="p-0 rounded-2xl bg-surface text-foreground border border-border shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm max-w-lg w-full m-auto"
+      onCancel={(e) => {
+        e.preventDefault();
+        onClose();
+      }}
       onClick={(e) => {
         if (e.target === dialogRef.current) {
           onClose();
@@ -149,7 +140,7 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
                         {item.keys.map((k) => (
                           <kbd
                             key={k}
-                            className="px-2 py-0.5 text-[11px] font-mono font-medium rounded-md bg-surface border border-border shadow-xs text-foreground"
+                            className="px-2 py-0.5 text-[11px] font-mono font-medium rounded-md bg-surface border border-border text-foreground"
                           >
                             {k}
                           </kbd>
@@ -175,3 +166,5 @@ export const KeyboardShortcutsDialog: React.FC<KeyboardShortcutsDialogProps> = (
     </dialog>
   );
 };
+
+export default KeyboardShortcutsDialog;

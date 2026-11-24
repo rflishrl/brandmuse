@@ -1,4 +1,15 @@
-@import "@fontsource-variable/inter";
+/* Latin-only Inter Variable subset (saves ~170 KB vs importing all 7 unicode subsets) */
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("@fontsource-variable/inter/files/inter-latin-wght-normal.woff2")
+    format("woff2-variations");
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
 @tailwind base;
 @tailwind components;
@@ -183,11 +194,26 @@ dialog::backdrop {
     inset 0 1px 1px rgba(255, 255, 255, 0.95);
 }
 
+/* Modern Web Guidance: Off-screen rendering deferral for long grids and feeds */
+.cv-auto-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 320px;
+}
+
+.cv-auto-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
+}
+
 /* Behance AI Assistant: Frosted Glass Pills */
 .glass-pill {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.12);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .glass-pill:hover {

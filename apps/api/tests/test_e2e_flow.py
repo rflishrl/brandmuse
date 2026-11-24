@@ -111,6 +111,7 @@ async def test_complete_end_to_end_brandmuse_flow(
     mock_llm.astream = mock_astream
 
     with (
+        patch("app.chains.ask.check_and_increment_daily_usage", AsyncMock(return_value=1)),
         patch("app.chains.ask.hybrid_retrieve", AsyncMock(return_value=mock_fused_chunks)),
         patch("app.chains.ask.get_llm", return_value=mock_llm),
     ):

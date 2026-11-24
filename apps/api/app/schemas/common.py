@@ -14,9 +14,3 @@ class ErrorDetail(BaseModel):
         description="Human-readable error explanation",
         examples=["Session ID must be a valid UUID"],
     )
-
-
-class ErrorEnvelope(BaseModel):
-    """Standard API error response wrapper."""
-
-    error: ErrorDetail

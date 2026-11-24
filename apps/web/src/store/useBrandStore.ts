@@ -31,8 +31,10 @@ export interface BrandActions {
   setIsLoadingDocuments: (loading: boolean) => void;
   setIsLoadingSample: (loading: boolean) => void;
   setServerStatus: (status: { warmingUp?: boolean; healthy?: boolean; offline?: boolean }) => void;
+  setRefetchHealth: (fn: () => void) => void;
   setRefetchDocuments: (fn: () => void) => void;
   setLoadSampleBrandFn: (fn: () => Promise<DocumentResponse | undefined>) => void;
+  refetchHealth: () => void;
   refetchDocuments: () => void;
   loadSampleBrand: () => Promise<DocumentResponse | undefined>;
 }
@@ -113,6 +115,14 @@ export const useBrandStore = create<BrandStore>()((set, get) => ({
       isServerHealthy: status.healthy !== undefined ? status.healthy : state.isServerHealthy,
       isServerOffline: status.offline !== undefined ? status.offline : state.isServerOffline,
     })),
+
+  setRefetchHealth: (fn: () => void) => {
+    set({ refetchHealth: fn });
+  },
+
+  refetchHealth: () => {
+    // Registered by sync component
+  },
 
   setRefetchDocuments: (fn: () => void) => {
     set({ refetchDocuments: fn });

@@ -1,6 +1,7 @@
 const SESSION_STORAGE_KEY = "brandmuse_session_id";
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// In-memory fallback if localStorage is disabled, blocked, or unavailable
+// In-memory cache & fallback if localStorage is disabled, blocked, or unavailable
 let memorySessionId: string | null = null;
 
 function generateUUID(): string {
@@ -17,22 +18,26 @@ function generateUUID(): string {
 
 /**
  * Retrieves the current session UUID or generates a new one.
- * Wrapped in try/catch with in-memory fallback.
+ * Cached in memory after first access to avoid repeated localStorage reads.
  */
 export function getSessionId(): string {
+  if (memorySessionId) {
+    return memorySessionId;
+  }
+
   try {
     const stored = window.localStorage.getItem(SESSION_STORAGE_KEY);
-    if (stored && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(stored)) {
+    if (stored && UUID_REGEX.test(stored)) {
+      memorySessionId = stored;
       return stored;
     }
     const newId = generateUUID();
     window.localStorage.setItem(SESSION_STORAGE_KEY, newId);
+    memorySessionId = newId;
     return newId;
   } catch {
     // LocalStorage inaccessible (e.g. strict incognito / disabled cookies)
-    if (!memorySessionId) {
-      memorySessionId = generateUUID();
-    }
+    memorySessionId = generateUUID();
     return memorySessionId;
   }
 }

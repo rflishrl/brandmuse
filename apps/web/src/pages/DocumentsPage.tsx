@@ -19,6 +19,12 @@ import { toast } from "@/components/ui/sonner";
 import { inspectPdfPreflight, type PdfPreflightResult } from "@/lib/pdfPreflight";
 import { useBrandStore } from "@/store/useBrandStore";
 
+const DOC_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+});
+
 export const DocumentsPage: React.FC = () => {
   const documents = useBrandStore((s) => s.documents);
   const selectedDocumentId = useBrandStore((s) => s.selectedDocumentId);
@@ -117,13 +123,15 @@ export const DocumentsPage: React.FC = () => {
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files?.[0]) {
-      handleFileProcess(e.target.files[0]);
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (file) {
+      void handleFileProcess(file);
     }
   };
 
   return (
-    <div className="w-full flex flex-col gap-8 animate-in fade-in duration-200">
+    <div className="w-full flex flex-col gap-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -152,7 +160,7 @@ export const DocumentsPage: React.FC = () => {
         onDragOver={handleDrag}
         onDrop={handleDrop}
         className={`
-          relative border-2 border-dashed rounded-card p-8 flex flex-col items-center justify-center text-center transition-all duration-200 bg-surface shadow-xs
+          relative border-2 border-dashed rounded-card p-8 flex flex-col items-center justify-center text-center transition-colors duration-200 bg-surface
           ${dragActive ? "border-foreground/40 bg-foreground/5" : "border-border hover:border-foreground/20"}
         `}
       >
@@ -239,17 +247,13 @@ export const DocumentsPage: React.FC = () => {
           <div className="grid grid-cols-1 gap-3">
             {documents.map((doc) => {
               const isActive = doc.id === selectedDocumentId;
-              const formattedDate = new Date(doc.created_at).toLocaleDateString(undefined, {
-                year: "numeric",
-                month: "short",
-                day: "numeric",
-              });
+              const formattedDate = DOC_DATE_FORMATTER.format(new Date(doc.created_at));
 
               return (
                 <div
                   key={doc.id}
                   className={`
-                    p-5 rounded-card bg-surface border transition-all duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs
+                    p-5 rounded-card bg-surface border transition-colors duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4
                     ${isActive ? "border-foreground/30 ring-1 ring-foreground/20" : "border-border hover:border-foreground/20"}
                   `}
                 >

@@ -113,10 +113,29 @@ def test_ssrf_validate_image_download_url() -> None:
 
 @pytest.mark.asyncio
 async def test_download_provider_image_rejects_unsafe_redirect_and_oversize() -> None:
-    """download_provider_image must block cross-host redirects and oversized payloads."""
-    redirect_res = httpx.Response(302, headers={"location": "https://evil.example.com/steal.png"})
+    """download_provider_image blocks cross-host redirects and stream-aborts oversized payloads."""
+    from contextlib import asynccontextmanager
+
+    @asynccontextmanager
+    async def _make_stream(status_code: int, headers: dict[str, str], chunks: list[bytes]):
+        res = MagicMock()
+        res.status_code = status_code
+        res.headers = headers
+
+        async def _aiter_bytes(chunk_size: int = 65536):
+            _ = chunk_size
+            for c in chunks:
+                yield c
+
+        res.aiter_bytes = _aiter_bytes
+        yield res
+
     mock_client = MagicMock(spec=httpx.AsyncClient)
-    mock_client.get = AsyncMock(return_value=redirect_res)
+    mock_client.stream = MagicMock(
+        side_effect=lambda *_a, **_kw: _make_stream(
+            302, {"location": "https://evil.example.com/steal.png"}, []
+        )
+    )
 
     with patch("app.providers.image._resolve_host_ips", return_value=["104.18.10.20"]):
         with pytest.raises(APIError) as exc_info:
@@ -125,8 +144,10 @@ async def test_download_provider_image_rejects_unsafe_redirect_and_oversize() ->
             )
         assert exc_info.value.code == "UNSAFE_IMAGE_URL"
 
-    big_res = httpx.Response(200, content=b"x" * 200)
-    mock_client.get = AsyncMock(return_value=big_res)
+    # Oversized chunked payload without Content-Length header must abort mid-stream
+    mock_client.stream = MagicMock(
+        side_effect=lambda *_a, **_kw: _make_stream(200, {}, [b"x" * 60, b"y" * 60])
+    )
     with patch("app.providers.image._resolve_host_ips", return_value=["104.18.10.20"]):
         with pytest.raises(APIError) as exc_info:
             await download_provider_image(

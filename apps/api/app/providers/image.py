@@ -102,8 +102,7 @@ def encode_webp_variants(image_bytes: bytes) -> tuple[bytes, bytes]:
 def _is_allowed_provider_host(hostname: str) -> bool:
     host = hostname.lower().rstrip(".")
     return any(
-        host == allowed or host.endswith(f".{allowed}")
-        for allowed in ALLOWED_IMAGE_DOWNLOAD_HOSTS
+        host == allowed or host.endswith(f".{allowed}") for allowed in ALLOWED_IMAGE_DOWNLOAD_HOSTS
     )
 
 
@@ -186,50 +185,63 @@ async def download_provider_image(
     client: httpx.AsyncClient | None = None,
     max_bytes: int = MAX_PROVIDER_DOWNLOAD_BYTES,
 ) -> bytes:
-    """Safely download generated image bytes from an allowlisted provider URL."""
+    """Safely stream-download generated image bytes from an allowlisted provider URL."""
     http_client = client or get_http_client()
-    current_url = validate_image_download_url(url)
+    # Offload synchronous DNS resolution inside validate_image_download_url off the event loop
+    current_url = await asyncio.to_thread(validate_image_download_url, url)
 
     for _ in range(MAX_DOWNLOAD_REDIRECTS + 1):
-        res = await http_client.get(
-            current_url,
-            timeout=30.0,
-            follow_redirects=False,
-        )
-        if res.status_code in (301, 302, 303, 307, 308):
-            location = res.headers.get("location")
-            if not location:
-                raise APIError(
-                    code="IMAGE_GENERATION_FAILED",
-                    message="Provider image download returned redirect without Location.",
-                    status_code=502,
-                )
-            current_url = validate_image_download_url(urljoin(current_url, location))
-            continue
+        try:
+            async with http_client.stream(
+                "GET",
+                current_url,
+                timeout=30.0,
+                follow_redirects=False,
+            ) as res:
+                if res.status_code in (301, 302, 303, 307, 308):
+                    location = res.headers.get("location")
+                    if not location:
+                        raise APIError(
+                            code="IMAGE_GENERATION_FAILED",
+                            message="Provider image download returned redirect without Location.",
+                            status_code=502,
+                        )
+                    current_url = await asyncio.to_thread(
+                        validate_image_download_url, urljoin(current_url, location)
+                    )
+                    continue
 
-        if res.status_code != 200:
+                if res.status_code != 200:
+                    raise APIError(
+                        code="IMAGE_GENERATION_FAILED",
+                        message=f"Provider image download failed with status {res.status_code}.",
+                        status_code=502,
+                    )
+
+                content_length = res.headers.get("content-length")
+                if content_length and content_length.isdigit() and int(content_length) > max_bytes:
+                    raise APIError(
+                        code="IMAGE_TOO_LARGE",
+                        message="Provider image exceeds maximum allowed download size.",
+                        status_code=502,
+                    )
+
+                buf = bytearray()
+                async for chunk in res.aiter_bytes(chunk_size=64 * 1024):
+                    buf.extend(chunk)
+                    if len(buf) > max_bytes:
+                        raise APIError(
+                            code="IMAGE_TOO_LARGE",
+                            message="Provider image exceeds maximum allowed download size.",
+                            status_code=502,
+                        )
+                return bytes(buf)
+        except httpx.HTTPError as exc:
             raise APIError(
                 code="IMAGE_GENERATION_FAILED",
-                message=f"Provider image download failed with status {res.status_code}.",
+                message=f"Provider image download failed ({type(exc).__name__}): {exc}",
                 status_code=502,
-            )
-
-        content_length = res.headers.get("content-length")
-        if content_length and content_length.isdigit() and int(content_length) > max_bytes:
-            raise APIError(
-                code="IMAGE_TOO_LARGE",
-                message="Provider image exceeds maximum allowed download size.",
-                status_code=502,
-            )
-
-        data = res.content
-        if len(data) > max_bytes:
-            raise APIError(
-                code="IMAGE_TOO_LARGE",
-                message="Provider image exceeds maximum allowed download size.",
-                status_code=502,
-            )
-        return data
+            ) from exc
 
     raise APIError(
         code="UNSAFE_IMAGE_URL",
@@ -291,16 +303,23 @@ class StabilityImageProvider(BaseImageProvider):
         }
 
         client = get_http_client()
-        response = await client.post(
-            api_url,
-            headers={
-                "Authorization": f"Bearer {self.api_key}",
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-            },
-            json=payload,
-            timeout=60.0,
-        )
+        try:
+            response = await client.post(
+                api_url,
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Accept": "application/json",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=60.0,
+            )
+        except httpx.HTTPError as exc:
+            raise APIError(
+                code="IMAGE_GENERATION_FAILED",
+                message=f"Stability AI request failed ({type(exc).__name__}): {exc}",
+                status_code=502,
+            ) from exc
 
         if response.status_code != 200:
             raise APIError(
@@ -363,7 +382,14 @@ class ReplicateImageProvider(BaseImageProvider):
         }
 
         client = get_http_client()
-        res = await client.post(create_url, headers=headers, json=payload, timeout=90.0)
+        try:
+            res = await client.post(create_url, headers=headers, json=payload, timeout=90.0)
+        except httpx.HTTPError as exc:
+            raise APIError(
+                code="IMAGE_GENERATION_FAILED",
+                message=f"Replicate request failed ({type(exc).__name__}): {exc}",
+                status_code=502,
+            ) from exc
         if res.status_code not in (200, 201):
             raise APIError(
                 code="IMAGE_GENERATION_FAILED",
@@ -385,7 +411,20 @@ class ReplicateImageProvider(BaseImageProvider):
                     status_code=504,
                 )
             await asyncio.sleep(2)
-            poll_res = await client.get(poll_url, headers=headers, timeout=30.0)
+            try:
+                poll_res = await client.get(poll_url, headers=headers, timeout=30.0)
+            except httpx.HTTPError as exc:
+                raise APIError(
+                    code="IMAGE_GENERATION_FAILED",
+                    message=f"Replicate polling failed ({type(exc).__name__}): {exc}",
+                    status_code=502,
+                ) from exc
+            if poll_res.status_code != 200:
+                raise APIError(
+                    code="IMAGE_GENERATION_FAILED",
+                    message=f"Replicate polling error ({poll_res.status_code}): {poll_res.text}",
+                    status_code=502,
+                )
             prediction = poll_res.json()
 
         if prediction.get("status") != "succeeded":

@@ -19,7 +19,7 @@ import {
   User,
 } from "lucide-react";
 import type React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { BrandMuseOrb } from "@/components/BrandMuseOrb";
 import { DemoLimitsBanner } from "@/components/DemoLimitsBanner";
@@ -41,6 +41,142 @@ interface Message {
   quotedText?: string;
   suggestedFollowUps?: string[];
 }
+
+const LONG_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, { dateStyle: "long" });
+const TIME_FORMATTER = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });
+const CHAT_STREAM_TIMEOUT_MS = 90_000;
+
+interface ChatMessageItemProps {
+  msg: Message;
+  isCopied: boolean;
+  isStreaming: boolean;
+  onCopy: (id: string, text: string) => void;
+  onOpenSources: (citations: CitationItem[], traceUrl?: string | null) => void;
+  onSelectFollowUp: (question: string) => void;
+}
+
+const ChatMessageItem = memo<ChatMessageItemProps>(function ChatMessageItem({
+  msg,
+  isCopied,
+  isStreaming,
+  onCopy,
+  onOpenSources,
+  onSelectFollowUp,
+}) {
+  if (msg.role === "user") {
+    return (
+      <div className="cv-auto-row flex flex-col items-end gap-1.5 max-w-[85%] sm:max-w-[75%] self-end">
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-1">
+          <span>You</span>
+          <User className="w-3.5 h-3.5" aria-hidden="true" />
+        </div>
+
+        <div className="p-4 rounded-2xl bg-surface-user border border-border text-sm text-foreground">
+          {msg.quotedText && (
+            <div className="mb-2 px-3 py-1.5 rounded-md bg-quote border-l-2 border-ring text-xs text-muted-foreground italic">
+              &ldquo;{msg.quotedText}&rdquo;
+            </div>
+          )}
+          <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+          <span className="block text-right text-[10px] text-muted-foreground mt-2 font-mono">
+            {msg.timestamp}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="cv-auto-row flex flex-col items-start gap-1.5 max-w-[95%] sm:max-w-[85%] self-start">
+      <div className="flex items-center gap-2 text-xs font-semibold text-foreground px-1">
+        <BrandMuseOrb size={18} />
+        <span>BrandMuse</span>
+      </div>
+
+      <div className="w-full p-5 sm:p-6 rounded-2xl bg-surface border border-border text-sm text-foreground relative">
+        {msg.content ? (
+          <MarkdownViewer content={msg.content} />
+        ) : (
+          <div className="flex items-center gap-2 text-muted-foreground text-xs py-2">
+            <span className="inline-block w-2 h-4 bg-foreground animate-pulse" />
+            <span>Searching brand guidelines and fusing ranks...</span>
+          </div>
+        )}
+
+        {/* Sources row & citations */}
+        {msg.citations && msg.citations.length > 0 && (
+          <div className="mt-4 pt-3 border-t border-border flex flex-wrap items-center justify-between gap-2 text-xs">
+            <button
+              type="button"
+              onClick={() => onOpenSources(msg.citations || [], msg.traceUrl)}
+              className="inline-flex items-center gap-1.5 font-medium text-foreground hover:underline"
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>
+                {msg.citations.length} guideline source
+                {msg.citations.length === 1 ? "" : "s"}
+              </span>
+            </button>
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {msg.citations.slice(0, 4).map((c, i) => (
+                <span
+                  key={i}
+                  className="px-2 py-0.5 rounded bg-surface-user border border-border font-mono text-[10px] text-muted-foreground"
+                >
+                  p. {c.page}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Actions row: Copy Button */}
+      {msg.content && (
+        <div className="flex items-center gap-2 px-1">
+          <button
+            type="button"
+            onClick={() => onCopy(msg.id, msg.content)}
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors py-1 px-2 rounded-md hover:bg-surface-user"
+            aria-label="Copy answer to clipboard"
+          >
+            {isCopied ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-success-icon" />
+                <span>Copied</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copy</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Contextual Follow-Up Suggestions (Dynamic Chips) */}
+      {msg.suggestedFollowUps && msg.suggestedFollowUps.length > 0 && !isStreaming && (
+        <div className="flex flex-wrap items-center gap-1.5 mt-1 px-1">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block w-full mb-0.5">
+            Suggested follow-ups:
+          </span>
+          {msg.suggestedFollowUps.map((question, qIdx) => (
+            <button
+              key={qIdx}
+              type="button"
+              onClick={() => onSelectFollowUp(question)}
+              className="glass-pill rounded-full text-xs px-3 py-1 font-medium text-foreground/80 hover:text-foreground hover:scale-[1.02] active:scale-[0.98]"
+            >
+              {question}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+});
 
 const QUICK_STARTERS = [
   {
@@ -107,23 +243,23 @@ export const AskPage: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const modeDropdownRef = useRef<HTMLDivElement>(null);
+  const ownerDocIdRef = useRef<string | null>(selectedDocumentId);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tokenBufferRef = useRef<string>("");
+  const rafIdRef = useRef<number | null>(null);
 
-  // Synchronize active chat messages to sessionStorage per document ID
+  // Abort active SSE stream and clear pending timers/rAF on unmount
   useEffect(() => {
-    if (!selectedDocumentId) return;
-    try {
-      if (messages.length > 0) {
-        sessionStorage.setItem(`brandmuse:chat:${selectedDocumentId}`, JSON.stringify(messages));
-      } else {
-        sessionStorage.removeItem(`brandmuse:chat:${selectedDocumentId}`);
-      }
-    } catch {
-      // Ignore storage quota error
-    }
-  }, [messages, selectedDocumentId]);
+    return () => {
+      abortControllerRef.current?.abort();
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+      if (rafIdRef.current !== null) cancelAnimationFrame(rafIdRef.current);
+    };
+  }, []);
 
-  // When selectedDocumentId changes, restore messages for that specific brand
+  // When selectedDocumentId changes, restore messages BEFORE persisting to prevent cross-brand overwrite
   useEffect(() => {
+    ownerDocIdRef.current = selectedDocumentId;
     if (!selectedDocumentId) {
       setMessages([]);
       return;
@@ -135,6 +271,23 @@ export const AskPage: React.FC = () => {
       setMessages([]);
     }
   }, [selectedDocumentId]);
+
+  // Persist active chat messages to sessionStorage only when settled (!isStreaming)
+  // and only when messages belong to the currently selected document.
+  useEffect(() => {
+    if (!selectedDocumentId || isStreaming || ownerDocIdRef.current !== selectedDocumentId) {
+      return;
+    }
+    try {
+      if (messages.length > 0) {
+        sessionStorage.setItem(`brandmuse:chat:${selectedDocumentId}`, JSON.stringify(messages));
+      } else {
+        sessionStorage.removeItem(`brandmuse:chat:${selectedDocumentId}`);
+      }
+    } catch {
+      // Ignore storage quota error
+    }
+  }, [messages, selectedDocumentId, isStreaming]);
 
   // Close mode selector dropdown on click outside or Escape key
   useEffect(() => {
@@ -187,7 +340,7 @@ export const AskPage: React.FC = () => {
 
     let md = `# BrandMuse Research Transcript\n\n`;
     md += `**Brand Guideline:** ${selectedDocument?.filename || "Aura Living"}\n`;
-    md += `**Date:** ${new Date().toLocaleDateString(undefined, { dateStyle: "long" })}\n\n`;
+    md += `**Date:** ${LONG_DATE_FORMATTER.format(new Date())}\n\n`;
     md += `---\n\n`;
 
     messages.forEach((msg) => {
@@ -215,7 +368,7 @@ export const AskPage: React.FC = () => {
     a.href = url;
     a.download = `brandmuse-transcript-${name}-${Date.now()}.md`;
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const handleClearChat = () => {
@@ -254,12 +407,21 @@ export const AskPage: React.FC = () => {
     }
   };
 
-  const handleCopy = (id: string, text: string) => {
-    navigator.clipboard.writeText(text);
+  const handleCopy = useCallback((id: string, text: string) => {
+    void navigator.clipboard.writeText(text);
     setCopiedId(id);
     toast.success("Answer copied to clipboard!");
-    setTimeout(() => setCopiedId(null), 2000);
-  };
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = setTimeout(() => setCopiedId(null), 2000);
+  }, []);
+
+  const handleOpenSources = useCallback((citations: CitationItem[], traceUrl?: string | null) => {
+    setActiveSources({ citations, traceUrl });
+  }, []);
+
+  const handleCloseSources = useCallback(() => {
+    setActiveSources(null);
+  }, []);
 
   const handleStopStreaming = () => {
     if (abortControllerRef.current) {
@@ -268,184 +430,255 @@ export const AskPage: React.FC = () => {
     }
   };
 
-  const handleSubmit = async (textToSend?: string) => {
-    const text = (textToSend || input).trim();
-    if (!text || isStreaming || !selectedDocumentId) return;
+  const messagesRef = useRef<Message[]>(messages);
+  messagesRef.current = messages;
 
-    setInput("");
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
-    }
+  const handleSubmit = useCallback(
+    async (textToSend?: string) => {
+      const text = (textToSend ?? input).trim();
+      if (!text || isStreaming || !selectedDocumentId) return;
 
-    const userMessageId = `user-${Date.now()}`;
-    const assistantMessageId = `assistant-${Date.now()}`;
-    const now = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-
-    // Find previous assistant message to quote if relevant
-    const lastAssistantMessage = [...messages].reverse().find((m) => m.role === "assistant");
-    const quotedSnippet = lastAssistantMessage
-      ? lastAssistantMessage.content.slice(0, 100) +
-        (lastAssistantMessage.content.length > 100 ? "..." : "")
-      : undefined;
-
-    const userMessage: Message = {
-      id: userMessageId,
-      role: "user",
-      content: text,
-      timestamp: now,
-      quotedText: quotedSnippet,
-    };
-
-    const assistantPlaceholder: Message = {
-      id: assistantMessageId,
-      role: "assistant",
-      content: "",
-      timestamp: now,
-    };
-
-    setMessages((prev) => [...prev, userMessage, assistantPlaceholder]);
-    setIsStreaming(true);
-
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    const historyPayload = messages.slice(-8).map((m) => ({
-      role: m.role,
-      content: m.content,
-    }));
-
-    try {
-      const baseUrl = import.meta.env.VITE_API_URL || "";
-      const response = await fetch(`${baseUrl}/api/chat`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Session-Id": getSessionId(),
-        },
-        body: JSON.stringify({
-          document_id: selectedDocumentId,
-          message: text,
-          history: historyPayload,
-          mode: executionMode,
-        }),
-        signal: controller.signal,
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        const errMessage = errorData.error?.message || `HTTP ${response.status} error`;
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantMessageId ? { ...m, content: `Error: ${errMessage}` } : m
-          )
-        );
-        setIsStreaming(false);
-        return;
+      setInput("");
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("No readable stream received.");
+      const currentMessages = messagesRef.current;
+      const userMessageId = `user-${Date.now()}`;
+      const assistantMessageId = `assistant-${Date.now()}`;
+      const now = TIME_FORMATTER.format(new Date());
 
-      const decoder = new TextDecoder("utf-8");
-      let buffer = "";
+      // Reverse search without allocating a shallow reversed copy (ES2023 findLast)
+      const lastAssistantMessage = currentMessages.findLast((m) => m.role === "assistant");
+      const quotedSnippet = lastAssistantMessage
+        ? lastAssistantMessage.content.slice(0, 100) +
+          (lastAssistantMessage.content.length > 100 ? "..." : "")
+        : undefined;
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      const userMessage: Message = {
+        id: userMessageId,
+        role: "user",
+        content: text,
+        timestamp: now,
+        quotedText: quotedSnippet,
+      };
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+      const assistantPlaceholder: Message = {
+        id: assistantMessageId,
+        role: "assistant",
+        content: "",
+        timestamp: now,
+      };
 
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i];
-          if (!line) continue;
-          if (line.startsWith("event: token")) {
-            const nextLine = lines[++i];
-            if (nextLine?.startsWith("data: ")) {
-              const rawData = nextLine.slice(6);
-              let tokenText = rawData;
-              try {
-                const parsed = JSON.parse(rawData);
-                if (typeof parsed?.token === "string") {
-                  tokenText = parsed.token;
-                }
-              } catch {
-                // Fallback to raw string if not JSON
+      ownerDocIdRef.current = selectedDocumentId;
+      setMessages((prev) => [...prev, userMessage, assistantPlaceholder]);
+      setIsStreaming(true);
+
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
+
+      const requestSignal =
+        typeof AbortSignal.any === "function" && typeof AbortSignal.timeout === "function"
+          ? AbortSignal.any([controller.signal, AbortSignal.timeout(CHAT_STREAM_TIMEOUT_MS)])
+          : controller.signal;
+
+      const historyPayload = currentMessages.slice(-8).map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
+      tokenBufferRef.current = "";
+      const flushBufferedTokens = () => {
+        if (rafIdRef.current !== null) {
+          cancelAnimationFrame(rafIdRef.current);
+          rafIdRef.current = null;
+        }
+        const chunkToAppend = tokenBufferRef.current;
+        if (!chunkToAppend) return;
+        tokenBufferRef.current = "";
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantMessageId ? { ...m, content: m.content + chunkToAppend } : m
+          )
+        );
+      };
+
+      const enqueueToken = (tokenText: string) => {
+        tokenBufferRef.current += tokenText;
+        if (rafIdRef.current === null) {
+          rafIdRef.current = requestAnimationFrame(flushBufferedTokens);
+        }
+      };
+
+      let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+
+      try {
+        const baseUrl = import.meta.env.VITE_API_URL || "";
+        const response = await fetch(`${baseUrl}/api/chat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Session-Id": getSessionId(),
+          },
+          body: JSON.stringify({
+            document_id: selectedDocumentId,
+            message: text,
+            history: historyPayload,
+            mode: executionMode,
+          }),
+          signal: requestSignal,
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          const errMessage = errorData.error?.message || `HTTP ${response.status} error`;
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMessageId ? { ...m, content: `Error: ${errMessage}` } : m
+            )
+          );
+          setIsStreaming(false);
+          return;
+        }
+
+        reader = response.body?.getReader() ?? null;
+        if (!reader) throw new Error("No readable stream received.");
+
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+        let currentEvent = "";
+
+        const processLine = (rawLine: string) => {
+          const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
+          if (!line) {
+            currentEvent = "";
+            return;
+          }
+          if (line.startsWith("event:")) {
+            currentEvent = line.slice(6).trim();
+            return;
+          }
+          if (!line.startsWith("data:")) {
+            return;
+          }
+
+          const rawData = line.slice(5).trimStart();
+          if (currentEvent === "token") {
+            let tokenText = rawData;
+            try {
+              const parsed = JSON.parse(rawData);
+              if (typeof parsed?.token === "string") {
+                tokenText = parsed.token;
               }
+            } catch {
+              // Fallback to raw string if not JSON
+            }
+            enqueueToken(tokenText);
+          } else if (currentEvent === "done") {
+            flushBufferedTokens();
+            try {
+              const doneData = JSON.parse(rawData);
               setMessages((prev) =>
                 prev.map((m) =>
-                  m.id === assistantMessageId ? { ...m, content: m.content + tokenText } : m
+                  m.id === assistantMessageId
+                    ? {
+                        ...m,
+                        citations: doneData.citations,
+                        traceUrl: doneData.trace_url,
+                        suggestedFollowUps: doneData.suggested_follow_ups,
+                      }
+                    : m
                 )
               );
+            } catch {
+              // Ignore JSON parse error
             }
-          } else if (line.startsWith("event: done")) {
-            const nextLine = lines[++i];
-            if (nextLine?.startsWith("data: ")) {
-              try {
-                const doneData = JSON.parse(nextLine.slice(6));
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantMessageId
-                      ? {
-                          ...m,
-                          citations: doneData.citations,
-                          traceUrl: doneData.trace_url,
-                          suggestedFollowUps: doneData.suggested_follow_ups,
-                        }
-                      : m
-                  )
-                );
-              } catch {
-                // Ignore JSON parse error
-              }
-            }
-          } else if (line.startsWith("event: error")) {
-            const nextLine = lines[++i];
-            if (nextLine?.startsWith("data: ")) {
-              try {
-                const errData = JSON.parse(nextLine.slice(6));
-                setMessages((prev) =>
-                  prev.map((m) =>
-                    m.id === assistantMessageId
-                      ? {
-                          ...m,
-                          content:
-                            m.content +
-                            `\n\n[Generation stopped: ${errData.error?.message || "Error"}]`,
-                        }
-                      : m
-                  )
-                );
-              } catch {
-                // Ignore parse error
-              }
+          } else if (currentEvent === "error") {
+            flushBufferedTokens();
+            try {
+              const errData = JSON.parse(rawData);
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantMessageId
+                    ? {
+                        ...m,
+                        content:
+                          m.content +
+                          `\n\n[Generation stopped: ${errData.error?.message || "Error"}]`,
+                      }
+                    : m
+                )
+              );
+            } catch {
+              // Ignore parse error
             }
           }
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            processLine(line);
+          }
         }
+
+        // Flush any remaining bytes from UTF-8 stream decoder and trailing buffer
+        buffer += decoder.decode();
+        if (buffer) {
+          for (const line of buffer.split("\n")) {
+            processLine(line);
+          }
+        }
+        flushBufferedTokens();
+      } catch (err: unknown) {
+        flushBufferedTokens();
+        const errName = (err as Error)?.name;
+        if (errName === "AbortError") {
+          // Stream aborted by user
+        } else if (errName === "TimeoutError") {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMessageId
+                ? {
+                    ...m,
+                    content:
+                      m.content || "The response timed out after 90 seconds. Please try again.",
+                  }
+                : m
+            )
+          );
+        } else {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === assistantMessageId
+                ? {
+                    ...m,
+                    content:
+                      m.content ||
+                      "Could not complete the request. Please check that the backend is running.",
+                  }
+                : m
+            )
+          );
+        }
+      } finally {
+        if (reader) {
+          void reader.cancel().catch(() => {});
+          reader.releaseLock();
+        }
+        flushBufferedTokens();
+        setIsStreaming(false);
+        abortControllerRef.current = null;
       }
-    } catch (err: unknown) {
-      if ((err as Error)?.name === "AbortError") {
-        // Stream aborted by user
-      } else {
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantMessageId
-              ? {
-                  ...m,
-                  content:
-                    m.content ||
-                    "Could not complete the request. Please check that the backend is running.",
-                }
-              : m
-          )
-        );
-      }
-    } finally {
-      setIsStreaming(false);
-      abortControllerRef.current = null;
-    }
-  };
+    },
+    [input, isStreaming, selectedDocumentId, executionMode]
+  );
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -459,7 +692,7 @@ export const AskPage: React.FC = () => {
   };
 
   return (
-    <div className="w-full flex flex-col gap-8 animate-in fade-in duration-300 relative">
+    <div className="w-full flex flex-col gap-8 relative">
       {/* Active Guideline Top Status Pill */}
       {selectedDocument && (
         <div className="flex items-center justify-between gap-3 text-xs">
@@ -543,7 +776,7 @@ export const AskPage: React.FC = () => {
                       });
                     }}
                     disabled={isLoadingSample}
-                    className="glass-pill inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium text-foreground transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50"
+                    className="glass-pill inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium text-foreground hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50"
                   >
                     <Bookmark
                       className="w-3.5 h-3.5 text-foreground dark:text-white"
@@ -553,7 +786,7 @@ export const AskPage: React.FC = () => {
                   </button>
                   <Link
                     to="/documents"
-                    className="glass-pill inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium text-foreground transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                    className="glass-pill inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-medium text-foreground hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                   >
                     <Upload className="w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" />
                     <span>Upload PDF</span>
@@ -568,9 +801,9 @@ export const AskPage: React.FC = () => {
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                handleSubmit();
+                void handleSubmit();
               }}
-              className="glass-capsule rounded-3xl p-4 sm:p-5 flex flex-col gap-3 transition-all focus-within:border-foreground/30 focus-within:ring-2 focus-within:ring-foreground/10"
+              className="glass-capsule rounded-3xl p-4 sm:p-5 flex flex-col gap-3 transition-[border-color,box-shadow] focus-within:border-foreground/30 focus-within:ring-2 focus-within:ring-foreground/10"
             >
               <textarea
                 ref={textareaRef}
@@ -592,7 +825,7 @@ export const AskPage: React.FC = () => {
                     type="button"
                     onClick={() => setShowModeDropdown(!showModeDropdown)}
                     className={`
-                      flex items-center gap-1.5 px-3.5 py-1.5 min-h-[36px] rounded-full text-xs font-medium transition-all duration-200 shadow-xs
+                      flex items-center gap-1.5 px-3.5 py-1.5 min-h-[36px] rounded-full text-xs font-medium transition-[background-color,border-color,color,transform] duration-200
                       cursor-pointer select-none
                       border border-border dark:border-white/15
                       hover:scale-105 active:scale-95
@@ -617,7 +850,7 @@ export const AskPage: React.FC = () => {
 
                   {showModeDropdown && (
                     <div
-                      className="absolute left-0 bottom-full mb-2 w-52 rounded-2xl bg-surface/95 dark:bg-[#141418]/95 border border-border dark:border-white/15 shadow-2xl p-1.5 z-30 flex flex-col gap-1 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150"
+                      className="absolute left-0 bottom-full mb-2 w-52 rounded-2xl bg-surface/95 dark:bg-[#141418]/95 border border-border dark:border-white/15 shadow-2xl p-1.5 z-30 flex flex-col gap-1 backdrop-blur-xl"
                       role="listbox"
                       aria-label="Execution mode options"
                     >
@@ -627,7 +860,7 @@ export const AskPage: React.FC = () => {
                           setExecutionMode("auto");
                           setShowModeDropdown(false);
                         }}
-                        className={`px-3 py-2 rounded-xl text-xs text-left flex items-center justify-between transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+                        className={`px-3 py-2 rounded-xl text-xs text-left flex items-center justify-between transition-[background-color,color,transform] duration-150 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
                           executionMode === "auto"
                             ? "bg-foreground/10 dark:bg-white/10 font-semibold text-foreground dark:text-white border border-foreground/15 dark:border-white/20"
                             : "text-muted-foreground hover:bg-foreground/5 dark:hover:bg-white/5 hover:text-foreground"
@@ -652,7 +885,7 @@ export const AskPage: React.FC = () => {
                           setExecutionMode("strict");
                           setShowModeDropdown(false);
                         }}
-                        className={`px-3 py-2 rounded-xl text-xs text-left flex items-center justify-between transition-all duration-150 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
+                        className={`px-3 py-2 rounded-xl text-xs text-left flex items-center justify-between transition-[background-color,color,transform] duration-150 hover:scale-[1.02] active:scale-[0.98] cursor-pointer ${
                           executionMode === "strict"
                             ? "bg-foreground/10 dark:bg-white/10 font-semibold text-foreground dark:text-white border border-foreground/15 dark:border-white/20"
                             : "text-muted-foreground hover:bg-foreground/5 dark:hover:bg-white/5 hover:text-foreground"
@@ -678,7 +911,7 @@ export const AskPage: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <Link
                     to="/documents"
-                    className="p-2.5 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] hover:scale-110 active:scale-95 transition-all cursor-pointer"
+                    className="p-2.5 min-w-[36px] min-h-[36px] flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] hover:scale-110 active:scale-95 transition-[background-color,color,transform] cursor-pointer"
                     title="Upload or manage brand PDFs"
                     aria-label="Manage documents"
                   >
@@ -688,7 +921,7 @@ export const AskPage: React.FC = () => {
                   <button
                     type="submit"
                     disabled={!input.trim() || isStreaming || !selectedDocumentId}
-                    className="w-9 h-9 rounded-xl bg-foreground text-background hover:opacity-90 disabled:opacity-25 flex items-center justify-center transition-all shadow-xs hover:scale-110 active:scale-90 shrink-0 cursor-pointer"
+                    className="w-9 h-9 rounded-xl bg-foreground text-background hover:opacity-90 disabled:opacity-25 flex items-center justify-center transition-[opacity,transform] hover:scale-110 active:scale-90 shrink-0 cursor-pointer"
                     aria-label="Send query"
                   >
                     <ArrowUpRight className="w-4 h-4 text-background stroke-[2.5]" />
@@ -706,7 +939,7 @@ export const AskPage: React.FC = () => {
                     <Link
                       key={item.label}
                       to={item.to}
-                      className="glass-pill px-4 py-2 rounded-full text-xs font-medium text-foreground flex items-center gap-2 shadow-xs group"
+                      className="glass-pill px-4 py-2 rounded-full text-xs font-medium text-foreground flex items-center gap-2 group"
                     >
                       <Icon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
                       <span>{item.label}</span>
@@ -718,10 +951,10 @@ export const AskPage: React.FC = () => {
                     key={item.label}
                     type="button"
                     onClick={() => {
-                      if (item.prompt) handleSubmit(item.prompt);
+                      if (item.prompt) void handleSubmit(item.prompt);
                     }}
                     disabled={!selectedDocumentId}
-                    className="glass-pill px-4 py-2 rounded-full text-xs font-medium text-foreground flex items-center gap-2 shadow-xs group disabled:opacity-40"
+                    className="glass-pill px-4 py-2 rounded-full text-xs font-medium text-foreground flex items-center gap-2 group disabled:opacity-40"
                   >
                     <Icon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
                     <span>{item.label}</span>
@@ -736,9 +969,9 @@ export const AskPage: React.FC = () => {
                 <button
                   key={prompt}
                   type="button"
-                  onClick={() => handleSubmit(prompt)}
+                  onClick={() => void handleSubmit(prompt)}
                   disabled={!selectedDocumentId}
-                  className="px-3 py-1.5 rounded-full text-[11px] font-medium text-muted-foreground hover:text-foreground bg-foreground/[0.03] hover:bg-foreground/[0.07] border border-border dark:border-white/5 transition-all disabled:opacity-40"
+                  className="px-3 py-1.5 rounded-full text-[11px] font-medium text-muted-foreground hover:text-foreground bg-foreground/[0.03] hover:bg-foreground/[0.07] border border-border dark:border-white/5 transition-colors disabled:opacity-40"
                 >
                   {prompt}
                 </button>
@@ -756,133 +989,17 @@ export const AskPage: React.FC = () => {
             role="log"
             aria-label="Brand guideline conversation history"
           >
-            {messages.map((msg) => {
-              if (msg.role === "user") {
-                return (
-                  <div
-                    key={msg.id}
-                    className="flex flex-col items-end gap-1.5 max-w-[85%] sm:max-w-[75%] self-end animate-in fade-in duration-200"
-                  >
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-1">
-                      <span>You</span>
-                      <User className="w-3.5 h-3.5" aria-hidden="true" />
-                    </div>
-
-                    <div className="p-4 rounded-2xl bg-surface-user border border-border text-sm text-foreground shadow-xs">
-                      {msg.quotedText && (
-                        <div className="mb-2 px-3 py-1.5 rounded-md bg-quote border-l-2 border-ring text-xs text-muted-foreground italic">
-                          &ldquo;{msg.quotedText}&rdquo;
-                        </div>
-                      )}
-                      <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                      <span className="block text-right text-[10px] text-muted-foreground mt-2 font-mono">
-                        {msg.timestamp}
-                      </span>
-                    </div>
-                  </div>
-                );
-              }
-
-              // Assistant Message Card
-              return (
-                <div
-                  key={msg.id}
-                  className="flex flex-col items-start gap-1.5 max-w-[95%] sm:max-w-[85%] self-start animate-in fade-in duration-200"
-                >
-                  <div className="flex items-center gap-2 text-xs font-semibold text-foreground px-1">
-                    <BrandMuseOrb size={18} />
-                    <span>BrandMuse</span>
-                  </div>
-
-                  <div className="w-full p-5 sm:p-6 rounded-2xl bg-surface border border-border shadow-xs text-sm text-foreground relative">
-                    {msg.content ? (
-                      <MarkdownViewer content={msg.content} />
-                    ) : (
-                      <div className="flex items-center gap-2 text-muted-foreground text-xs py-2">
-                        <span className="inline-block w-2 h-4 bg-foreground animate-pulse" />
-                        <span>Searching brand guidelines and fusing ranks...</span>
-                      </div>
-                    )}
-
-                    {/* Sources row & citations */}
-                    {msg.citations && msg.citations.length > 0 && (
-                      <div className="mt-4 pt-3 border-t border-border flex flex-wrap items-center justify-between gap-2 text-xs">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setActiveSources({
-                              citations: msg.citations || [],
-                              traceUrl: msg.traceUrl,
-                            })
-                          }
-                          className="inline-flex items-center gap-1.5 font-medium text-foreground hover:underline"
-                        >
-                          <BookOpen className="w-3.5 h-3.5" />
-                          <span>
-                            {msg.citations.length} guideline source
-                            {msg.citations.length === 1 ? "" : "s"}
-                          </span>
-                        </button>
-
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {msg.citations.slice(0, 4).map((c, i) => (
-                            <span
-                              key={i}
-                              className="px-2 py-0.5 rounded bg-surface-user border border-border font-mono text-[10px] text-muted-foreground"
-                            >
-                              p. {c.page}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Actions row: Copy Button */}
-                  {msg.content && (
-                    <div className="flex items-center gap-2 px-1">
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(msg.id, msg.content)}
-                        className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors py-1 px-2 rounded-md hover:bg-surface-user"
-                        aria-label="Copy answer to clipboard"
-                      >
-                        {copiedId === msg.id ? (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-success-icon" />
-                            <span>Copied</span>
-                          </>
-                        ) : (
-                          <>
-                            <Copy className="w-3.5 h-3.5" />
-                            <span>Copy</span>
-                          </>
-                        )}
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Contextual Follow-Up Suggestions (Dynamic Chips) */}
-                  {msg.suggestedFollowUps && msg.suggestedFollowUps.length > 0 && !isStreaming && (
-                    <div className="flex flex-wrap items-center gap-1.5 mt-1 px-1">
-                      <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider block w-full mb-0.5">
-                        Suggested follow-ups:
-                      </span>
-                      {msg.suggestedFollowUps.map((question, qIdx) => (
-                        <button
-                          key={qIdx}
-                          type="button"
-                          onClick={() => handleSubmit(question)}
-                          className="glass-pill rounded-full text-xs px-3 py-1 font-medium text-foreground/80 hover:text-foreground transition-all hover:scale-[1.02] active:scale-[0.98]"
-                        >
-                          {question}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+            {messages.map((msg) => (
+              <ChatMessageItem
+                key={msg.id}
+                msg={msg}
+                isCopied={copiedId === msg.id}
+                isStreaming={isStreaming}
+                onCopy={handleCopy}
+                onOpenSources={handleOpenSources}
+                onSelectFollowUp={handleSubmit}
+              />
+            ))}
             <div ref={messagesEndRef} />
           </div>
 
@@ -893,7 +1010,7 @@ export const AskPage: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={handleStopStreaming}
-                className="shadow-xs rounded-full bg-surface border border-border"
+                className="rounded-full bg-surface border border-border"
               >
                 <Square className="w-3 h-3 mr-1.5 fill-current" />
                 Stop generating
@@ -905,11 +1022,11 @@ export const AskPage: React.FC = () => {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              handleSubmit();
+              void handleSubmit();
             }}
             className="sticky bottom-4 z-20 w-full"
           >
-            <div className="glass-capsule rounded-2xl p-2.5 px-4 flex items-center gap-3 shadow-2xl focus-within:border-foreground/20 transition-all">
+            <div className="glass-capsule rounded-2xl p-2.5 px-4 flex items-center gap-3 shadow-2xl focus-within:border-foreground/20 transition-colors">
               <Link
                 to="/documents"
                 className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-foreground/[0.06] transition-colors"
@@ -938,7 +1055,7 @@ export const AskPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={!input.trim() || isStreaming || !selectedDocumentId}
-                className="w-8 h-8 rounded-xl bg-foreground text-background hover:opacity-90 disabled:opacity-20 flex items-center justify-center transition-all shrink-0 shadow-xs hover:scale-105 active:scale-95"
+                className="w-8 h-8 rounded-xl bg-foreground text-background hover:opacity-90 disabled:opacity-20 flex items-center justify-center transition-[opacity,transform] shrink-0 hover:scale-105 active:scale-95"
                 aria-label="Send message"
               >
                 <ArrowUpRight className="w-4 h-4 text-background stroke-[2.5]" />
@@ -954,7 +1071,7 @@ export const AskPage: React.FC = () => {
       {/* Sources Drawer Panel */}
       <SourcesDrawer
         isOpen={Boolean(activeSources)}
-        onClose={() => setActiveSources(null)}
+        onClose={handleCloseSources}
         citations={activeSources?.citations || []}
         traceUrl={activeSources?.traceUrl}
       />

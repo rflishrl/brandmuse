@@ -1,3 +1,4 @@
+import datetime
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,12 +31,14 @@ async def ingest_pdf_document(
     embeddings = await provider.embed_documents(texts) if texts else []
 
     # 4. Save document record
+    now = datetime.datetime.now(datetime.UTC)
     doc = Document(
         id=uuid.uuid4(),
         session_id=session_id,
         filename=filename,
         page_count=len(pages_data),
         is_sample=is_sample,
+        created_at=now,
     )
     db.add(doc)
     await db.flush()
@@ -50,10 +53,10 @@ async def ingest_pdf_document(
             chunk_index=c.chunk_index,
             content=c.content,
             embedding=embedding_val,
+            created_at=now,
         )
         db.add(db_chunk)
 
     await db.commit()
-    await db.refresh(doc)
 
     return doc, len(chunks)

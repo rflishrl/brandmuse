@@ -21,7 +21,12 @@ def mock_db() -> AsyncMock:
 async def client(mock_db: AsyncMock) -> AsyncGenerator[AsyncClient, None]:
     """Async test HTTP client with overridden database dependency."""
     app.dependency_overrides[get_db] = lambda: mock_db
+    prev_limiter_enabled = app.state.limiter.enabled
+    app.state.limiter.enabled = False
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
-        yield ac
-    app.dependency_overrides.clear()
+    try:
+        async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
+            yield ac
+    finally:
+        app.state.limiter.enabled = prev_limiter_enabled
+        app.dependency_overrides.clear()

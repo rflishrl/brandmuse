@@ -20,6 +20,7 @@ class DocumentMetadataCache:
         self.ttl = ttl_seconds
         self._doc_cache: OrderedDict[str, tuple[float, dict[str, Any]]] = OrderedDict()
         self._ontology_cache: OrderedDict[str, tuple[float, dict[str, Any] | None]] = OrderedDict()
+        self._ontology_prompt_cache: OrderedDict[str, tuple[float, str]] = OrderedDict()
 
     def get_document(self, document_id: uuid.UUID) -> dict[str, Any] | None:
         key = str(document_id)
@@ -45,6 +46,7 @@ class DocumentMetadataCache:
         key = str(document_id)
         self._doc_cache.pop(key, None)
         self._ontology_cache.pop(key, None)
+        self._ontology_prompt_cache.pop(key, None)
 
     def get_ontology(self, document_id: uuid.UUID) -> tuple[bool, dict[str, Any] | None]:
         """Return (is_cached, cached_data).
@@ -70,13 +72,36 @@ class DocumentMetadataCache:
         if len(self._ontology_cache) > self.maxsize:
             self._ontology_cache.popitem(last=False)
 
+    def get_ontology_prompt(self, document_id: uuid.UUID) -> tuple[bool, str]:
+        """Return (is_cached, formatted_prompt) for pre-formatted brand ontology text."""
+        key = str(document_id)
+        now = time.time()
+        if key in self._ontology_prompt_cache:
+            ts, prompt = self._ontology_prompt_cache[key]
+            if now - ts < self.ttl:
+                self._ontology_prompt_cache.move_to_end(key)
+                return True, prompt
+            del self._ontology_prompt_cache[key]
+        return False, ""
+
+    def set_ontology_prompt(self, document_id: uuid.UUID, prompt: str) -> None:
+        key = str(document_id)
+        now = time.time()
+        if key in self._ontology_prompt_cache:
+            self._ontology_prompt_cache.move_to_end(key)
+        self._ontology_prompt_cache[key] = (now, prompt)
+        if len(self._ontology_prompt_cache) > self.maxsize:
+            self._ontology_prompt_cache.popitem(last=False)
+
     def invalidate_ontology(self, document_id: uuid.UUID) -> None:
         key = str(document_id)
         self._ontology_cache.pop(key, None)
+        self._ontology_prompt_cache.pop(key, None)
 
     def clear(self) -> None:
         self._doc_cache.clear()
         self._ontology_cache.clear()
+        self._ontology_prompt_cache.clear()
 
 
 _db_cache = DocumentMetadataCache()
@@ -131,6 +156,27 @@ async def get_cached_brand_ontology(
 
     _db_cache.set_ontology(document_id, ontology_data)
     return ontology_data
+
+
+async def get_cached_formatted_ontology(
+    db: AsyncSession,
+    document_id: uuid.UUID,
+) -> str:
+    """Return cached formatted ontology prompt string, avoiding repeated Pydantic re-validation."""
+    is_cached, cached_prompt = _db_cache.get_ontology_prompt(document_id)
+    if is_cached:
+        return cached_prompt
+
+    ontology_data = await get_cached_brand_ontology(db, document_id)
+    if not ontology_data:
+        _db_cache.set_ontology_prompt(document_id, "")
+        return ""
+
+    from app.rag.ontology import format_ontology_context
+
+    formatted = format_ontology_context(ontology_data)
+    _db_cache.set_ontology_prompt(document_id, formatted)
+    return formatted
 
 
 def invalidate_cached_document(document_id: uuid.UUID) -> None:

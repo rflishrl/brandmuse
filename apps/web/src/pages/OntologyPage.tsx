@@ -19,7 +19,7 @@ import {
   XCircle,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import {
   useCertifyOntologyApiDocumentsDocumentIdOntologyCertifyPost,
@@ -48,6 +48,159 @@ type RuleCategoryFilter =
   | "tone_of_voice"
   | "channel_restriction";
 
+const CERTIFIED_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  year: "numeric",
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+interface CertifyOntologyDialogProps {
+  dialogRef: React.RefObject<HTMLDialogElement>;
+  colorsCount: number;
+  typographyCount: number;
+  rulesCount: number;
+  isPending: boolean;
+  onClose: () => void;
+  onSubmit: (certifierName: string) => Promise<void>;
+}
+
+const CertifyOntologyDialog = memo<CertifyOntologyDialogProps>(function CertifyOntologyDialog({
+  dialogRef,
+  colorsCount,
+  typographyCount,
+  rulesCount,
+  isPending,
+  onClose,
+  onSubmit,
+}) {
+  const [certifierName, setCertifierName] = useState("Brand Director");
+  const [certifyAcknowledged, setCertifyAcknowledged] = useState(true);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await onSubmit(certifierName.trim() || "Brand Director");
+  };
+
+  return (
+    <dialog
+      ref={dialogRef}
+      aria-labelledby="certify-dialog-title"
+      aria-describedby="certify-dialog-desc"
+      onClick={(e) => {
+        if (e.target === dialogRef.current) {
+          const rect = dialogRef.current.getBoundingClientRect();
+          if (
+            e.clientX < rect.left ||
+            e.clientX > rect.right ||
+            e.clientY < rect.top ||
+            e.clientY > rect.bottom
+          ) {
+            onClose();
+          }
+        }
+      }}
+      className="rounded-card bg-surface text-foreground border border-border p-6 shadow-2xl max-w-lg w-[calc(100vw-2rem)] mx-auto my-auto backdrop:bg-black/50 backdrop:backdrop-blur-sm"
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="p-2 rounded-xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
+              <ShieldCheck className="w-5 h-5" aria-hidden="true" />
+            </span>
+            <div>
+              <h2
+                id="certify-dialog-title"
+                className="font-bold text-lg text-foreground leading-tight"
+              >
+                Certify Brand Ontology
+              </h2>
+              <p id="certify-dialog-desc" className="text-xs text-muted-foreground mt-0.5">
+                Human-in-the-Loop approval for authoritative AI grounding.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-user"
+            aria-label="Close certification dialog"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="p-4 rounded-xl bg-surface-user border border-border text-xs text-muted-foreground space-y-2">
+          <p className="font-medium text-foreground">
+            By certifying, you lock this ontology as the authoritative brand source:
+          </p>
+          <ul className="list-disc pl-4 space-y-1">
+            <li>
+              Colors: <strong>{colorsCount}</strong> tokens verified
+            </li>
+            <li>
+              Typography: <strong>{typographyCount}</strong> font hierarchies approved
+            </li>
+            <li>
+              Rules: <strong>{rulesCount}</strong> DOs &amp; DONTs enforced
+            </li>
+            <li>
+              Ask &amp; Campaign agents will strictly reference these constraints in prompt context.
+            </li>
+          </ul>
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="certifier-name" className="text-xs font-semibold text-foreground">
+            Certifier Name / Role:
+          </label>
+          <input
+            id="certifier-name"
+            type="text"
+            required
+            value={certifierName}
+            onChange={(e) => setCertifierName(e.target.value)}
+            placeholder="e.g. Brand Director, Creative Lead"
+            className="px-3.5 py-2 rounded-lg bg-surface border border-border text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+        </div>
+
+        <div className="flex items-center gap-2 pt-1">
+          <input
+            id="certify-ack"
+            type="checkbox"
+            required
+            checked={certifyAcknowledged}
+            onChange={(e) => setCertifyAcknowledged(e.target.checked)}
+            className="w-4 h-4 rounded text-foreground focus:ring-white/30 border-border"
+          />
+          <label htmlFor="certify-ack" className="text-xs text-muted-foreground cursor-pointer">
+            I have reviewed these extracted rules and approve them for production creative use.
+          </label>
+        </div>
+
+        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border">
+          <Button type="button" variant="outline" size="sm" onClick={onClose} autoFocus>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="success"
+            size="sm"
+            disabled={isPending || !certifyAcknowledged}
+            className="gap-2"
+          >
+            <ShieldCheck className="w-4 h-4" aria-hidden="true" />
+            {isPending ? "Certifying..." : "Confirm & Certify"}
+          </Button>
+        </div>
+      </form>
+    </dialog>
+  );
+});
+
 export const OntologyPage: React.FC = () => {
   const selectedDocumentId = useBrandStore((s) => s.selectedDocumentId);
   const selectedDocument = useBrandStore((s) => s.selectedDocument);
@@ -63,10 +216,10 @@ export const OntologyPage: React.FC = () => {
   const [ruleTypeFilter, setRuleTypeFilter] = useState<RuleTypeFilter>("all");
   const [ruleCategoryFilter, setRuleCategoryFilter] = useState<RuleCategoryFilter>("all");
   const [copiedHex, setCopiedHex] = useState<string | null>(null);
-  const [certifierName, setCertifierName] = useState("Brand Director");
-  const [certifyAcknowledged, setCertifyAcknowledged] = useState(true);
 
-  // Fetch ontology for selected document
+  const isSampleDoc = Boolean(selectedDocument?.is_sample);
+
+  // Fetch ontology for selected document (sample ontologies are immutable -> static cache)
   const {
     data: ontologyResponse,
     isLoading: isLoadingOntology,
@@ -75,6 +228,7 @@ export const OntologyPage: React.FC = () => {
     query: {
       enabled: Boolean(selectedDocumentId),
       retry: false,
+      staleTime: isSampleDoc ? Number.POSITIVE_INFINITY : undefined,
     },
   });
 
@@ -83,7 +237,6 @@ export const OntologyPage: React.FC = () => {
 
   const ontologyData = ontologyResponse?.ontology;
   const isCertified = Boolean(ontologyResponse?.is_certified);
-  const isSampleDoc = Boolean(selectedDocument?.is_sample);
 
   // Clear copied hex after 2 seconds
   useEffect(() => {
@@ -105,11 +258,12 @@ export const OntologyPage: React.FC = () => {
     }
   };
 
-  // Trigger AI Ontology Extraction
+  // Trigger AI Ontology Extraction and update TanStack Query cache immediately
   const handleExtract = async () => {
     if (!selectedDocumentId) return;
     try {
-      await extractMutation.mutateAsync({ documentId: selectedDocumentId });
+      const extracted = await extractMutation.mutateAsync({ documentId: selectedDocumentId });
+      queryClient.setQueryData(queryKeys.documents.ontology(selectedDocumentId), extracted);
       await queryClient.invalidateQueries({
         queryKey: queryKeys.documents.ontology(selectedDocumentId),
       });
@@ -121,70 +275,78 @@ export const OntologyPage: React.FC = () => {
   };
 
   // Open Certification Dialog
-  const openCertifyModal = () => {
+  const openCertifyModal = useCallback(() => {
     if (dialogRef.current) {
       dialogRef.current.showModal();
     }
-  };
+  }, []);
 
   // Close Certification Dialog
-  const closeCertifyModal = () => {
+  const closeCertifyModal = useCallback(() => {
     if (dialogRef.current) {
       dialogRef.current.close();
     }
-  };
+  }, []);
 
-  // Submit Certification
-  const handleCertifySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedDocumentId) return;
-    try {
-      await certifyMutation.mutateAsync({
-        documentId: selectedDocumentId,
-        data: {
-          certified_by: certifierName.trim() || "Brand Director",
-        },
-      });
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.documents.ontology(selectedDocumentId),
-      });
-      closeCertifyModal();
-      toast.success(
-        "Brand rules certified successfully! Rules are now strictly enforced in Ask & Campaign generation."
-      );
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to certify ontology.";
-      toast.error(msg);
-    }
-  };
+  // Submit Certification and update TanStack Query cache immediately
+  const handleCertifySubmit = useCallback(
+    async (name: string) => {
+      if (!selectedDocumentId) return;
+      try {
+        const certified = await certifyMutation.mutateAsync({
+          documentId: selectedDocumentId,
+          data: {
+            certified_by: name,
+          },
+        });
+        queryClient.setQueryData(queryKeys.documents.ontology(selectedDocumentId), certified);
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.documents.ontology(selectedDocumentId),
+        });
+        closeCertifyModal();
+        toast.success(
+          "Brand rules certified successfully! Rules are now strictly enforced in Ask & Campaign generation."
+        );
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : "Failed to certify ontology.";
+        toast.error(msg);
+      }
+    },
+    [selectedDocumentId, certifyMutation, queryClient, closeCertifyModal]
+  );
 
-  // Filter DOs & DONTs
+  // Memoized DOs & DONTs filtering and counts
   const rawRules: BrandRuleItem[] = ontologyData?.rules || [];
-  const filteredRules = rawRules.filter((r) => {
-    const matchesType = ruleTypeFilter === "all" || r.type === ruleTypeFilter;
-    const matchesCategory = ruleCategoryFilter === "all" || r.category === ruleCategoryFilter;
-    return matchesType && matchesCategory;
-  });
+  const filteredRules = useMemo(
+    () =>
+      rawRules.filter((r) => {
+        const matchesType = ruleTypeFilter === "all" || r.type === ruleTypeFilter;
+        const matchesCategory = ruleCategoryFilter === "all" || r.category === ruleCategoryFilter;
+        return matchesType && matchesCategory;
+      }),
+    [rawRules, ruleTypeFilter, ruleCategoryFilter]
+  );
+
+  const { doCount, dontCount, guidelineCount } = useMemo(() => {
+    let dos = 0;
+    let donts = 0;
+    let guidelines = 0;
+    for (const r of rawRules) {
+      if (r.type === "do") dos += 1;
+      else if (r.type === "dont") donts += 1;
+      else if (r.type === "guideline") guidelines += 1;
+    }
+    return { doCount: dos, dontCount: donts, guidelineCount: guidelines };
+  }, [rawRules]);
 
   const colors: ColorToken[] = ontologyData?.colors || [];
   const typography: TypographyToken[] = ontologyData?.typography || [];
   const channelRules: ChannelRule[] = ontologyData?.channel_rules || [];
   const identity = ontologyData?.identity;
 
-  // Counts
-  const doCount = rawRules.filter((r) => r.type === "do").length;
-  const dontCount = rawRules.filter((r) => r.type === "dont").length;
-  const guidelineCount = rawRules.filter((r) => r.type === "guideline").length;
-
   // Format date helper
   const formattedCertifiedDate = ontologyResponse?.certified_at
-    ? new Date(ontologyResponse.certified_at).toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })
+    ? CERTIFIED_DATE_FORMATTER.format(new Date(ontologyResponse.certified_at))
     : null;
 
   // Export W3C DTCG Design Tokens JSON
@@ -247,7 +409,7 @@ export const OntologyPage: React.FC = () => {
     anchor.href = url;
     anchor.download = filename;
     anchor.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 
     toast.success(`Exported W3C Design Tokens JSON (${filename}) for Figma and Style Dictionary.`);
   };
@@ -548,14 +710,14 @@ export const OntologyPage: React.FC = () => {
 
           {/* Navigation Tabs Bar */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border-b border-border pb-3">
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1">
+            <div className="flex items-center gap-1.5 overflow-x-auto py-1">
               <button
                 type="button"
                 onClick={() => setActiveTab("overview")}
                 aria-pressed={activeTab === "overview"}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                   activeTab === "overview"
-                    ? "bg-foreground text-background shadow-xs"
+                    ? "bg-foreground text-background"
                     : "text-muted-foreground hover:text-foreground hover:bg-surface-user"
                 }`}
               >
@@ -566,9 +728,9 @@ export const OntologyPage: React.FC = () => {
                 type="button"
                 onClick={() => setActiveTab("colors")}
                 aria-pressed={activeTab === "colors"}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ${
                   activeTab === "colors"
-                    ? "bg-foreground text-background shadow-xs"
+                    ? "bg-foreground text-background"
                     : "text-muted-foreground hover:text-foreground hover:bg-surface-user"
                 }`}
               >
@@ -580,9 +742,9 @@ export const OntologyPage: React.FC = () => {
                 type="button"
                 onClick={() => setActiveTab("typography")}
                 aria-pressed={activeTab === "typography"}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ${
                   activeTab === "typography"
-                    ? "bg-foreground text-background shadow-xs"
+                    ? "bg-foreground text-background"
                     : "text-muted-foreground hover:text-foreground hover:bg-surface-user"
                 }`}
               >
@@ -594,9 +756,9 @@ export const OntologyPage: React.FC = () => {
                 type="button"
                 onClick={() => setActiveTab("rules")}
                 aria-pressed={activeTab === "rules"}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ${
                   activeTab === "rules"
-                    ? "bg-foreground text-background shadow-xs"
+                    ? "bg-foreground text-background"
                     : "text-muted-foreground hover:text-foreground hover:bg-surface-user"
                 }`}
               >
@@ -608,9 +770,9 @@ export const OntologyPage: React.FC = () => {
                 type="button"
                 onClick={() => setActiveTab("channels")}
                 aria-pressed={activeTab === "channels"}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ${
                   activeTab === "channels"
-                    ? "bg-foreground text-background shadow-xs"
+                    ? "bg-foreground text-background"
                     : "text-muted-foreground hover:text-foreground hover:bg-surface-user"
                 }`}
               >
@@ -652,7 +814,7 @@ export const OntologyPage: React.FC = () => {
                     return (
                       <div
                         key={`${color.name}-${index}`}
-                        className="rounded-xl bg-surface border border-border shadow-xs overflow-hidden flex flex-col justify-between hover:border-border/80 transition-all group"
+                        className="cv-auto-row rounded-xl bg-surface border border-border overflow-hidden flex flex-col justify-between hover:border-border/80 transition-colors group"
                       >
                         {/* Visual Swatch */}
                         <div
@@ -837,7 +999,7 @@ export const OntologyPage: React.FC = () => {
               </div>
 
               {/* Filters Toolbar */}
-              <div className="p-3 rounded-xl bg-surface border border-border flex flex-col md:flex-row items-start md:items-center justify-between gap-3 shadow-2xs">
+              <div className="p-3 rounded-xl bg-surface border border-border flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
                 {/* Type Filter */}
                 <div className="flex items-center gap-1">
                   <span className="text-xs font-semibold text-muted-foreground mr-1.5">Type:</span>
@@ -859,7 +1021,7 @@ export const OntologyPage: React.FC = () => {
                 </div>
 
                 {/* Category Filter */}
-                <div className="flex items-center gap-1 overflow-x-auto no-scrollbar w-full md:w-auto">
+                <div className="flex items-center gap-1 overflow-x-auto w-full md:w-auto">
                   <span className="text-xs font-semibold text-muted-foreground mr-1.5 shrink-0">
                     Category:
                   </span>
@@ -905,7 +1067,7 @@ export const OntologyPage: React.FC = () => {
                     return (
                       <div
                         key={`${item.rule}-${index}`}
-                        className={`p-4 rounded-xl border flex flex-col justify-between gap-3 shadow-2xs transition-all ${
+                        className={`cv-auto-row p-4 rounded-xl border flex flex-col justify-between gap-3 transition-colors ${
                           isDo
                             ? "bg-emerald-500/[0.03] border-emerald-500/25 dark:bg-emerald-950/20"
                             : isDont
@@ -1052,122 +1214,16 @@ export const OntologyPage: React.FC = () => {
         </div>
       )}
 
-      {/* Human-in-the-Loop Certification Native Dialog (Modern Web Guidance Compliant) */}
-      <dialog
-        ref={dialogRef}
-        aria-labelledby="certify-dialog-title"
-        aria-describedby="certify-dialog-desc"
-        onClick={(e) => {
-          if (e.target === dialogRef.current) {
-            const rect = dialogRef.current.getBoundingClientRect();
-            if (
-              e.clientX < rect.left ||
-              e.clientX > rect.right ||
-              e.clientY < rect.top ||
-              e.clientY > rect.bottom
-            ) {
-              closeCertifyModal();
-            }
-          }
-        }}
-        className="rounded-card bg-surface text-foreground border border-border p-6 shadow-2xl max-w-lg w-[calc(100vw-2rem)] mx-auto my-auto backdrop:bg-black/50 backdrop:backdrop-blur-sm"
-      >
-        <form onSubmit={handleCertifySubmit} className="flex flex-col gap-5">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <span className="p-2 rounded-xl bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                <ShieldCheck className="w-5 h-5" aria-hidden="true" />
-              </span>
-              <div>
-                <h2
-                  id="certify-dialog-title"
-                  className="font-bold text-lg text-foreground leading-tight"
-                >
-                  Certify Brand Ontology
-                </h2>
-                <p id="certify-dialog-desc" className="text-xs text-muted-foreground mt-0.5">
-                  Human-in-the-Loop approval for authoritative AI grounding.
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={closeCertifyModal}
-              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-surface-user"
-              aria-label="Close certification dialog"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-
-          <div className="p-4 rounded-xl bg-surface-user border border-border text-xs text-muted-foreground space-y-2">
-            <p className="font-medium text-foreground">
-              By certifying, you lock this ontology as the authoritative brand source:
-            </p>
-            <ul className="list-disc pl-4 space-y-1">
-              <li>
-                Colors: <strong>{colors.length}</strong> tokens verified
-              </li>
-              <li>
-                Typography: <strong>{typography.length}</strong> font hierarchies approved
-              </li>
-              <li>
-                Rules: <strong>{rawRules.length}</strong> DOs &amp; DONTs enforced
-              </li>
-              <li>
-                Ask &amp; Campaign agents will strictly reference these constraints in prompt
-                context.
-              </li>
-            </ul>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="certifier-name" className="text-xs font-semibold text-foreground">
-              Certifier Name / Role:
-            </label>
-            <input
-              id="certifier-name"
-              type="text"
-              required
-              value={certifierName}
-              onChange={(e) => setCertifierName(e.target.value)}
-              placeholder="e.g. Brand Director, Creative Lead"
-              className="px-3.5 py-2 rounded-lg bg-surface border border-border text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-            />
-          </div>
-
-          <div className="flex items-center gap-2 pt-1">
-            <input
-              id="certify-ack"
-              type="checkbox"
-              required
-              checked={certifyAcknowledged}
-              onChange={(e) => setCertifyAcknowledged(e.target.checked)}
-              className="w-4 h-4 rounded text-foreground focus:ring-white/30 border-border"
-            />
-            <label htmlFor="certify-ack" className="text-xs text-muted-foreground cursor-pointer">
-              I have reviewed these extracted rules and approve them for production creative use.
-            </label>
-          </div>
-
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-border">
-            <Button type="button" variant="outline" size="sm" onClick={closeCertifyModal} autoFocus>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="success"
-              size="sm"
-              disabled={certifyMutation.isPending || !certifyAcknowledged}
-              className="gap-2"
-            >
-              <ShieldCheck className="w-4 h-4" aria-hidden="true" />
-              {certifyMutation.isPending ? "Certifying..." : "Confirm & Certify"}
-            </Button>
-          </div>
-        </form>
-      </dialog>
+      {/* Human-in-the-Loop Certification Native Dialog (isolated state to avoid full-page re-renders) */}
+      <CertifyOntologyDialog
+        dialogRef={dialogRef}
+        colorsCount={colors.length}
+        typographyCount={typography.length}
+        rulesCount={rawRules.length}
+        isPending={certifyMutation.isPending}
+        onClose={closeCertifyModal}
+        onSubmit={handleCertifySubmit}
+      />
     </div>
   );
 };

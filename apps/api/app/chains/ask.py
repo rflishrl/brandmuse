@@ -4,16 +4,22 @@ from collections.abc import AsyncGenerator
 
 from fastapi import Request
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langchain_core.runnables import RunnableConfig
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.cache import get_cached_brand_ontology, get_cached_document
-from app.observability.langfuse import get_langfuse_callback, get_trace_url
+from app.core.config import get_settings
+from app.core.errors import APIError
+from app.core.logging import logger
+from app.db.cache import get_cached_document, get_cached_formatted_ontology
+from app.observability.langfuse import get_langfuse_runnable_config, get_trace_url
 from app.providers.llm import get_llm
-from app.rag.ontology import format_ontology_context
 from app.rag.prompt import format_context_block
 from app.rag.retrieve import hybrid_retrieve
 from app.schemas.chat import ChatMessage, CitationItem
+from app.services.usage import check_and_increment_daily_usage
+
+settings = get_settings()
+
+MAX_HISTORY_CHARS = 8000
 
 SYSTEM_INSTRUCTION = """You are BrandMuse, an expert AI brand assistant for creative teams.
 Your goal is to answer user questions strictly grounded in the provided brand guidelines.
@@ -55,6 +61,16 @@ async def stream_ask_chain(
         yield f"event: error\ndata: {error_payload}\n\n"
         return
 
+    # 1b. Enforce global daily LLM quota before starting retrieval/streaming
+    try:
+        await check_and_increment_daily_usage(db, "llm", settings.DAILY_LLM_LIMIT)
+    except APIError as quota_err:
+        error_payload = json.dumps(
+            {"error": {"code": quota_err.code, "message": quota_err.message}}
+        )
+        yield f"event: error\ndata: {error_payload}\n\n"
+        return
+
     # 2. Hybrid retrieval (top 5 chunks fused with RRF)
     fused_chunks = await hybrid_retrieve(db, document_id, query_text=message, top_k=5)
 
@@ -79,12 +95,13 @@ async def stream_ask_chain(
         )
         raw_context_pieces.append({"page": str(page), "content": content})
 
-    # 3. Format grounded prompt with security delimiters and certified brand ontology
+    # 3. Format grounded prompt with security delimiters and cached certified brand ontology
     context_text = format_context_block(raw_context_pieces)
+    formatted_ontology = await get_cached_formatted_ontology(db, document_id)
+    ontology_context = f"\n\n{formatted_ontology}" if formatted_ontology else ""
 
-    # Check for structured brand ontology grounding (using in-memory read-through cache)
-    ontology_data = await get_cached_brand_ontology(db, document_id)
-    ontology_context = f"\n\n{format_ontology_context(ontology_data)}" if ontology_data else ""
+    # Release DB read transaction before long-lived SSE LLM stream to prevent idle-in-transaction
+    await db.rollback()
 
     # Adjust instructions and temperature according to execution mode
     temperature = 0.2
@@ -107,23 +124,31 @@ async def stream_ask_chain(
     messages: list[SystemMessage | HumanMessage | AIMessage] = [
         SystemMessage(content=system_prompt)
     ]
-    for h in history:
+    # Keep most recent history turns within total character budget
+    kept_history: list[ChatMessage] = []
+    used_chars = 0
+    for h in reversed(history):
+        msg_len = len(h.content)
+        if used_chars + msg_len > MAX_HISTORY_CHARS and kept_history:
+            break
+        kept_history.append(h)
+        used_chars += msg_len
+    for h in reversed(kept_history):
         if h.role == "user":
             messages.append(HumanMessage(content=h.content))
         elif h.role == "assistant":
             messages.append(AIMessage(content=h.content))
     messages.append(HumanMessage(content=message))
 
-    # 4. Set up Langfuse tracing
+    # 4. Set up Langfuse tracing with metadata
     trace_id = str(uuid.uuid4())
-    handler = get_langfuse_callback(
+    config = get_langfuse_runnable_config(
         session_id=session_id,
         feature="ask",
         trace_id=trace_id,
         is_sample=bool(doc.get("is_sample", False)),
         metadata={"document_id": str(document_id), "chunk_count": len(fused_chunks)},
     )
-    config: RunnableConfig = {"callbacks": [handler]} if handler else {}
 
     # 5. Stream LLM tokens with SSE events
     llm = get_llm(streaming=True, temperature=temperature)
@@ -131,7 +156,7 @@ async def stream_ask_chain(
     try:
         async for chunk in llm.astream(messages, config=config):
             if await request.is_disconnected():
-                break
+                return
 
             token = chunk.content if isinstance(chunk.content, str) else str(chunk.content)
             if token:
@@ -183,6 +208,14 @@ async def stream_ask_chain(
         )
         yield f"event: done\ndata: {done_payload}\n\n"
 
-    except Exception as exc:
-        err_data = json.dumps({"error": {"code": "STREAMING_ERROR", "message": str(exc)}})
+    except Exception:
+        logger.exception("SSE streaming failed for document_id=%s", document_id)
+        err_data = json.dumps(
+            {
+                "error": {
+                    "code": "STREAMING_ERROR",
+                    "message": "An unexpected error occurred while streaming the response.",
+                }
+            }
+        )
         yield f"event: error\ndata: {err_data}\n\n"

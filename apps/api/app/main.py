@@ -1,12 +1,13 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter
+from slowapi.middleware import SlowAPIASGIMiddleware
 from slowapi.util import get_remote_address
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.middleware.gzip import GZipMiddleware
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
@@ -36,18 +37,39 @@ limiter = Limiter(
 )
 
 
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """Adds standard security headers to all responses."""
+class SecurityHeadersMiddleware:
+    """Pure ASGI middleware that injects standard security headers without response buffering."""
 
-    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        response: Response = await call_next(request)
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+        base_headers: list[tuple[bytes, bytes]] = [
+            (b"x-content-type-options", b"nosniff"),
+            (b"x-frame-options", b"DENY"),
+            (b"referrer-policy", b"strict-origin-when-cross-origin"),
+            (b"permissions-policy", b"camera=(), microphone=(), geolocation=()"),
+        ]
         if settings.ENVIRONMENT == "production":
-            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-        return response
+            base_headers.append(
+                (b"strict-transport-security", b"max-age=31536000; includeSubDomains")
+            )
+        self._headers = tuple(base_headers)
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        async def send_with_security_headers(message: Message) -> None:
+            if message["type"] == "http.response.start":
+                headers = list(message.get("headers", []))
+                existing = {name.lower() for name, _ in headers}
+                for name, value in self._headers:
+                    if name not in existing:
+                        headers.append((name, value))
+                message["headers"] = headers
+            await send(message)
+
+        await self.app(scope, receive, send_with_security_headers)
 
 
 @asynccontextmanager
@@ -78,11 +100,14 @@ def create_app() -> FastAPI:
     # Central error handlers (including RateLimitExceeded)
     register_exception_handlers(app)
 
-    # Security headers
+    # Pure ASGI IP rate limiting (respects RATE_LIMIT_PER_MINUTE default limit)
+    app.add_middleware(SlowAPIASGIMiddleware)
+
+    # Security headers (Pure ASGI, preserves Content-Length & SSE streaming)
     app.add_middleware(SecurityHeadersMiddleware)
 
-    # GZip compression for JSON payloads > 1KB
-    app.add_middleware(GZipMiddleware, minimum_size=1000)
+    # GZip compression for payloads > 1KB (balanced CPU level 6)
+    app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=6)
 
     # CORS configuration
     app.add_middleware(

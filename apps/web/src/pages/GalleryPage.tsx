@@ -1,3 +1,4 @@
+import { keepPreviousData } from "@tanstack/react-query";
 import {
   AlertTriangle,
   Calendar,
@@ -12,7 +13,7 @@ import {
   X,
 } from "lucide-react";
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useGetGallery } from "@/api/generated";
 import type { GenerationItem } from "@/api/model";
@@ -21,6 +22,18 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/components/ui/sonner";
 
 const PAGE_SIZE = 24;
+
+const CARD_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+});
+
+const DETAIL_DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
 
 function getAspectDimensions(conceptJson?: Record<string, unknown>): { w: number; h: number } {
   const ratio = typeof conceptJson?.aspect_ratio === "string" ? conceptJson.aspect_ratio : "1:1";
@@ -49,23 +62,18 @@ interface GalleryCardProps {
   onSelect: (gen: GenerationItem) => void;
 }
 
-const GalleryCard: React.FC<GalleryCardProps> = ({ gen, idx, onSelect }) => {
+const GalleryCard: React.FC<GalleryCardProps> = memo(function GalleryCard({ gen, idx, onSelect }) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
 
   const displaySrc = gen.thumbnail_url || gen.image_url;
-  const formattedDate = new Date(gen.created_at).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const formattedDate = CARD_DATE_FORMATTER.format(new Date(gen.created_at));
 
   return (
     <button
       type="button"
       onClick={() => onSelect(gen)}
-      className="group relative rounded-card overflow-hidden bg-surface border border-border shadow-xs hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground transition-all cursor-pointer flex flex-col text-left w-full"
+      className="cv-auto-card group relative rounded-card overflow-hidden bg-surface border border-border hover:border-foreground/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground transition-colors cursor-pointer flex flex-col text-left w-full"
     >
       <div className="aspect-square w-full relative overflow-hidden bg-surface-user">
         {!imageLoaded && !imageError && (
@@ -85,7 +93,7 @@ const GalleryCard: React.FC<GalleryCardProps> = ({ gen, idx, onSelect }) => {
             height={480}
             onLoad={() => setImageLoaded(true)}
             onError={() => setImageError(true)}
-            className={`w-full h-full object-cover group-hover:scale-105 transition-all duration-300 ${
+            className={`w-full h-full object-cover group-hover:scale-105 transition-[transform,opacity] duration-300 ${
               imageLoaded ? "opacity-100" : "opacity-0"
             }`}
             loading={idx === 0 ? undefined : "lazy"}
@@ -111,16 +119,23 @@ const GalleryCard: React.FC<GalleryCardProps> = ({ gen, idx, onSelect }) => {
       </div>
     </button>
   );
-};
+});
 
 export const GalleryPage: React.FC = () => {
   const [offset, setOffset] = useState(0);
   const [generations, setGenerations] = useState<GenerationItem[]>([]);
 
-  const { data, isLoading, isFetching, isError, error, refetch } = useGetGallery({
-    limit: PAGE_SIZE,
-    offset,
-  });
+  const { data, isLoading, isFetching, isError, error, refetch } = useGetGallery(
+    {
+      limit: PAGE_SIZE,
+      offset,
+    },
+    {
+      query: {
+        placeholderData: keepPreviousData,
+      },
+    }
+  );
 
   useEffect(() => {
     if (!data?.generations) return;
@@ -142,12 +157,20 @@ export const GalleryPage: React.FC = () => {
   const [activeLightboxItem, setActiveLightboxItem] = useState<GenerationItem | null>(null);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
 
   const handleCopyUrl = (url: string) => {
-    navigator.clipboard.writeText(url);
+    void navigator.clipboard.writeText(url);
     setCopiedUrl(true);
     toast.success("Image URL copied to clipboard!");
-    setTimeout(() => setCopiedUrl(false), 2000);
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = setTimeout(() => setCopiedUrl(false), 2000);
   };
 
   useEffect(() => {
@@ -162,27 +185,6 @@ export const GalleryPage: React.FC = () => {
       dialog.close();
     }
   }, [activeLightboxItem]);
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-
-    const handleCancel = (e: Event) => {
-      e.preventDefault();
-      setActiveLightboxItem(null);
-    };
-
-    const handleClose = () => {
-      setActiveLightboxItem(null);
-    };
-
-    dialog.addEventListener("cancel", handleCancel);
-    dialog.addEventListener("close", handleClose);
-    return () => {
-      dialog.removeEventListener("cancel", handleCancel);
-      dialog.removeEventListener("close", handleClose);
-    };
-  }, []);
 
   const lightboxDims = activeLightboxItem
     ? getAspectDimensions(activeLightboxItem.concept_json)
@@ -229,7 +231,7 @@ export const GalleryPage: React.FC = () => {
         <div
           role="alert"
           aria-live="polite"
-          className="p-10 rounded-card bg-surface border border-danger/25 text-center flex flex-col items-center justify-center gap-3 shadow-xs"
+          className="p-10 rounded-card bg-surface border border-danger/25 text-center flex flex-col items-center justify-center gap-3"
         >
           <div className="w-10 h-10 rounded-full bg-danger/10 flex items-center justify-center text-danger">
             <AlertTriangle className="w-5 h-5" aria-hidden="true" />
@@ -252,7 +254,7 @@ export const GalleryPage: React.FC = () => {
           </Button>
         </div>
       ) : displayedGenerations.length === 0 ? (
-        <div className="p-12 rounded-card bg-surface border border-border text-center flex flex-col items-center justify-center gap-4 shadow-xs">
+        <div className="p-12 rounded-card bg-surface border border-border text-center flex flex-col items-center justify-center gap-4">
           <div className="w-12 h-12 rounded-full bg-surface-user flex items-center justify-center text-muted-foreground">
             <ImageIcon className="w-6 h-6" aria-hidden="true" />
           </div>
@@ -271,12 +273,7 @@ export const GalleryPage: React.FC = () => {
         <div className="flex flex-col gap-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {displayedGenerations.map((gen, idx) => (
-              <GalleryCard
-                key={gen.id}
-                gen={gen}
-                idx={idx}
-                onSelect={(item) => setActiveLightboxItem(item)}
-              />
+              <GalleryCard key={gen.id} gen={gen} idx={idx} onSelect={setActiveLightboxItem} />
             ))}
           </div>
 
@@ -308,7 +305,12 @@ export const GalleryPage: React.FC = () => {
           ref={dialogRef}
           aria-labelledby="lightbox-title"
           {...({ closedby: "any" } as Record<string, string>)}
-          className="p-0 rounded-2xl bg-surface/95 dark:bg-[#141418]/95 backdrop-blur-2xl text-foreground border border-border dark:border-white/15 shadow-2xl max-w-4xl w-[calc(100vw-2rem)] max-h-[90vh] mx-auto my-auto backdrop:bg-black/80 backdrop:backdrop-blur-sm overflow-hidden animate-in zoom-in-95 duration-200"
+          className="p-0 rounded-2xl bg-surface/95 dark:bg-[#141418]/95 backdrop-blur-2xl text-foreground border border-border dark:border-white/15 shadow-2xl max-w-4xl w-[calc(100vw-2rem)] max-h-[90vh] mx-auto my-auto backdrop:bg-black/80 backdrop:backdrop-blur-sm overflow-hidden"
+          onCancel={(e) => {
+            e.preventDefault();
+            setActiveLightboxItem(null);
+          }}
+          onClose={() => setActiveLightboxItem(null)}
           onClick={(e) => {
             const dialog = dialogRef.current;
             if (!dialog || e.target !== dialog) return;
@@ -367,7 +369,9 @@ export const GalleryPage: React.FC = () => {
                 <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
                   <span className="font-medium text-foreground">Generation Details</span>
                   <span>Provider: {activeLightboxItem.provider}</span>
-                  <span>Created: {new Date(activeLightboxItem.created_at).toLocaleString()}</span>
+                  <span>
+                    Created: {DETAIL_DATE_FORMATTER.format(new Date(activeLightboxItem.created_at))}
+                  </span>
                 </div>
               </div>
 

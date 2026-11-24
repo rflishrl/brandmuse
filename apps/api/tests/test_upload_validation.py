@@ -81,8 +81,10 @@ async def test_parse_pdf_pages_vision_enrichment_for_sparse_pages() -> None:
     mock_images = {1: b"fake_png_data"}
 
     with (
-        patch("app.rag.parse._sync_parse_pdf", return_value=mock_pages),
-        patch("app.rag.parse._extract_sparse_page_images", return_value=mock_images),
+        patch(
+            "app.rag.parse._sync_parse_pdf_with_images",
+            return_value=(mock_pages, mock_images),
+        ),
         patch("app.rag.parse.settings") as mock_settings,
         patch(
             "app.rag.parse.extract_text_from_image_bytes",

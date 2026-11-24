@@ -56,6 +56,11 @@ class Document(Base):
             unique=True,
             postgresql_where=text("is_sample IS TRUE"),
         ),
+        Index(
+            "idx_documents_session_created_at",
+            "session_id",
+            text("created_at DESC"),
+        ),
     )
 
 
@@ -68,7 +73,6 @@ class Chunk(Base):
     document_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("documents.id", ondelete="CASCADE"),
-        index=True,
         nullable=False,
     )
     page: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -93,6 +97,7 @@ class Chunk(Base):
             "embedding",
             postgresql_using="hnsw",
             postgresql_with={"m": 16, "ef_construction": 64},
+            postgresql_ops={"embedding": "vector_cosine_ops"},
         ),
         Index("idx_chunks_doc_chunk_idx", "document_id", "chunk_index"),
         Index("idx_chunks_doc_page", "document_id", "page"),
@@ -112,6 +117,14 @@ class Generation(Base):
     size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        Index(
+            "idx_generations_session_created_at",
+            "session_id",
+            text("created_at DESC"),
+        ),
     )
 
 
@@ -135,7 +148,6 @@ class BrandOntology(Base):
         UUID(as_uuid=True),
         ForeignKey("documents.id", ondelete="CASCADE"),
         unique=True,
-        index=True,
         nullable=False,
     )
     ontology_data: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)

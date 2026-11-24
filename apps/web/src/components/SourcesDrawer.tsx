@@ -1,6 +1,6 @@
 import { BookOpen, CheckCircle2, ExternalLink, X } from "lucide-react";
 import type React from "react";
-import { useEffect } from "react";
+import { memo, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import type { CitationItem } from "@/types/chat";
 
@@ -11,16 +11,17 @@ interface SourcesDrawerProps {
   traceUrl?: string | null;
 }
 
-export const SourcesDrawer: React.FC<SourcesDrawerProps> = ({
+export const SourcesDrawer: React.FC<SourcesDrawerProps> = memo(function SourcesDrawer({
   isOpen,
   onClose,
   citations,
   traceUrl,
-}) => {
-  // Close on Escape key
+}) {
+  // Close on Escape key only while drawer is open
   useEffect(() => {
+    if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
+      if (e.key === "Escape") {
         onClose();
       }
     };
@@ -45,7 +46,7 @@ export const SourcesDrawer: React.FC<SourcesDrawerProps> = ({
       />
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-md bg-surface/95 dark:bg-[#121217]/95 backdrop-blur-xl border-l border-border dark:border-white/10 shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-200">
+        <div className="w-screen max-w-md bg-surface/95 dark:bg-[#121217]/95 backdrop-blur-xl border-l border-border dark:border-white/10 shadow-2xl flex flex-col justify-between">
           {/* Header */}
           <div className="p-5 border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -132,4 +133,4 @@ export const SourcesDrawer: React.FC<SourcesDrawerProps> = ({
       </div>
     </div>
   );
-};
+});

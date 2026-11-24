@@ -1,17 +1,21 @@
 import type React from "react";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 
 interface MarkdownViewerProps {
   content: string;
   className?: string;
 }
 
+const INLINE_TOKEN_REGEX = /(\*\*[^*]+\*\*|`[^`]+`|\[p\.\s*\d+\]|\(p\.\s*\d+\))/g;
+const CITATION_EXACT_REGEX = /^(\[p\.\s*\d+\]|\(p\.\s*\d+\))$/;
+const BULLET_LIST_REGEX = /^[-*]\s+(.*)$/;
+const ORDERED_LIST_REGEX = /^\d+\.\s+(.*)$/;
+
 /**
  * Render inline tokens: **bold**, `code`, [p. X] or (p. X) citations
  */
 function renderInline(text: string): React.ReactNode {
-  const regex = /(\*\*[^*]+\*\*|`[^`]+`|\[p\.\s*\d+\]|\(p\.\s*\d+\))/g;
-  const parts = text.split(regex);
+  const parts = text.split(INLINE_TOKEN_REGEX);
 
   return parts.map((part, index) => {
     if (part.startsWith("**") && part.endsWith("**") && part.length >= 4) {
@@ -32,7 +36,7 @@ function renderInline(text: string): React.ReactNode {
       );
     }
     // Citations highlight: [p. 2] or (p. 4)
-    if (/^(\[p\.\s*\d+\]|\(p\.\s*\d+\))$/.test(part)) {
+    if (CITATION_EXACT_REGEX.test(part)) {
       return (
         <span
           key={index}
@@ -47,7 +51,10 @@ function renderInline(text: string): React.ReactNode {
   });
 }
 
-export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, className = "" }) => {
+export const MarkdownViewer: React.FC<MarkdownViewerProps> = memo(function MarkdownViewer({
+  content,
+  className = "",
+}) {
   const elements = useMemo(() => {
     if (!content) return null;
 
@@ -142,7 +149,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, classNa
       }
 
       // Unordered list item
-      const bulletMatch = trimmed.match(/^[-*]\s+(.*)$/);
+      const bulletMatch = trimmed.match(BULLET_LIST_REGEX);
       if (bulletMatch) {
         flushParagraph();
         if (currentList?.type !== "ul") {
@@ -154,7 +161,7 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, classNa
       }
 
       // Ordered list item
-      const numMatch = trimmed.match(/^\d+\.\s+(.*)$/);
+      const numMatch = trimmed.match(ORDERED_LIST_REGEX);
       if (numMatch) {
         flushParagraph();
         if (currentList?.type !== "ol") {
@@ -176,6 +183,6 @@ export const MarkdownViewer: React.FC<MarkdownViewerProps> = ({ content, classNa
   }, [content]);
 
   return <div className={`text-foreground ${className}`}>{elements}</div>;
-};
+});
 
 export default MarkdownViewer;

@@ -41,10 +41,3 @@ class CitationItem(BaseModel):
     rrf_score: float = Field(..., description="Reciprocal Rank Fusion score")
     vector_score: float | None = Field(default=None, description="Vector cosine similarity score")
     keyword_score: float | None = Field(default=None, description="Full-text ts_rank score")
-
-
-class ChatFinalPayload(BaseModel):
-    """Final Server-Sent Event payload containing citations and Langfuse trace link."""
-
-    citations: list[CitationItem] = Field(..., description="Retrieved chunk citations")
-    trace_url: str | None = Field(default=None, description="Direct URL to Langfuse trace")

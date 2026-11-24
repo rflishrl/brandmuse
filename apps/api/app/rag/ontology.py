@@ -2,7 +2,6 @@ import uuid
 from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_core.runnables import RunnableConfig
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -10,7 +9,7 @@ from app.core.config import get_settings
 from app.core.errors import APIError
 from app.core.logging import logger
 from app.db.models import Chunk, Document
-from app.observability.langfuse import get_langfuse_callback
+from app.observability.langfuse import get_langfuse_runnable_config
 from app.providers.llm import get_llm
 from app.rag.prompt import CONTEXT_DELIMITER_END, CONTEXT_DELIMITER_START, sanitize_untrusted_text
 from app.schemas.ontology import BrandOntologyData
@@ -56,14 +55,14 @@ async def extract_brand_ontology_from_doc(
     session_id: uuid.UUID,
 ) -> BrandOntologyData:
     """Run structured LLM extraction across document chunks to build a BrandOntologyData object."""
-    # 1. Fetch all chunks ordered by page and chunk_index
+    # 1. Fetch only needed chunk columns (exclude 1536-dim embedding & tsvector)
     stmt = (
-        select(Chunk)
+        select(Chunk.page, Chunk.chunk_index, Chunk.content)
         .where(Chunk.document_id == document.id)
         .order_by(Chunk.page.asc(), Chunk.chunk_index.asc())
     )
     res = await db.execute(stmt)
-    chunks = res.scalars().all()
+    chunks = res.all()
 
     if not chunks:
         raise APIError(
@@ -72,10 +71,13 @@ async def extract_brand_ontology_from_doc(
             status_code=400,
         )
 
+    # Release DB read transaction before long-running LLM extraction
+    await db.rollback()
+
     # 2. Assemble context with page tags
     formatted_chunks: list[str] = []
-    for c in chunks:
-        formatted_chunks.append(f"--- [Page {c.page} Chunk #{c.chunk_index}] ---\n{c.content}")
+    for page, chunk_index, content in chunks:
+        formatted_chunks.append(f"--- [Page {page} Chunk #{chunk_index}] ---\n{content}")
     combined_context = "\n\n".join(formatted_chunks)
 
     # Truncate to reasonable context window if exceptionally large
@@ -99,15 +101,15 @@ async def extract_brand_ontology_from_doc(
 
     # 3. Observability tracing
     trace_id = str(uuid.uuid4())
-    handler = get_langfuse_callback(
+    config = get_langfuse_runnable_config(
         session_id=session_id,
         feature="ontology_extraction",
         trace_id=trace_id,
+        is_sample=bool(document.is_sample),
         metadata={"document_id": str(document.id), "filename": document.filename},
     )
-    config = RunnableConfig(callbacks=[handler] if handler else [])
 
-    # 4. LLM structured call with retry
+    # 4. LLM structured call with retry for transient failures only
     llm = get_llm(streaming=False, temperature=0.1, max_tokens=3000)
     structured_llm = llm.with_structured_output(BrandOntologyData)
 
@@ -115,6 +117,14 @@ async def extract_brand_ontology_from_doc(
     try:
         output = await structured_llm.ainvoke(messages, config=config)
     except Exception as exc:
+        status_code = getattr(exc, "status_code", None)
+        if isinstance(status_code, int) and 400 <= status_code < 500 and status_code != 429:
+            logger.error("Ontology extraction non-retryable client error: %s", exc)
+            raise APIError(
+                code="ONTOLOGY_EXTRACTION_FAILED",
+                message="Failed to extract structured brand ontology. Please try again.",
+                status_code=502,
+            ) from exc
         logger.warning("First ontology extraction attempt failed, retrying: %s", exc)
         try:
             output = await structured_llm.ainvoke(messages, config=config)

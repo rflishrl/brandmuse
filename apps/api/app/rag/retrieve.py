@@ -1,7 +1,7 @@
-import asyncio
 import uuid
+from typing import Any
 
-from sqlalchemy import func, select, text
+from sqlalchemy import func, literal, select, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -19,35 +19,29 @@ async def search_vector_chunks(
     query_embedding: list[float],
     limit: int = 20,
 ) -> list[RankedItem]:
-    """Retrieve top-K chunks via vector cosine distance using HNSW index."""
-    # Distance: 0 = identical, 2 = opposite. Similarity: 1 - (distance / 2)
+    """Retrieve top-K chunks via vector cosine distance without over-fetching embeddings."""
     distance_col = Chunk.embedding.cosine_distance(query_embedding).label("distance")
     stmt = (
-        select(Chunk, distance_col)
+        select(Chunk.id, Chunk.page, Chunk.chunk_index, Chunk.content, distance_col)
         .where(Chunk.document_id == document_id)
         .where(Chunk.embedding.is_not(None))
         .order_by(distance_col.asc())
         .limit(limit)
     )
 
-    # Optimize HNSW recall vs latency tradeoff for brand guidelines search
-    try:
-        await db.execute(text("SET LOCAL hnsw.ef_search = 60"))
-    except Exception:
-        pass
-
     result = await db.execute(stmt)
     ranked_items: list[RankedItem] = []
-    for chunk, distance in result.all():
+    for row in result.all():
+        chunk_id, page, chunk_index, content, distance = row
         similarity = max(0.0, 1.0 - float(distance))
         ranked_items.append(
             RankedItem(
-                item_id=str(chunk.id),
+                item_id=str(chunk_id),
                 score=round(similarity, 4),
                 metadata={
-                    "page": chunk.page,
-                    "chunk_index": chunk.chunk_index,
-                    "content": chunk.content,
+                    "page": page,
+                    "chunk_index": chunk_index,
+                    "content": content,
                 },
             )
         )
@@ -61,16 +55,17 @@ async def search_keyword_chunks(
     limit: int = 20,
     fts_config: str | None = None,
 ) -> list[RankedItem]:
-    """Retrieve top-K chunks via Postgres tsvector full-text search using GIN index."""
+    """Retrieve top-K chunks via Postgres FTS without over-fetching vector columns."""
     config_name = fts_config or settings.FTS_CONFIG
-
-    # Use websearch_to_tsquery with keyword expansion for high-recall brand search
     fts_expr = build_fts_query_expression(query_text)
+    if not fts_expr:
+        return []
+
     ts_query = func.websearch_to_tsquery(config_name, fts_expr)
     rank_col = func.ts_rank_cd(Chunk.tsv, ts_query).label("rank")
 
     stmt = (
-        select(Chunk, rank_col)
+        select(Chunk.id, Chunk.page, Chunk.chunk_index, Chunk.content, rank_col)
         .where(Chunk.document_id == document_id)
         .where(Chunk.tsv.op("@@")(ts_query))
         .order_by(rank_col.desc())
@@ -79,15 +74,16 @@ async def search_keyword_chunks(
 
     result = await db.execute(stmt)
     ranked_items: list[RankedItem] = []
-    for chunk, rank in result.all():
+    for row in result.all():
+        chunk_id, page, chunk_index, content, rank = row
         ranked_items.append(
             RankedItem(
-                item_id=str(chunk.id),
+                item_id=str(chunk_id),
                 score=round(float(rank), 4),
                 metadata={
-                    "page": chunk.page,
-                    "chunk_index": chunk.chunk_index,
-                    "content": chunk.content,
+                    "page": page,
+                    "chunk_index": chunk_index,
+                    "content": content,
                 },
             )
         )
@@ -100,20 +96,95 @@ async def hybrid_retrieve(
     query_text: str,
     top_k: int = 5,
     embedding_provider: BaseEmbeddingProvider | None = None,
+    query_embedding: list[float] | None = None,
+    fts_config: str | None = None,
 ) -> list[FusedResult]:
-    """Execute concurrent vector & FTS queries and merge using Reciprocal Rank Fusion."""
-    provider = embedding_provider or get_embedding_provider()
+    """Execute combined single-RTT vector + FTS CTE query and merge with Reciprocal Rank Fusion.
 
-    # Expand query for vector search to bridge cross-lingual and colloquial phrasing
-    expanded_vector_query = expand_query_for_retrieval(query_text)
-    query_embedding = await provider.embed_query(expanded_vector_query)
+    Avoids concurrent operations on a single SQLAlchemy AsyncSession and avoids
+    fetching Chunk.embedding / Chunk.tsv columns over the wire.
+    """
+    if query_embedding is None:
+        provider = embedding_provider or get_embedding_provider()
+        expanded_vector_query = expand_query_for_retrieval(query_text)
+        query_embedding = await provider.embed_query(expanded_vector_query)
 
-    # Run vector and full-text searches concurrently
-    vector_results, keyword_results = await asyncio.gather(
-        search_vector_chunks(db, document_id, query_embedding, limit=20),
-        search_keyword_chunks(db, document_id, query_text, limit=20),
+    candidate_limit = 20
+    config_name = fts_config or settings.FTS_CONFIG
+    fts_expr = build_fts_query_expression(query_text)
+
+    distance_col = Chunk.embedding.cosine_distance(query_embedding)
+    vec_cte = (
+        select(
+            Chunk.id.label("id"),
+            Chunk.page.label("page"),
+            Chunk.chunk_index.label("chunk_index"),
+            Chunk.content.label("content"),
+            distance_col.label("metric"),
+            literal("vector").label("source"),
+        )
+        .where(Chunk.document_id == document_id)
+        .where(Chunk.embedding.is_not(None))
+        .order_by(distance_col.asc())
+        .limit(candidate_limit)
+        .cte("vec")
     )
 
-    # Fuse with RRF (k=60)
+    if fts_expr:
+        ts_query = func.websearch_to_tsquery(config_name, fts_expr)
+        rank_col = func.ts_rank_cd(Chunk.tsv, ts_query)
+        kw_cte = (
+            select(
+                Chunk.id.label("id"),
+                Chunk.page.label("page"),
+                Chunk.chunk_index.label("chunk_index"),
+                Chunk.content.label("content"),
+                rank_col.label("metric"),
+                literal("keyword").label("source"),
+            )
+            .where(Chunk.document_id == document_id)
+            .where(Chunk.tsv.op("@@")(ts_query))
+            .order_by(rank_col.desc())
+            .limit(candidate_limit)
+            .cte("kw")
+        )
+        stmt: Any = union_all(select(vec_cte), select(kw_cte))
+    else:
+        stmt = select(vec_cte)
+
+    result = await db.execute(stmt)
+
+    vector_results: list[RankedItem] = []
+    keyword_results: list[RankedItem] = []
+
+    for row in result.all():
+        chunk_id, page, chunk_index, content, metric, source = row
+        metadata = {
+            "page": page,
+            "chunk_index": chunk_index,
+            "content": content,
+        }
+        if source == "vector":
+            similarity = max(0.0, 1.0 - float(metric))
+            vector_results.append(
+                RankedItem(
+                    item_id=str(chunk_id),
+                    score=round(similarity, 4),
+                    metadata=metadata,
+                )
+            )
+        else:
+            keyword_results.append(
+                RankedItem(
+                    item_id=str(chunk_id),
+                    score=round(float(metric), 4),
+                    metadata=metadata,
+                )
+            )
+
+    # Ensure deterministic descending order within each branch before RRF ranking
+    vector_results.sort(key=lambda item: item.score, reverse=True)
+    keyword_results.sort(key=lambda item: item.score, reverse=True)
+
     fused = reciprocal_rank_fusion(vector_results, keyword_results, k=60)
     return fused[:top_k]

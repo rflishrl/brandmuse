@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, memo, Suspense, useEffect, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import { PageLoadingFallback } from "@/components/layout/PageLoadingFallback";
 import { routeImporters } from "@/lib/routePrefetch";
@@ -34,7 +34,11 @@ interface CachedTabPanelProps {
   children: React.ReactNode;
 }
 
-const CachedTabPanel: React.FC<CachedTabPanelProps> = ({ isActive, label, children }) => {
+const CachedTabPanel = memo<CachedTabPanelProps>(function CachedTabPanel({
+  isActive,
+  label,
+  children,
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const prevActiveRef = useRef<boolean>(isActive);
 
@@ -63,7 +67,7 @@ const CachedTabPanel: React.FC<CachedTabPanelProps> = ({ isActive, label, childr
       {children}
     </section>
   );
-};
+});
 
 export const CachedTabStage: React.FC = () => {
   const { pathname } = useLocation();

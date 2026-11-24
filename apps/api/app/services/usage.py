@@ -2,12 +2,16 @@ import datetime
 import uuid
 
 from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import APIError
 from app.core.logging import hash_session_id, slogger
 from app.db.models import Generation, UsageCounter
+
+
+def _utc_today() -> datetime.date:
+    return datetime.datetime.now(datetime.UTC).date()
 
 
 async def check_daily_usage_available(
@@ -16,7 +20,7 @@ async def check_daily_usage_available(
     limit: int,
 ) -> None:
     """Read-only daily quota check before generating or uploading assets."""
-    today = datetime.date.today()
+    today = _utc_today()
     stmt = select(UsageCounter.count).where(
         UsageCounter.day == today,
         UsageCounter.kind == kind,
@@ -42,63 +46,50 @@ async def check_and_increment_daily_usage(
     kind: str,
     limit: int,
 ) -> int:
-    """Check and atomically increment daily usage counters persisted in PostgreSQL.
+    """Atomically check and increment daily usage counter in a single PostgreSQL upsert.
 
     Raises APIError (429) if the global daily cap has been reached.
     """
-    today = datetime.date.today()
+    if limit <= 0:
+        raise APIError(
+            code="DAILY_QUOTA_EXCEEDED",
+            message=(
+                f"Global daily {kind.upper()} limit ({limit} calls) has been reached. "
+                "The demo is currently operating in read-only mode to prevent overage. "
+                "Counters reset daily at midnight."
+            ),
+            status_code=429,
+        )
 
+    today = _utc_today()
     stmt = (
-        select(UsageCounter)
-        .where(UsageCounter.day == today, UsageCounter.kind == kind)
-        .with_for_update()
+        pg_insert(UsageCounter)
+        .values(day=today, kind=kind, count=1)
+        .on_conflict_do_update(
+            index_elements=[UsageCounter.day, UsageCounter.kind],
+            set_={"count": UsageCounter.count + 1},
+            where=UsageCounter.count < limit,
+        )
+        .returning(UsageCounter.count)
     )
     result = await db.execute(stmt)
-    counter = result.scalar_one_or_none()
+    new_count = result.scalar_one_or_none()
 
-    if not counter:
-        counter = UsageCounter(day=today, kind=kind, count=1)
-        db.add(counter)
-    else:
-        if counter.count >= limit:
-            raise APIError(
-                code="DAILY_QUOTA_EXCEEDED",
-                message=(
-                    f"Global daily {kind.upper()} limit ({limit} calls) has been reached. "
-                    "The demo is currently operating in read-only mode to prevent overage. "
-                    "Counters reset daily at midnight."
-                ),
-                status_code=429,
-            )
-        counter.count += 1
-
-    try:
-        await db.commit()
-    except IntegrityError as exc:
+    if new_count is None:
         await db.rollback()
-        stmt = (
-            select(UsageCounter)
-            .where(UsageCounter.day == today, UsageCounter.kind == kind)
-            .with_for_update()
+        slogger.warning("daily_quota_exceeded", kind=kind, count=limit, limit=limit)
+        raise APIError(
+            code="DAILY_QUOTA_EXCEEDED",
+            message=(
+                f"Global daily {kind.upper()} limit ({limit} calls) has been reached. "
+                "The demo is currently operating in read-only mode to prevent overage. "
+                "Counters reset daily at midnight."
+            ),
+            status_code=429,
         )
-        result = await db.execute(stmt)
-        counter = result.scalar_one_or_none()
-        if not counter:
-            raise
-        if counter.count >= limit:
-            raise APIError(
-                code="DAILY_QUOTA_EXCEEDED",
-                message=(
-                    f"Global daily {kind.upper()} limit ({limit} calls) has been reached. "
-                    "The demo is currently operating in read-only mode to prevent overage. "
-                    "Counters reset daily at midnight."
-                ),
-                status_code=429,
-            ) from exc
-        counter.count += 1
-        await db.commit()
 
-    return counter.count
+    await db.commit()
+    return int(new_count)
 
 
 async def check_session_image_hourly_limit(

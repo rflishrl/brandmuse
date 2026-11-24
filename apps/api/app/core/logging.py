@@ -59,7 +59,7 @@ def setup_logging(level: str = "INFO") -> None:
             getattr(logging, level.upper(), logging.INFO)
         ),
         logger_factory=structlog.PrintLoggerFactory(file=sys.stdout),
-        cache_logger_on_first_use=False,
+        cache_logger_on_first_use=True,
     )
 
 

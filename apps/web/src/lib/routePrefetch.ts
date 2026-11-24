@@ -29,8 +29,24 @@ export function prefetchRoute(path: string): void {
   });
 }
 
+interface NetworkInformationLike {
+  saveData?: boolean;
+  effectiveType?: string;
+}
+
+function isConstrainedNetwork(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const conn = (navigator as Navigator & { connection?: NetworkInformationLike }).connection;
+  if (!conn) return false;
+  return Boolean(conn.saveData) || conn.effectiveType === "slow-2g" || conn.effectiveType === "2g";
+}
+
 /** Prefetch primary tab chunks during browser idle time after initial render. */
 export function prefetchPrimaryRoutesIdle(): () => void {
+  if (isConstrainedNetwork()) {
+    return () => {};
+  }
+
   const primaryTabs: PrefetchableRoute[] = [
     "/ask",
     "/rules",

@@ -26,12 +26,6 @@ export default defineConfig({
         manualChunks: {
           "vendor-react": ["react", "react-dom", "react-router"],
           "vendor-query": ["@tanstack/react-query"],
-          "vendor-icons": ["lucide-react"],
-          "vendor-radix": [
-            "@radix-ui/react-dialog",
-            "@radix-ui/react-dropdown-menu",
-            "@radix-ui/react-slot",
-          ],
         },
       },
     },

@@ -19,7 +19,7 @@ import {
   Sliders,
 } from "lucide-react";
 import type React from "react";
-import { useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useGenerateCampaign, useGenerateImage, useRefineConcept } from "@/api/generated";
 import type { Concept } from "@/api/model";
@@ -48,6 +48,358 @@ interface GeneratedImageState {
   };
 }
 
+interface ConceptCardProps {
+  concept: Concept;
+  index: number;
+  imgState?: GeneratedImageState[number];
+  aspectRatio: string;
+  isPromptExpanded: boolean;
+  isCopiedPrompt: boolean;
+  isRefining: boolean;
+  refineErrorMsg?: string;
+  onTogglePrompt: (index: number) => void;
+  onCopyPrompt: (promptText: string, index: number) => void;
+  onAspectRatioChange: (index: number, ratio: string) => void;
+  onGenerateImage: (concept: Concept, index: number) => void;
+  onRefineSubmit: (concept: Concept, index: number, instruction: string) => Promise<boolean>;
+}
+
+const ConceptCard: React.FC<ConceptCardProps> = memo(function ConceptCard({
+  concept,
+  index,
+  imgState,
+  aspectRatio,
+  isPromptExpanded,
+  isCopiedPrompt,
+  isRefining,
+  refineErrorMsg,
+  onTogglePrompt,
+  onCopyPrompt,
+  onAspectRatioChange,
+  onGenerateImage,
+  onRefineSubmit,
+}) {
+  const [showRefine, setShowRefine] = useState(false);
+  const [refineInstruction, setRefineInstruction] = useState("");
+
+  const handleRefine = async () => {
+    const trimmed = refineInstruction.trim();
+    if (!trimmed || isRefining) return;
+    const ok = await onRefineSubmit(concept, index, trimmed);
+    if (ok) {
+      setShowRefine(false);
+      setRefineInstruction("");
+    }
+  };
+
+  const aspectClass =
+    aspectRatio === "9:16"
+      ? "aspect-[9/16]"
+      : aspectRatio === "16:9"
+        ? "aspect-[16/9]"
+        : "aspect-square";
+  const dimensions =
+    aspectRatio === "9:16"
+      ? { w: 576, h: 1024 }
+      : aspectRatio === "16:9"
+        ? { w: 1024, h: 576 }
+        : { w: 1024, h: 1024 };
+  const dimensionsLabel = `${dimensions.w}x${dimensions.h}`;
+
+  return (
+    <div className="p-6 rounded-card bg-surface border border-border flex flex-col justify-between gap-5 transition-[border-color,box-shadow] hover:border-foreground/20 hover:shadow-sm">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-2">
+          <span className="text-[11px] font-bold text-foreground/90 uppercase tracking-wider">
+            Concept 0{index + 1}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              setShowRefine((prev) => {
+                if (!prev) setRefineInstruction("");
+                return !prev;
+              });
+            }}
+            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium border transition-colors ${
+              showRefine
+                ? "bg-foreground text-background font-semibold"
+                : "border-border bg-foreground/5 hover:bg-foreground/10 text-muted-foreground hover:text-foreground"
+            }`}
+            title="Refine this concept with creative feedback"
+          >
+            <Sliders className="w-3 h-3" />
+            <span>Refine</span>
+          </button>
+        </div>
+
+        {showRefine && (
+          <div className="p-2.5 rounded-xl bg-surface-user border border-border/80 flex flex-col gap-2">
+            <label
+              htmlFor={`refine-${index}`}
+              className="text-[10px] font-semibold text-muted-foreground"
+            >
+              Creative Direction / Revision:
+            </label>
+            <div className="flex gap-1.5">
+              <input
+                id={`refine-${index}`}
+                type="text"
+                value={refineInstruction}
+                onChange={(e) => setRefineInstruction(e.target.value)}
+                placeholder="e.g. 'Punchier hook for TikTok' or 'More warm lighting'"
+                className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-surface border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    if (e.nativeEvent.isComposing || e.keyCode === 229) {
+                      return;
+                    }
+                    e.preventDefault();
+                    void handleRefine();
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                size="sm"
+                disabled={!refineInstruction.trim() || isRefining}
+                onClick={() => void handleRefine()}
+                className="px-2.5 h-8 text-xs shrink-0"
+              >
+                {isRefining ? (
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
+              </Button>
+            </div>
+            {refineErrorMsg && (
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="p-2 rounded-lg bg-danger/10 border border-danger/20 text-[11px] text-danger flex items-center gap-1.5"
+              >
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                <span>{refineErrorMsg}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        <h4 className="text-base font-bold text-foreground leading-snug">{concept.title}</h4>
+
+        <p className="text-xs text-foreground/85 leading-relaxed bg-surface-user p-3 rounded-lg border border-border/40">
+          "{concept.caption}"
+        </p>
+
+        {/* Hashtags */}
+        <div className="flex flex-wrap gap-1.5">
+          {concept.hashtags?.map((tag) => (
+            <span
+              key={tag}
+              className="text-[10px] text-foreground font-medium bg-white/[0.06] border border-white/10 px-2 py-0.5 rounded-full"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+
+        {/* Visual Art Direction */}
+        <div className="text-xs text-muted-foreground pt-1">
+          <strong className="text-foreground block mb-0.5">Art Direction:</strong>
+          {concept.visual_direction}
+        </div>
+
+        {/* Brand Rules Incorporated */}
+        {concept.brand_rules_used && concept.brand_rules_used.length > 0 && (
+          <div className="pt-2 border-t border-border/80">
+            <span className="text-[11px] font-semibold text-muted-foreground block mb-1">
+              Brand rules applied:
+            </span>
+            <div className="flex flex-wrap gap-1">
+              {concept.brand_rules_used.map((rule) => (
+                <Badge key={rule} variant="quote" className="text-[10px] py-0">
+                  {rule}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Brand Compliance Scorecard */}
+        {concept.compliance_checks && concept.compliance_checks.length > 0 && (
+          <div className="pt-2 border-t border-border/80 flex flex-col gap-1.5">
+            <span className="text-[11px] font-semibold text-muted-foreground block">
+              Compliance scorecard:
+            </span>
+            <div className="flex flex-col gap-1">
+              {concept.compliance_checks.map((check, cIdx) => (
+                <div
+                  key={cIdx}
+                  className={`flex items-start gap-1.5 p-1.5 rounded-md text-[11px] border ${
+                    check.passed
+                      ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-950 dark:text-emerald-300"
+                      : "bg-amber-500/5 border-amber-500/20 text-amber-950 dark:text-amber-300"
+                  }`}
+                >
+                  {check.passed ? (
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
+                  )}
+                  <div className="leading-tight">
+                    <span className="font-semibold mr-1">{check.category}:</span>
+                    <span className="opacity-90">{check.detail}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Collapsible Image Prompt Section */}
+        <div className="pt-2 border-t border-border/80">
+          <button
+            type="button"
+            onClick={() => onTogglePrompt(index)}
+            className="w-full flex items-center justify-between text-xs text-muted-foreground hover:text-foreground font-medium"
+          >
+            <span>Stable Diffusion prompt</span>
+            {isPromptExpanded ? (
+              <ChevronUp className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5" />
+            )}
+          </button>
+
+          {isPromptExpanded && (
+            <div className="mt-2 p-2.5 rounded-md bg-surface-user border border-border text-[11px] text-foreground font-mono leading-relaxed relative">
+              <p>{concept.image_prompt}</p>
+              <button
+                type="button"
+                onClick={() => onCopyPrompt(concept.image_prompt, index)}
+                className="mt-2 inline-flex items-center gap-1 text-[10px] text-foreground hover:underline"
+              >
+                {isCopiedPrompt ? (
+                  <>
+                    <Check className="w-3 h-3 text-success-icon" />
+                    <span>Copied prompt</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3 h-3" />
+                    <span>Copy prompt</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Image Generation Section */}
+      <div className="pt-4 border-t border-border flex flex-col gap-3">
+        {imgState?.loading ? (
+          <div className="flex flex-col items-center gap-2" aria-busy="true">
+            <Skeleton className={`w-full ${aspectClass} rounded-lg`} />
+            <span className="text-xs text-muted-foreground animate-pulse">
+              Synthesizing {dimensionsLabel} asset...
+            </span>
+          </div>
+        ) : imgState?.url ? (
+          <div className="flex flex-col gap-2">
+            <img
+              src={imgState.url}
+              alt={concept.title}
+              width={dimensions.w}
+              height={dimensions.h}
+              className={`w-full ${aspectClass} object-cover rounded-lg shadow-sm border border-border`}
+              decoding="async"
+            />
+            <div className="flex items-center justify-between pt-1">
+              <a
+                href={imgState.url}
+                target="_blank"
+                download={`brandmuse-${concept.title.toLowerCase().replace(/\s+/g, "-")}.${imgState.url.split("?")[0]?.toLowerCase().endsWith(".png") ? "png" : "webp"}`}
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-foreground font-medium hover:underline transition-colors min-h-[36px]"
+              >
+                <Download className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>Download</span>
+              </a>
+              <Link
+                to="/gallery"
+                className="text-xs text-foreground hover:underline min-h-[36px] inline-flex items-center"
+              >
+                View in Gallery
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] font-semibold text-muted-foreground">Aspect ratio:</span>
+              <div className="flex items-center gap-1 p-0.5 rounded-lg bg-surface-user border border-border">
+                {(["1:1", "9:16", "16:9"] as const).map((r) => {
+                  const active = aspectRatio === r;
+                  return (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => onAspectRatioChange(index, r)}
+                      className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
+                        active
+                          ? "bg-foreground text-background font-semibold"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      title={
+                        r === "1:1"
+                          ? "1:1 Square (Feed)"
+                          : r === "9:16"
+                            ? "9:16 Vertical (Stories / Reels / TikTok)"
+                            : "16:9 Landscape (Hero / Banner)"
+                      }
+                    >
+                      {r}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onGenerateImage(concept, index)}
+              className="w-full min-h-[44px]"
+            >
+              <ImageIcon className="w-4 h-4 mr-2 text-foreground" aria-hidden="true" />
+              Generate image asset
+            </Button>
+            {imgState?.error && (
+              <div
+                role="alert"
+                aria-live="polite"
+                className="flex items-center justify-between gap-2 text-[11px] text-danger p-2.5 bg-danger/10 rounded-md"
+              >
+                <span>{imgState.error}</span>
+                <button
+                  type="button"
+                  onClick={() => onGenerateImage(concept, index)}
+                  className="px-2 py-1 min-h-[36px] hover:underline flex items-center gap-1 shrink-0"
+                >
+                  <RotateCcw className="w-3 h-3" aria-hidden="true" />
+                  Retry
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+});
+
 export const CampaignPage: React.FC = () => {
   const queryClient = useQueryClient();
   const selectedDocumentId = useBrandStore((s) => s.selectedDocumentId);
@@ -70,52 +422,62 @@ export const CampaignPage: React.FC = () => {
   const [copiedPromptIndex, setCopiedPromptIndex] = useState<number | null>(null);
   const [showHowItWasMade, setShowHowItWasMade] = useState(false);
 
-  const [activeRefineIndex, setActiveRefineIndex] = useState<number | null>(null);
-  const [refineInstruction, setRefineInstruction] = useState("");
   const [refiningIndex, setRefiningIndex] = useState<number | null>(null);
   const [refineError, setRefineError] = useState<{ index: number; message: string } | null>(null);
   const [aspectRatios, setAspectRatios] = useState<Record<number, string>>({});
+  const aspectRatiosRef = useRef(aspectRatios);
+  aspectRatiosRef.current = aspectRatios;
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    };
+  }, []);
 
   const campaignMutation = useGenerateCampaign();
-  const imageMutation = useGenerateImage();
-  const refineMutation = useRefineConcept();
+  const { mutateAsync: generateImageAsync } = useGenerateImage();
+  const { mutateAsync: refineConceptAsync } = useRefineConcept();
 
-  const handleRefineSubmit = async (concept: Concept, index: number) => {
-    if (!selectedDocumentId || !refineInstruction.trim()) return;
+  const handleRefineSubmit = useCallback(
+    async (concept: Concept, index: number, instruction: string): Promise<boolean> => {
+      if (!selectedDocumentId || !instruction.trim()) return false;
 
-    setRefiningIndex(index);
-    setRefineError(null);
-    try {
-      const updatedConcept = await refineMutation.mutateAsync({
-        data: {
-          document_id: selectedDocumentId,
-          concept,
-          instruction: refineInstruction.trim(),
-        },
-      });
+      setRefiningIndex(index);
+      setRefineError(null);
+      try {
+        const updatedConcept = await refineConceptAsync({
+          data: {
+            document_id: selectedDocumentId,
+            concept,
+            instruction: instruction.trim(),
+          },
+        });
 
-      setConcepts((prev) => {
-        const next = [...prev];
-        next[index] = updatedConcept;
-        return next;
-      });
+        setConcepts((prev) => {
+          const next = [...prev];
+          next[index] = updatedConcept;
+          return next;
+        });
 
-      // Clear image for this revised concept since visual prompt was updated
-      setImageStates((prev) => {
-        const next = { ...prev };
-        delete next[index];
-        return next;
-      });
+        // Clear image for this revised concept since visual prompt was updated
+        setImageStates((prev) => {
+          const next = { ...prev };
+          delete next[index];
+          return next;
+        });
 
-      setActiveRefineIndex(null);
-      setRefineInstruction("");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to refine concept.";
-      setRefineError({ index, message: msg });
-    } finally {
-      setRefiningIndex(null);
-    }
-  };
+        return true;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Failed to refine concept.";
+        setRefineError({ index, message: msg });
+        return false;
+      } finally {
+        setRefiningIndex(null);
+      }
+    },
+    [selectedDocumentId, refineConceptAsync]
+  );
 
   const handleGenerateCampaign = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,68 +506,80 @@ export const CampaignPage: React.FC = () => {
     }
   };
 
-  const handleGenerateImage = async (concept: Concept, index: number) => {
-    setImageStates((prev) => ({
-      ...prev,
-      [index]: { loading: true, error: undefined },
-    }));
+  const handleGenerateImage = useCallback(
+    async (concept: Concept, index: number) => {
+      setImageStates((prev) => ({
+        ...prev,
+        [index]: { loading: true, error: undefined },
+      }));
 
-    const ratio = aspectRatios[index] || "1:1";
-    // Extract dynamic negative prompt if brand rules mention prohibited elements or donts
-    const dynamicRestrictions = (concept.brand_rules_used || [])
-      .filter((r) => /don't|no |never|prohibit|avoid/i.test(r))
-      .join(", ");
+      const ratio = aspectRatiosRef.current[index] || "1:1";
+      // Extract dynamic negative prompt if brand rules mention prohibited elements or donts
+      const dynamicRestrictions = (concept.brand_rules_used || [])
+        .filter((r) => /don't|no |never|prohibit|avoid/i.test(r))
+        .join(", ");
 
-    try {
-      const res = await imageMutation.mutateAsync({
-        data: {
-          image_prompt: concept.image_prompt,
-          concept_title: concept.title,
-          aspect_ratio: ratio,
-          negative_prompt: dynamicRestrictions || undefined,
-          concept_json: {
-            caption: concept.caption,
-            hashtags: concept.hashtags,
-            visual_direction: concept.visual_direction,
-            brand_rules_used: concept.brand_rules_used,
+      try {
+        const res = await generateImageAsync({
+          data: {
+            image_prompt: concept.image_prompt,
+            concept_title: concept.title,
             aspect_ratio: ratio,
+            negative_prompt: dynamicRestrictions || undefined,
+            concept_json: {
+              caption: concept.caption,
+              hashtags: concept.hashtags,
+              visual_direction: concept.visual_direction,
+              brand_rules_used: concept.brand_rules_used,
+              aspect_ratio: ratio,
+            },
           },
-        },
-      });
+        });
 
-      setImageStates((prev) => ({
-        ...prev,
-        [index]: { loading: false, url: res.url },
-      }));
-      queryClient.invalidateQueries({ queryKey: queryKeys.gallery.all });
-      toast.success(`Image generated for "${concept.title}"!`);
-    } catch (err: unknown) {
-      let msg = "Failed to generate image asset.";
-      if (err instanceof CustomApiError) {
-        msg =
-          err.code === "STORAGE_QUOTA_EXCEEDED"
-            ? "Demo storage quota is temporarily full. Please try again later."
-            : err.message;
-      } else if (err instanceof Error) {
-        msg = err.message;
+        setImageStates((prev) => ({
+          ...prev,
+          [index]: { loading: false, url: res.url },
+        }));
+        void queryClient.invalidateQueries({ queryKey: queryKeys.gallery.all });
+        toast.success(`Image generated for "${concept.title}"!`);
+      } catch (err: unknown) {
+        let msg = "Failed to generate image asset.";
+        if (err instanceof CustomApiError) {
+          msg =
+            err.code === "STORAGE_QUOTA_EXCEEDED"
+              ? "Demo storage quota is temporarily full. Please try again later."
+              : err.message;
+        } else if (err instanceof Error) {
+          msg = err.message;
+        }
+        setImageStates((prev) => ({
+          ...prev,
+          [index]: { loading: false, error: msg },
+        }));
+        toast.error(msg);
       }
-      setImageStates((prev) => ({
-        ...prev,
-        [index]: { loading: false, error: msg },
-      }));
-      toast.error(msg);
-    }
-  };
+    },
+    [generateImageAsync, queryClient]
+  );
 
-  const handleCopyPrompt = (promptText: string, index: number) => {
-    navigator.clipboard.writeText(promptText);
+  const handleCopyPrompt = useCallback((promptText: string, index: number) => {
+    void navigator.clipboard.writeText(promptText);
     setCopiedPromptIndex(index);
     toast.success("Campaign prompt copied!");
-    setTimeout(() => setCopiedPromptIndex(null), 2000);
-  };
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = setTimeout(() => setCopiedPromptIndex(null), 2000);
+  }, []);
+
+  const handleTogglePrompt = useCallback((index: number) => {
+    setExpandedPromptIndex((prev) => (prev === index ? null : index));
+  }, []);
+
+  const handleAspectRatioChange = useCallback((index: number, ratio: string) => {
+    setAspectRatios((prev) => ({ ...prev, [index]: ratio }));
+  }, []);
 
   return (
-    <div className="w-full flex flex-col gap-8 animate-in fade-in duration-200">
+    <div className="w-full flex flex-col gap-8">
       {/* Header */}
       <div>
         <h2 className="text-2xl font-bold tracking-tight text-foreground">Campaign Director</h2>
@@ -217,7 +591,7 @@ export const CampaignPage: React.FC = () => {
 
       {/* No Document Warning */}
       {!selectedDocumentId && (
-        <div className="p-4 rounded-card bg-surface border border-border flex items-center justify-between gap-3 shadow-xs">
+        <div className="p-4 rounded-card bg-surface border border-border flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <BookOpen className="w-5 h-5 text-foreground/80 shrink-0" />
             <p className="text-xs text-muted-foreground">
@@ -244,7 +618,7 @@ export const CampaignPage: React.FC = () => {
       )}
 
       {/* Campaign Brief Form Card */}
-      <div className="p-6 sm:p-7 rounded-card bg-surface border border-border shadow-xs">
+      <div className="p-6 sm:p-7 rounded-card bg-surface border border-border">
         <form onSubmit={handleGenerateCampaign} className="flex flex-col gap-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Product / Service */}
@@ -311,7 +685,7 @@ export const CampaignPage: React.FC = () => {
                     onClick={() => setMood(m)}
                     className={`
                       px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors
-                      ${mood === m ? "bg-foreground text-background font-semibold shadow-xs" : "bg-surface-user text-muted-foreground border-border hover:text-foreground"}
+                      ${mood === m ? "bg-foreground text-background font-semibold" : "bg-surface-user text-muted-foreground border-border hover:text-foreground"}
                     `}
                     aria-pressed={mood === m}
                   >
@@ -339,7 +713,7 @@ export const CampaignPage: React.FC = () => {
             </button>
 
             {showReferenceExamples && (
-              <div className="mt-2.5 flex flex-col gap-1.5 animate-in fade-in duration-150">
+              <div className="mt-2.5 flex flex-col gap-1.5">
                 <p className="text-[11px] text-muted-foreground">
                   Paste past winning captions, slogans, or approved copy snippets to calibrate
                   sentence rhythm and vocabulary.
@@ -400,341 +774,24 @@ export const CampaignPage: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            {concepts.map((concept, index) => {
-              const imgState = imageStates[index];
-              const isPromptExpanded = expandedPromptIndex === index;
-
-              return (
-                <div
-                  key={concept.title}
-                  className="p-6 rounded-card bg-surface border border-border shadow-xs flex flex-col justify-between gap-5 transition-all hover:border-foreground/20 hover:shadow-sm"
-                >
-                  <div className="flex flex-col gap-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <span className="text-[11px] font-bold text-foreground/90 uppercase tracking-wider">
-                        Concept 0{index + 1}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (activeRefineIndex === index) {
-                            setActiveRefineIndex(null);
-                          } else {
-                            setActiveRefineIndex(index);
-                            setRefineInstruction("");
-                          }
-                        }}
-                        className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium border transition-colors ${
-                          activeRefineIndex === index
-                            ? "bg-foreground text-background font-semibold"
-                            : "border-border bg-foreground/5 hover:bg-foreground/10 text-muted-foreground hover:text-foreground"
-                        }`}
-                        title="Refine this concept with creative feedback"
-                      >
-                        <Sliders className="w-3 h-3" />
-                        <span>Refine</span>
-                      </button>
-                    </div>
-
-                    {activeRefineIndex === index && (
-                      <div className="p-2.5 rounded-xl bg-surface-user border border-border/80 flex flex-col gap-2 animate-in fade-in duration-150">
-                        <label
-                          htmlFor={`refine-${index}`}
-                          className="text-[10px] font-semibold text-muted-foreground"
-                        >
-                          Creative Direction / Revision:
-                        </label>
-                        <div className="flex gap-1.5">
-                          <input
-                            id={`refine-${index}`}
-                            type="text"
-                            value={refineInstruction}
-                            onChange={(e) => setRefineInstruction(e.target.value)}
-                            placeholder="e.g. 'Punchier hook for TikTok' or 'More warm lighting'"
-                            className="w-full px-2.5 py-1.5 text-xs rounded-lg bg-surface border border-border text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && !e.shiftKey) {
-                                e.preventDefault();
-                                handleRefineSubmit(concept, index);
-                              }
-                            }}
-                          />
-                          <Button
-                            type="button"
-                            size="sm"
-                            disabled={!refineInstruction.trim() || refiningIndex === index}
-                            onClick={() => handleRefineSubmit(concept, index)}
-                            className="px-2.5 h-8 text-xs shrink-0"
-                          >
-                            {refiningIndex === index ? (
-                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Send className="w-3.5 h-3.5" />
-                            )}
-                          </Button>
-                        </div>
-                        {refineError?.index === index && (
-                          <div
-                            role="alert"
-                            aria-live="assertive"
-                            className="p-2 rounded-lg bg-danger/10 border border-danger/20 text-[11px] text-danger flex items-center gap-1.5"
-                          >
-                            <AlertTriangle className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                            <span>{refineError.message}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <h4 className="text-base font-bold text-foreground leading-snug">
-                      {concept.title}
-                    </h4>
-
-                    <p className="text-xs text-foreground/85 leading-relaxed bg-surface-user p-3 rounded-lg border border-border/40">
-                      "{concept.caption}"
-                    </p>
-
-                    {/* Hashtags */}
-                    <div className="flex flex-wrap gap-1.5">
-                      {concept.hashtags?.map((tag) => (
-                        <span
-                          key={tag}
-                          className="text-[10px] text-foreground font-medium bg-white/[0.06] border border-white/10 px-2 py-0.5 rounded-full"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-
-                    {/* Visual Art Direction */}
-                    <div className="text-xs text-muted-foreground pt-1">
-                      <strong className="text-foreground block mb-0.5">Art Direction:</strong>
-                      {concept.visual_direction}
-                    </div>
-
-                    {/* Brand Rules Incorporated */}
-                    {concept.brand_rules_used && concept.brand_rules_used.length > 0 && (
-                      <div className="pt-2 border-t border-border/80">
-                        <span className="text-[11px] font-semibold text-muted-foreground block mb-1">
-                          Brand rules applied:
-                        </span>
-                        <div className="flex flex-wrap gap-1">
-                          {concept.brand_rules_used.map((rule) => (
-                            <Badge key={rule} variant="quote" className="text-[10px] py-0">
-                              {rule}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Brand Compliance Scorecard */}
-                    {concept.compliance_checks && concept.compliance_checks.length > 0 && (
-                      <div className="pt-2 border-t border-border/80 flex flex-col gap-1.5">
-                        <span className="text-[11px] font-semibold text-muted-foreground block">
-                          Compliance scorecard:
-                        </span>
-                        <div className="flex flex-col gap-1">
-                          {concept.compliance_checks.map((check, cIdx) => (
-                            <div
-                              key={cIdx}
-                              className={`flex items-start gap-1.5 p-1.5 rounded-md text-[11px] border ${
-                                check.passed
-                                  ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-950 dark:text-emerald-300"
-                                  : "bg-amber-500/5 border-amber-500/20 text-amber-950 dark:text-amber-300"
-                              }`}
-                            >
-                              {check.passed ? (
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 mt-0.5 shrink-0" />
-                              ) : (
-                                <AlertCircle className="w-3.5 h-3.5 text-amber-500 mt-0.5 shrink-0" />
-                              )}
-                              <div className="leading-tight">
-                                <span className="font-semibold mr-1">{check.category}:</span>
-                                <span className="opacity-90">{check.detail}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Collapsible Image Prompt Section */}
-                    <div className="pt-2 border-t border-border/80">
-                      <button
-                        type="button"
-                        onClick={() => setExpandedPromptIndex(isPromptExpanded ? null : index)}
-                        className="w-full flex items-center justify-between text-xs text-muted-foreground hover:text-foreground font-medium"
-                      >
-                        <span>Stable Diffusion prompt</span>
-                        {isPromptExpanded ? (
-                          <ChevronUp className="w-3.5 h-3.5" />
-                        ) : (
-                          <ChevronDown className="w-3.5 h-3.5" />
-                        )}
-                      </button>
-
-                      {isPromptExpanded && (
-                        <div className="mt-2 p-2.5 rounded-md bg-surface-user border border-border text-[11px] text-foreground font-mono leading-relaxed relative">
-                          <p>{concept.image_prompt}</p>
-                          <button
-                            type="button"
-                            onClick={() => handleCopyPrompt(concept.image_prompt, index)}
-                            className="mt-2 inline-flex items-center gap-1 text-[10px] text-foreground hover:underline"
-                          >
-                            {copiedPromptIndex === index ? (
-                              <>
-                                <Check className="w-3 h-3 text-success-icon" />
-                                <span>Copied prompt</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-3 h-3" />
-                                <span>Copy prompt</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Image Generation Section */}
-                  <div className="pt-4 border-t border-border flex flex-col gap-3">
-                    {(() => {
-                      const ratio = aspectRatios[index] || "1:1";
-                      const aspectClass =
-                        ratio === "9:16"
-                          ? "aspect-[9/16]"
-                          : ratio === "16:9"
-                            ? "aspect-[16/9]"
-                            : "aspect-square";
-                      const dimensions =
-                        ratio === "9:16"
-                          ? { w: 576, h: 1024 }
-                          : ratio === "16:9"
-                            ? { w: 1024, h: 576 }
-                            : { w: 1024, h: 1024 };
-                      const dimensionsLabel = `${dimensions.w}x${dimensions.h}`;
-
-                      if (imgState?.loading) {
-                        return (
-                          <div className="flex flex-col items-center gap-2" aria-busy="true">
-                            <Skeleton className={`w-full ${aspectClass} rounded-lg`} />
-                            <span className="text-xs text-muted-foreground animate-pulse">
-                              Synthesizing {dimensionsLabel} asset...
-                            </span>
-                          </div>
-                        );
-                      }
-
-                      if (imgState?.url) {
-                        const isPng = imgState.url.split("?")[0]?.toLowerCase().endsWith(".png");
-                        const ext = isPng ? "png" : "webp";
-                        return (
-                          <div className="flex flex-col gap-2">
-                            <img
-                              src={imgState.url}
-                              alt={concept.title}
-                              width={dimensions.w}
-                              height={dimensions.h}
-                              className={`w-full ${aspectClass} object-cover rounded-lg shadow-sm border border-border`}
-                              decoding="async"
-                            />
-                            <div className="flex items-center justify-between pt-1">
-                              <a
-                                href={imgState.url}
-                                target="_blank"
-                                download={`brandmuse-${concept.title.toLowerCase().replace(/\s+/g, "-")}.${ext}`}
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1.5 text-xs text-foreground font-medium hover:underline transition-colors min-h-[36px]"
-                              >
-                                <Download className="w-3.5 h-3.5" aria-hidden="true" />
-                                <span>Download</span>
-                              </a>
-                              <Link
-                                to="/gallery"
-                                className="text-xs text-foreground hover:underline min-h-[36px] inline-flex items-center"
-                              >
-                                View in Gallery
-                              </Link>
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <>
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-[11px] font-semibold text-muted-foreground">
-                              Aspect ratio:
-                            </span>
-                            <div className="flex items-center gap-1 p-0.5 rounded-lg bg-surface-user border border-border">
-                              {(["1:1", "9:16", "16:9"] as const).map((r) => {
-                                const active = ratio === r;
-                                return (
-                                  <button
-                                    key={r}
-                                    type="button"
-                                    onClick={() =>
-                                      setAspectRatios((prev) => ({ ...prev, [index]: r }))
-                                    }
-                                    className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
-                                      active
-                                        ? "bg-foreground text-background font-semibold shadow-xs"
-                                        : "text-muted-foreground hover:text-foreground"
-                                    }`}
-                                    title={
-                                      r === "1:1"
-                                        ? "1:1 Square (Feed)"
-                                        : r === "9:16"
-                                          ? "9:16 Vertical (Stories / Reels / TikTok)"
-                                          : "16:9 Landscape (Hero / Banner)"
-                                    }
-                                  >
-                                    {r}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => handleGenerateImage(concept, index)}
-                            className="w-full min-h-[44px]"
-                          >
-                            <ImageIcon
-                              className="w-4 h-4 mr-2 text-foreground"
-                              aria-hidden="true"
-                            />
-                            Generate image asset
-                          </Button>
-                          {imgState?.error && (
-                            <div
-                              role="alert"
-                              aria-live="polite"
-                              className="flex items-center justify-between gap-2 text-[11px] text-danger p-2.5 bg-danger/10 rounded-md"
-                            >
-                              <span>{imgState.error}</span>
-                              <button
-                                type="button"
-                                onClick={() => handleGenerateImage(concept, index)}
-                                className="px-2 py-1 min-h-[36px] hover:underline flex items-center gap-1 shrink-0"
-                              >
-                                <RotateCcw className="w-3 h-3" aria-hidden="true" />
-                                Retry
-                              </button>
-                            </div>
-                          )}
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-              );
-            })}
+            {concepts.map((concept, index) => (
+              <ConceptCard
+                key={concept.title}
+                concept={concept}
+                index={index}
+                imgState={imageStates[index]}
+                aspectRatio={aspectRatios[index] || "1:1"}
+                isPromptExpanded={expandedPromptIndex === index}
+                isCopiedPrompt={copiedPromptIndex === index}
+                isRefining={refiningIndex === index}
+                refineErrorMsg={refineError?.index === index ? refineError.message : undefined}
+                onTogglePrompt={handleTogglePrompt}
+                onCopyPrompt={handleCopyPrompt}
+                onAspectRatioChange={handleAspectRatioChange}
+                onGenerateImage={handleGenerateImage}
+                onRefineSubmit={handleRefineSubmit}
+              />
+            ))}
           </div>
 
           {/* Collapsible "How this was made" section */}

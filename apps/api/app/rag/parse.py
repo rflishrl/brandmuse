@@ -51,8 +51,24 @@ async def read_and_validate_pdf_stream(file: UploadFile) -> bytes:
     return bytes(content)
 
 
-def _sync_parse_pdf(pdf_bytes: bytes) -> list[tuple[int, str]]:
-    """Synchronous CPU-bound PDF page extraction using pypdf."""
+def _detect_image_mime(image_bytes: bytes) -> str:
+    """Detect raster image MIME type from header magic bytes."""
+    if image_bytes.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if image_bytes.startswith(b"RIFF") and image_bytes[8:12] == b"WEBP":
+        return "image/webp"
+    if image_bytes.startswith((b"GIF87a", b"GIF89a")):
+        return "image/gif"
+    return "image/png"
+
+
+def _sync_parse_pdf_with_images(
+    pdf_bytes: bytes,
+    extract_sparse_images: bool = False,
+) -> tuple[list[tuple[int, str]], dict[int, bytes]]:
+    """Single-pass synchronous PDF text extraction + optional sparse-page image capture."""
     stream = io.BytesIO(pdf_bytes)
     try:
         reader = pypdf.PdfReader(stream)
@@ -72,34 +88,28 @@ def _sync_parse_pdf(pdf_bytes: bytes) -> list[tuple[int, str]]:
         )
 
     pages_data: list[tuple[int, str]] = []
-    for idx, page in enumerate(reader.pages):
-        text = page.extract_text() or ""
-        # Clean null characters that Postgres text fields reject
-        clean_text = text.replace("\x00", "")
-        pages_data.append((idx + 1, clean_text.strip()))
-
-    return pages_data
-
-
-def _extract_sparse_page_images(pdf_bytes: bytes) -> dict[int, bytes]:
-    """Find primary embedded image bytes for pages with sparse text (< 60 chars)."""
-    stream = io.BytesIO(pdf_bytes)
-    try:
-        reader = pypdf.PdfReader(stream)
-    except Exception:
-        return {}
-
     sparse_images: dict[int, bytes] = {}
     for idx, page in enumerate(reader.pages):
-        text = (page.extract_text() or "").replace("\x00", "").strip()
-        if len(text) < 60:
+        text = page.extract_text() or ""
+        clean_text = text.replace("\x00", "").strip()
+        page_num = idx + 1
+        pages_data.append((page_num, clean_text))
+
+        if extract_sparse_images and len(clean_text) < 60:
             try:
                 images = getattr(page, "images", [])
                 if images and len(images) > 0:
-                    sparse_images[idx + 1] = images[0].data
+                    sparse_images[page_num] = images[0].data
             except Exception:
                 pass
-    return sparse_images
+
+    return pages_data, sparse_images
+
+
+def _sync_parse_pdf(pdf_bytes: bytes) -> list[tuple[int, str]]:
+    """Synchronous CPU-bound PDF text extraction wrapper."""
+    pages_data, _ = _sync_parse_pdf_with_images(pdf_bytes, extract_sparse_images=False)
+    return pages_data
 
 
 async def parse_pdf_pages(
@@ -107,10 +117,14 @@ async def parse_pdf_pages(
     timeout_seconds: float = 30.0,
     enable_vision: bool = True,
 ) -> list[tuple[int, str]]:
-    """Parse PDF bytes asynchronously with timeout and multimodal vision OCR fallback."""
+    """Parse PDF bytes in a single pass with timeout and concurrent multimodal OCR fallback."""
+    should_extract_images = enable_vision and bool(
+        settings.GEMINI_API_KEY or settings.OPENAI_API_KEY
+    )
+
     try:
-        pages_data = await asyncio.wait_for(
-            asyncio.to_thread(_sync_parse_pdf, pdf_bytes),
+        pages_data, sparse_images = await asyncio.wait_for(
+            asyncio.to_thread(_sync_parse_pdf_with_images, pdf_bytes, should_extract_images),
             timeout=timeout_seconds,
         )
     except TimeoutError as exc:
@@ -120,30 +134,35 @@ async def parse_pdf_pages(
             status_code=408,
         ) from exc
 
-    if not enable_vision or not (settings.GEMINI_API_KEY or settings.OPENAI_API_KEY):
-        return pages_data
-
-    # Enrich sparse pages with multimodal OCR if diagrams/images exist
-    sparse_pages = [p for p in pages_data if len(p[1]) < 60]
-    if not sparse_pages:
+    if not sparse_images:
         return pages_data
 
     try:
-        sparse_images = await asyncio.to_thread(_extract_sparse_page_images, pdf_bytes)
-        if not sparse_images:
+        sem = asyncio.Semaphore(4)
+
+        async def _ocr_page(page_num: int, img_bytes: bytes) -> tuple[int, str]:
+            async with sem:
+                mime = _detect_image_mime(img_bytes)
+                transcription = await extract_text_from_image_bytes(img_bytes, mime_type=mime)
+                return page_num, transcription
+
+        ocr_results = await asyncio.gather(
+            *(_ocr_page(page_num, img_bytes) for page_num, img_bytes in sparse_images.items())
+        )
+        transcriptions = {page_num: text for page_num, text in ocr_results if text}
+        if not transcriptions:
             return pages_data
 
         enriched_pages: list[tuple[int, str]] = []
         for page_num, text in pages_data:
-            if page_num in sparse_images:
-                transcription = await extract_text_from_image_bytes(sparse_images[page_num])
-                if transcription:
-                    enriched_text = (
-                        f"{text}\n\n[Visual Brand Elements / Diagram OCR]:\n{transcription}".strip()
-                    )
-                    enriched_pages.append((page_num, enriched_text))
-                    continue
-            enriched_pages.append((page_num, text))
+            transcription = transcriptions.get(page_num)
+            if transcription:
+                enriched_text = (
+                    f"{text}\n\n[Visual Brand Elements / Diagram OCR]:\n{transcription}".strip()
+                )
+                enriched_pages.append((page_num, enriched_text))
+            else:
+                enriched_pages.append((page_num, text))
         return enriched_pages
     except Exception as exc:
         logger.warning("Vision OCR fallback encountered an error, using base text: %s", exc)

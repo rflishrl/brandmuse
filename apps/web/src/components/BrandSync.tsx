@@ -11,6 +11,7 @@ export const BrandSync: React.FC = () => {
   const setDocuments = useBrandStore((s) => s.setDocuments);
   const setIsLoadingDocuments = useBrandStore((s) => s.setIsLoadingDocuments);
   const setServerStatus = useBrandStore((s) => s.setServerStatus);
+  const setRefetchHealth = useBrandStore((s) => s.setRefetchHealth);
   const setRefetchDocuments = useBrandStore((s) => s.setRefetchDocuments);
   const setLoadSampleBrandFn = useBrandStore((s) => s.setLoadSampleBrandFn);
   const setIsLoadingSample = useBrandStore((s) => s.setIsLoadingSample);
@@ -40,6 +41,7 @@ export const BrandSync: React.FC = () => {
     isLoading: isHealthLoading,
     isFetching: isHealthFetching,
     isError: isHealthError,
+    refetch: refetchHealthQuery,
   } = useGetHealth({
     query: {
       retry: 3,
@@ -48,6 +50,12 @@ export const BrandSync: React.FC = () => {
       refetchOnWindowFocus: false,
     },
   });
+
+  useEffect(() => {
+    setRefetchHealth(() => {
+      void refetchHealthQuery();
+    });
+  }, [refetchHealthQuery, setRefetchHealth]);
 
   // Track if backend is taking longer than 2s to wake up
   useEffect(() => {
@@ -93,17 +101,17 @@ export const BrandSync: React.FC = () => {
     });
   }, [refetchDocs, setRefetchDocuments]);
 
-  // Sample brand mutation
-  const sampleBrandMutation = useLoadSampleBrand();
+  // Sample brand mutation: destructure stable mutateAsync to prevent Zustand cascade re-renders
+  const { mutateAsync: loadSampleAsync, isPending: isSamplePending } = useLoadSampleBrand();
 
   useEffect(() => {
-    setIsLoadingSample(sampleBrandMutation.isPending);
-  }, [sampleBrandMutation.isPending, setIsLoadingSample]);
+    setIsLoadingSample(isSamplePending);
+  }, [isSamplePending, setIsLoadingSample]);
 
   useEffect(() => {
     const handleLoadSampleBrand = async (): Promise<DocumentResponse | undefined> => {
       try {
-        const result = await sampleBrandMutation.mutateAsync();
+        const result = await loadSampleAsync();
         const refetchRes = await refetchDocs();
         const docs = refetchRes.data?.documents || [];
         if (result?.document?.id) {
@@ -119,7 +127,7 @@ export const BrandSync: React.FC = () => {
       }
     };
     setLoadSampleBrandFn(handleLoadSampleBrand);
-  }, [sampleBrandMutation, refetchDocs, setSelectedDocumentId, setLoadSampleBrandFn]);
+  }, [loadSampleAsync, refetchDocs, setSelectedDocumentId, setLoadSampleBrandFn]);
 
   return null;
 };

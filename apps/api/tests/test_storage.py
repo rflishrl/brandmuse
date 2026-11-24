@@ -70,11 +70,14 @@ async def test_upload_image_variants_to_r2_success() -> None:
         assert total_bytes == len(b"full-webp") + len(b"thumb-webp")
         assert mock_s3.put_object.call_count == 2
 
-        first_call = mock_s3.put_object.call_args_list[0].kwargs
-        assert first_call["Bucket"] == "brandmuse"
-        assert first_call["Key"] == stored_key
-        assert first_call["ContentType"] == "image/webp"
-        assert first_call["CacheControl"] == IMMUTABLE_CACHE_CONTROL
+        calls_by_key = {
+            call.kwargs["Key"]: call.kwargs for call in mock_s3.put_object.call_args_list
+        }
+        assert stored_key in calls_by_key
+        full_call = calls_by_key[stored_key]
+        assert full_call["Bucket"] == "brandmuse"
+        assert full_call["ContentType"] == "image/webp"
+        assert full_call["CacheControl"] == IMMUTABLE_CACHE_CONTROL
 
 
 @pytest.mark.asyncio
@@ -129,7 +132,10 @@ def test_public_media_url_and_variant_url() -> None:
     """Verify public_media_url and media_variant_url handle keys, legacy URLs, and whitelists."""
     with patch.object(settings, "R2_PUBLIC_URL", "https://media.example.com/"):
         key = "brandmuse/generations/abc123/item.webp"
-        assert public_media_url(key) == "https://media.example.com/brandmuse/generations/abc123/item.webp"
+        assert (
+            public_media_url(key)
+            == "https://media.example.com/brandmuse/generations/abc123/item.webp"
+        )
         assert (
             media_variant_url(key, 480)
             == "https://media.example.com/brandmuse/generations/abc123/item-thumb.webp"

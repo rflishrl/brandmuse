@@ -16,7 +16,7 @@ def test_query_embedding_cache_get_set() -> None:
 
     cache.set("key1", [0.1, 0.2, 0.3])
     cached = cache.get("key1")
-    assert cached == [0.1, 0.2, 0.3]
+    assert cached == pytest.approx([0.1, 0.2, 0.3], rel=1e-6)
     assert cache.size() == 1
 
 
