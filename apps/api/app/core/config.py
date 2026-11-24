@@ -173,9 +173,7 @@ class Settings(BaseSettings):
                 )
         else:
             if prefix.endswith("-dev"):
-                raise ValueError(
-                    "Production environment must not use a '-dev' R2_KEY_PREFIX."
-                )
+                raise ValueError("Production environment must not use a '-dev' R2_KEY_PREFIX.")
             if not self.MEDIA_OWNER_SECRET:
                 raise ValueError(
                     "MEDIA_OWNER_SECRET must be set in production when R2 storage is active."
