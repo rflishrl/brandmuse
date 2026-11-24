@@ -5,6 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.rate_limit import exempt_rate_limit
 from app.db.session import get_db
 from app.schemas.health import HealthResponse
 
@@ -19,6 +20,7 @@ settings = get_settings()
     summary="Service Health Check",
     description="Returns current server status, active provider names, and database connectivity.",
 )
+@exempt_rate_limit
 async def check_health(db: AsyncSession = Depends(get_db)) -> HealthResponse:
     """Check database ping and provider status."""
     db_status = "connected"

@@ -25,15 +25,15 @@ export class CustomApiError extends Error {
   code: string;
   status: number;
 
-  constructor(status: number, code: string, message: string) {
-    super(message);
+  constructor(status: number, code: string, message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = "CustomApiError";
     this.status = status;
     this.code = code;
   }
 }
 
-function getBaseUrl(): string {
+const API_BASE_URL: string = (() => {
   try {
     if (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) {
       return import.meta.env.VITE_API_URL;
@@ -42,18 +42,18 @@ function getBaseUrl(): string {
   } catch {
     return "";
   }
-}
+})();
 
 /**
  * Custom fetch mutator for Orval generated client.
- * Injects X-Session-Id header, applies a 90s request timeout, and connects to VITE_API_URL.
+ * Injects X-Session-Id header, applies a 90s request timeout via AbortSignal.timeout/any,
+ * and connects to VITE_API_URL.
  */
 export const customInstance = async <T>(
   config: MutatorConfig,
   options?: RequestInit
 ): Promise<T> => {
-  const baseUrl = getBaseUrl();
-  let fullUrl = `${baseUrl}${config.url}`;
+  let fullUrl = `${API_BASE_URL}${config.url}`;
 
   if (config.params) {
     const searchParams = new URLSearchParams();
@@ -85,22 +85,10 @@ export const customInstance = async <T>(
   }
 
   const callerSignal = config.signal || options?.signal;
-  const controller = new AbortController();
-  let timedOut = false;
-
-  const onCallerAbort = () => controller.abort();
-  if (callerSignal) {
-    if (callerSignal.aborted) {
-      controller.abort();
-    } else {
-      callerSignal.addEventListener("abort", onCallerAbort, { once: true });
-    }
-  }
-
-  const timeoutId = setTimeout(() => {
-    timedOut = true;
-    controller.abort();
-  }, DEFAULT_REQUEST_TIMEOUT_MS);
+  const timeoutSignal = AbortSignal.timeout(DEFAULT_REQUEST_TIMEOUT_MS);
+  const requestSignal = callerSignal
+    ? AbortSignal.any([callerSignal, timeoutSignal])
+    : timeoutSignal;
 
   let response: Response;
   try {
@@ -109,14 +97,15 @@ export const customInstance = async <T>(
       method: config.method,
       headers,
       body,
-      signal: controller.signal,
+      signal: requestSignal,
     });
   } catch (err) {
-    if (timedOut) {
+    if (err instanceof DOMException && err.name === "TimeoutError") {
       throw new CustomApiError(
         504,
         "SERVER_WARMING_UP",
-        "Demo server is waking up (Render Free Tier). Please try again in a few seconds."
+        "Demo server is waking up (Render Free Tier). Please try again in a few seconds.",
+        { cause: err }
       );
     }
     if (callerSignal?.aborted) {
@@ -125,11 +114,9 @@ export const customInstance = async <T>(
     throw new CustomApiError(
       503,
       "SERVER_UNREACHABLE",
-      "Demo server is waking up or unreachable. Please try again shortly."
+      "Demo server is waking up or unreachable. Please try again shortly.",
+      { cause: err }
     );
-  } finally {
-    clearTimeout(timeoutId);
-    callerSignal?.removeEventListener("abort", onCallerAbort);
   }
 
   if (!response.ok) {

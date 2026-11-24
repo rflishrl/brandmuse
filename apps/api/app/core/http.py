@@ -19,7 +19,7 @@ def get_http_client() -> httpx.AsyncClient:
         _shared_client = httpx.AsyncClient(
             limits=limits,
             timeout=httpx.Timeout(30.0, connect=10.0),
-            follow_redirects=True,
+            follow_redirects=False,
         )
     return _shared_client
 

@@ -51,6 +51,8 @@ async def ensure_sample_brand_seeded(
                 status_code=404,
             )
 
+        # Release read transaction before disk I/O, PDF parsing, and embedding API calls
+        await db.rollback()
         pdf_bytes = await asyncio.to_thread(sample_path.read_bytes)
 
         try:

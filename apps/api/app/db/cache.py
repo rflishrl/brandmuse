@@ -21,6 +21,7 @@ class DocumentMetadataCache:
         self._doc_cache: OrderedDict[str, tuple[float, dict[str, Any]]] = OrderedDict()
         self._ontology_cache: OrderedDict[str, tuple[float, dict[str, Any] | None]] = OrderedDict()
         self._ontology_prompt_cache: OrderedDict[str, tuple[float, str]] = OrderedDict()
+        self._sample_ontology_resp_cache: OrderedDict[str, tuple[float, Any]] = OrderedDict()
 
     def get_document(self, document_id: uuid.UUID) -> dict[str, Any] | None:
         key = str(document_id)
@@ -47,6 +48,7 @@ class DocumentMetadataCache:
         self._doc_cache.pop(key, None)
         self._ontology_cache.pop(key, None)
         self._ontology_prompt_cache.pop(key, None)
+        self._sample_ontology_resp_cache.pop(key, None)
 
     def get_ontology(self, document_id: uuid.UUID) -> tuple[bool, dict[str, Any] | None]:
         """Return (is_cached, cached_data).
@@ -93,15 +95,37 @@ class DocumentMetadataCache:
         if len(self._ontology_prompt_cache) > self.maxsize:
             self._ontology_prompt_cache.popitem(last=False)
 
+    def get_sample_ontology_response(self, document_id: uuid.UUID) -> Any | None:
+        key = str(document_id)
+        now = time.time()
+        if key in self._sample_ontology_resp_cache:
+            ts, payload = self._sample_ontology_resp_cache[key]
+            if now - ts < self.ttl:
+                self._sample_ontology_resp_cache.move_to_end(key)
+                return payload
+            del self._sample_ontology_resp_cache[key]
+        return None
+
+    def set_sample_ontology_response(self, document_id: uuid.UUID, payload: Any) -> None:
+        key = str(document_id)
+        now = time.time()
+        if key in self._sample_ontology_resp_cache:
+            self._sample_ontology_resp_cache.move_to_end(key)
+        self._sample_ontology_resp_cache[key] = (now, payload)
+        if len(self._sample_ontology_resp_cache) > self.maxsize:
+            self._sample_ontology_resp_cache.popitem(last=False)
+
     def invalidate_ontology(self, document_id: uuid.UUID) -> None:
         key = str(document_id)
         self._ontology_cache.pop(key, None)
         self._ontology_prompt_cache.pop(key, None)
+        self._sample_ontology_resp_cache.pop(key, None)
 
     def clear(self) -> None:
         self._doc_cache.clear()
         self._ontology_cache.clear()
         self._ontology_prompt_cache.clear()
+        self._sample_ontology_resp_cache.clear()
 
 
 _db_cache = DocumentMetadataCache()

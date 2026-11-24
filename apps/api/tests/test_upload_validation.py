@@ -158,4 +158,5 @@ async def test_ensure_sample_brand_seeded_handles_concurrent_integrity_error() -
 
     assert doc.id == winner_doc.id
     assert chunk_count == 0
-    mock_db.rollback.assert_awaited_once()
+    # Once before file I/O to release the pooled connection, once on IntegrityError recovery
+    assert mock_db.rollback.await_count == 2

@@ -1,4 +1,5 @@
 import type React from "react";
+import { memo } from "react";
 
 interface BrandMuseOrbProps {
   size?: number;
@@ -15,12 +16,12 @@ interface BrandMuseOrbProps {
  * Right Wing Apex: (37.5, 20.5)
  * Left Wing Apex: (10.5, 27.5)
  */
-export const BrandMuseOrb: React.FC<BrandMuseOrbProps> = ({
+export const BrandMuseOrb: React.FC<BrandMuseOrbProps> = memo(function BrandMuseOrb({
   size = 28,
   className = "",
   animate = false,
   glow = false,
-}) => {
+}) {
   return (
     <div className={`relative inline-flex items-center justify-center shrink-0 ${className}`}>
       {glow && (
@@ -48,6 +49,6 @@ export const BrandMuseOrb: React.FC<BrandMuseOrbProps> = ({
       </svg>
     </div>
   );
-};
+});
 
 export default BrandMuseOrb;

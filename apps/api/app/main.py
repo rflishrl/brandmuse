@@ -1,11 +1,9 @@
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import Limiter
 from slowapi.middleware import SlowAPIASGIMiddleware
-from slowapi.util import get_remote_address
 from starlette.middleware.gzip import GZipMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -13,28 +11,13 @@ from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.http import close_http_client, get_http_client
 from app.core.logging import setup_logging
+from app.core.rate_limit import get_client_ip, limiter
 from app.db.session import close_db
 from app.routers import admin, campaign, chat, documents, health, images, ontology
 
+__all__ = ["app", "create_app", "get_client_ip", "limiter"]
+
 settings = get_settings()
-
-
-def get_client_ip(request: Request) -> str:
-    """Extract client IP respecting Cloudflare and reverse-proxy headers with fallback."""
-    cf_ip = request.headers.get("CF-Connecting-IP")
-    if cf_ip and cf_ip.strip():
-        return cf_ip.strip()
-    x_forwarded = request.headers.get("X-Forwarded-For")
-    if x_forwarded and x_forwarded.strip():
-        return x_forwarded.split(",")[0].strip()
-    return get_remote_address(request)
-
-
-# Initialize IP-based rate limiter with reverse-proxy support
-limiter = Limiter(
-    key_func=get_client_ip,
-    default_limits=[f"{settings.RATE_LIMIT_PER_MINUTE}/minute"],
-)
 
 
 class SecurityHeadersMiddleware:

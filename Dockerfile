@@ -42,4 +42,4 @@ USER appuser
 EXPOSE 10000
 
 # Start Uvicorn bound to dynamic PORT (defaults to 10000 for Render, allows override)
-CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000} --proxy-headers --forwarded-allow-ips='*'"]
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000} --proxy-headers --forwarded-allow-ips='*' --no-access-log --no-server-header --ws none --limit-concurrency 64 --timeout-keep-alive 30"]

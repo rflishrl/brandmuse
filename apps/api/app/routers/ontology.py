@@ -1,11 +1,12 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends, Path, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.errors import APIError
 from app.core.security import get_session_id
+from app.db.cache import get_db_cache
 from app.db.models import Document
 from app.db.repositories import DocumentRepository, OntologyRepository
 from app.db.session import get_db
@@ -98,11 +99,18 @@ async def extract_ontology(
     description="Retrieves the structured ontology and certified brand rules.",
 )
 async def get_ontology(
+    response: Response,
     document_id: uuid.UUID = Path(..., description="Target document ID"),
     session_id: uuid.UUID = Depends(get_session_id),
     db: AsyncSession = Depends(get_db),
 ) -> BrandOntologyResponse:
-    """Get the current brand ontology for a document."""
+    """Get the current brand ontology for a document, with fast-path caching for sample docs."""
+    cache = get_db_cache()
+    cached_sample_resp = cache.get_sample_ontology_response(document_id)
+    if isinstance(cached_sample_resp, BrandOntologyResponse):
+        response.headers["Cache-Control"] = "public, max-age=3600"
+        return cached_sample_resp
+
     doc = await _get_document_or_404(db, document_id, session_id, for_mutation=False)
 
     record = await OntologyRepository.get_by_document_id(db, document_id)
@@ -118,7 +126,7 @@ async def get_ontology(
             status_code=404,
         )
 
-    return BrandOntologyResponse(
+    payload = BrandOntologyResponse(
         id=record.id,
         document_id=record.document_id,
         is_certified=record.is_certified,
@@ -128,6 +136,14 @@ async def get_ontology(
         updated_at=record.updated_at,
         ontology=BrandOntologyData(**record.ontology_data),
     )
+
+    if doc.is_sample:
+        cache.set_sample_ontology_response(document_id, payload)
+        response.headers["Cache-Control"] = "public, max-age=3600"
+    else:
+        response.headers["Cache-Control"] = "private, no-cache"
+
+    return payload
 
 
 @router.put(

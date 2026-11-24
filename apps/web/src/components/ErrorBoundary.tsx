@@ -48,10 +48,10 @@ export class ErrorBoundary extends Component<Props, State> {
         <div
           role="alert"
           aria-live="assertive"
-          className="w-full min-h-[400px] flex items-center justify-center p-6 animate-in fade-in duration-200"
+          className="w-full min-h-[400px] flex items-center justify-center p-6"
         >
           <div className="w-full max-w-lg p-6 sm:p-8 rounded-card bg-surface border border-danger/30 shadow-card flex flex-col items-center text-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-danger/10 border border-danger/20 flex items-center justify-center text-danger shrink-0 shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-danger/10 border border-danger/20 flex items-center justify-center text-danger shrink-0">
               <AlertTriangle className="w-6 h-6" aria-hidden="true" />
             </div>
 

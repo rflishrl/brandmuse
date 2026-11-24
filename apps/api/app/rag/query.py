@@ -1,5 +1,7 @@
 import re
 
+_WORD_RE = re.compile(r"\b\w+\b")
+
 BRAND_SYNONYM_MAP: dict[str, list[str]] = {
     # Indonesian & colloquial keywords to guideline domain terminology
     "warna": ["color", "palette", "hex"],
@@ -89,7 +91,7 @@ def expand_query_for_retrieval(query_text: str) -> str:
     if not clean_text:
         return query_text
 
-    tokens = re.findall(r"\b\w+\b", clean_text.lower())
+    tokens = _WORD_RE.findall(clean_text.lower())
     expanded_terms: list[str] = []
 
     for token in tokens:
@@ -115,7 +117,7 @@ def build_fts_query_expression(query_text: str) -> str:
     if not clean_text:
         return query_text
 
-    tokens = re.findall(r"\b\w+\b", clean_text.lower())
+    tokens = _WORD_RE.findall(clean_text.lower())
     if not tokens:
         return clean_text
 

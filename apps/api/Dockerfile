@@ -48,4 +48,4 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=5s --retries=3 \
   CMD python -c "import urllib.request, os; urllib.request.urlopen('http://localhost:' + os.environ.get('PORT', '10000') + '/api/health').read()" || exit 1
 
 # Start Uvicorn bound to dynamic PORT (defaults to 10000 for Render, allows override)
-CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000} --proxy-headers --forwarded-allow-ips='*'"]
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-10000} --proxy-headers --forwarded-allow-ips='*' --no-access-log --no-server-header --ws none --limit-concurrency 64 --timeout-keep-alive 30"]

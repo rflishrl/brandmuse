@@ -1,10 +1,10 @@
 import { Info, X } from "lucide-react";
 import type React from "react";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 
 const STORAGE_KEY = "brandmuse:demo_limits_dismissed";
 
-export const DemoLimitsBanner: React.FC = () => {
+export const DemoLimitsBanner: React.FC = memo(function DemoLimitsBanner() {
   const [dismissed, setDismissed] = useState(true); // default true to avoid flash
 
   useEffect(() => {
@@ -31,7 +31,7 @@ export const DemoLimitsBanner: React.FC = () => {
     <div
       role="region"
       aria-label="Demo limits notice"
-      className="flex items-center justify-between gap-3 px-4 py-2 rounded-full bg-foreground/[0.04] border border-border dark:border-white/10 text-[11px] text-muted-foreground backdrop-blur-md max-w-xl mx-auto transition-all duration-200"
+      className="flex items-center justify-between gap-3 px-4 py-2 rounded-full bg-foreground/[0.04] border border-border dark:border-white/10 text-[11px] text-muted-foreground backdrop-blur-md max-w-xl mx-auto transition-colors duration-200"
     >
       <div className="flex items-center gap-2">
         <Info className="w-3.5 h-3.5 text-foreground/80 shrink-0" aria-hidden="true" />
@@ -50,4 +50,4 @@ export const DemoLimitsBanner: React.FC = () => {
       </button>
     </div>
   );
-};
+});
